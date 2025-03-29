@@ -1,0 +1,24 @@
+# General Logs & Temp Files
+*.log
+tmp/
+temp/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Tasker Backups (Adjust path if needed)
+# Tasker/backups/
+
+# Node.js (If used later)
+# node_modules/
+# npm-debug.log*
+# yarn-debug.log*
+# yarn-error.log*
+
+# KLWP/KWGT Auto Backups (If applicable, check patterns)
+# Might be within Kustom/backups or similar
+
+# Personal Files / Sensitive Info (Example)
+# .env
+# credentials.json
