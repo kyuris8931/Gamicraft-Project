@@ -35,8 +35,8 @@ This project is currently under active development by a solo developer. The core
 
 ## Join Us!
 
-* **YouTube (Gamicraft):** (https://www.youtube.com/@Gamicrafter) - See module demos and system creation.
-* **Discord:** (https://discord.gg/aSNFNk4g) - Join the community, see dev logs, share ideas!
+* **[YouTube (Gamicraft)](https://www.youtube.com/@Gamicrafter):** - See module demos and system creation.
+* **[Discord](https://discord.gg/aSNFNk4g):** - Join the community, see dev logs, share ideas!
 
 ## How to Use / Contribute (Placeholder)
 
