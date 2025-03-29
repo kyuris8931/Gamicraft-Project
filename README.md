@@ -2,7 +2,6 @@
 
 [![Discord](https://img.shields.io/discord/YOUR_DISCORD_INVITE_ID?label=Discord&logo=discord&style=for-the-badge)](https://discord.gg/XKSGMq9U)
 [![YouTube Channel](https://img.shields.io/badge/YouTube-Gamicraft-red?logo=youtube&style=for-the-badge)](https://www.youtube.com/@Gamicrafter)
-[![Medium Blog](https://img.shields.io/badge/Medium-Blog-black?logo=medium&style=for-the-badge)](YOUR_MEDIUM_LINK)
 
 **Tagline:** "Modular Gamification Systems"
 
