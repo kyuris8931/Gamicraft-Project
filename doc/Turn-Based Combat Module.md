@@ -1,92 +1,95 @@
-# ⚙️ Turn-Based Combat Module (Draft 2.0 - March 31, 2025)
+# 🏹 Turn-Based Combat Module
 
-## **1. Module Overview & Concepts**
+## 📜 Section 1: Module Overview & Concepts
+**(Version: Draft 2.0 - Date: March 31, 2025)**
 
-### **1.1. 🎮 Module Purpose within Gamicraft**
+### 🎯 1.1. Module Purpose within Gamicraft
+The **Turn-Based Combat module** remains a core interactive gameplay component for the **Gamicraft framework** 📦 [source: 1, 13]. It provides users with **short, engaging battle sessions** where their **main character (Kyuris)** and collected **heroes** face various opponents.
 
-The **Turn-Based Combat** module is a core interactive component of the Gamicraft framework. It enables users to engage in **quick, strategic battles** using their main character (**Kyuris**) and collected heroes. Battles serve as a key way to:
+🔹 **Purpose & Integration:**
+- Battles allow players to **utilize their collected heroes** (obtained via the **Gacha system** 🎰 [source: 4, 239]).
+- Players **manage combat resources** like **Skill Points (SP)** and **Gauge**.
+- Battles **reward players** with in-game items, real-life benefits, or progression 📈.
+- Designed for quick play sessions, typically **under 3 minutes** ⏳, to integrate smoothly into daily life [source: 5, 115].
 
-- Utilize collected heroes (obtained via the **Gacha system** 🎰).
-    
-- Manage combat resources like **Skill Points (SP)** ⚖️.
-    
-- Earn diverse rewards (**in-game resources, real-life treats, and progress** 🌟).
-    
+---
 
-### **1.2. ♻️ Core Gameplay Loop**
+### 🔄 1.2. Core Gameplay Loop
 
-- **🎯 Turn Structure:** Battles proceed in turns within rounds, determined by `TurnOrder`.
-    
-- **🗨️ Action Economy:** The active unit can perform **one primary action** per turn:
-    
-    - 🏰 **Basic Attack:** Generates `SP` for the team.
-        
-    - 🔮 **Skill:** A hero-specific move consuming `SP`.
-        
-    - ✨ **Ultimate:** A powerful move unlocked when `Gauge` is full.
-        
-- **🛠️ Resource Management:** Players must balance the **shared Team SP pool** and individual **Hero Gauge accumulation**.
-    
-- **⏳ Round Progression:** When all units have acted (`Status = "End"`), the round concludes, and `TurnOrder` is reshuffled.
-    
-- **⚔️ Win/Lose Condition:** The battle ends when all units of either the **Ally** or **Enemy** side reach `HP <= 0`.
-    
+#### 🏆 **Turn Structure:**
+- Battles proceed in **turns** within **rounds**.
+- Units act based on **calculated TurnOrder** [source: 7].
 
-### **1.3. ⚡ Key Mechanics**
+#### ⚔️ **Action Economy:**
+Each unit performs **one primary action per turn:**
+- **Basic Attack**: Standard action that **generates Skill Points (SP)**.
+- **Skill**: Unique hero ability (or Kyuris's random skill), usually **consumes SP**.
+- **Ultimate**: A **powerful move** available when **Gauge is full**, potentially interrupting turn order ⚡.
 
-- **🎨 Pseudo-Position System:** No grid; positioning is determined by **relative offsets** (`PseudoPos: 0, +/-1, +/-2`).
-    
-- **⚖️ SP System:** **Basic Attacks generate SP**, while **Skills consume SP**, requiring **teamwide tactical planning**.
-    
-- **⏳ Gauge & Ultimate System:**
-    
-    - **Heroes build** `**Gauge**` through actions (attacking, taking damage, effects).
-        
-    - A full `Gauge` unlocks a **unique Ultimate move** ✨.
-        
-- **🤖 Technique System:**
-    
-    - **Before battle**, Kyuris can **activate one Technique** for a tactical advantage (e.g., bonus SP, enemy debuffs).
-        
-    - **Consumes** `**Technique Points (TP)**`, which regenerate via real-life activities.
-        
-- **🔄 Kyuris (Main Character) Unique Abilities:**
-    
-    - **Adaptive Skill Mimicry** ✨: Each round, Kyuris gets a **random active Skill** from their known pool.
-        
-    - **Summoner Ultimate** 🐉: Calls an allied Gacha hero into battle.
-        
-    - **Commander Role (Talent):** Special abilities affecting **allies and team synergy**.
-        
-    - **Inventory Access** 🎒: Use `LifeUp` consumables **without consuming a turn**.
-        
-- **📊 Stats & Growth:**
-    
-    - **Heroes' growth follows a global Gamicraft formula**.
-        
-    - **Kyuris' stats improve via real-life exercise** 🏃.
-        
-- **🧑‍💻 Integration with Gamicraft:**
-    
-    - **Hero Cooldowns** ⏳: **Summoned heroes enter cooldown** after Ultimate use.
-        
-    - **Real-life tied progression**: **Techniques, LifeUp rewards, and hero power scaling** are linked to real-world actions.
-        
+#### 📊 **Resource Management:**
+- Players manage a **shared Team SP pool** (balance generation & consumption).
+- Heroes accumulate **Gauge** to unleash **Ultimate abilities**.
 
-## **2. 🚀 Future Features & Expansions**
+#### 🔄 **Round Progression:**
+- When all units act (**Status = "End"**), the round **resets**.
+- TurnOrder **reshuffles** before the next round.
+- Kyuris’s **active Skill is randomized** at the start of each round 🎲.
 
-Next steps for improving the Turn-Based Combat module:
+#### ⚡ **Win/Lose Condition:**
+- **Battle ends** when all units of either **"Ally" or "Enemy"** type are defeated (**HP ≤ 0**).
+- Updates the **global BattleState** [source: 11].
 
-- 🔍 **Expand Skill Types & Triggers.**
-    
-- 💎 **Hero Ascension System** using Gacha duplicates.
-    
-- 🌍 **Environmental Effects** & Tile-based interactions.
-    
-- 🤖 **Smarter Enemy AI** with `SP/Gauge` tactics.
-    
-- 🛠️ **Advanced Status Effects** & Buff mechanics.
-    
-- ☁ **Real-Life Event Triggers** (e.g., weather-based hero boosts ☀️🌧️).
-    
-- 🔬 **Refined Kyuris Skill Learning** based on achievements.
+---
+
+### 🛠️ 1.3. Key Mechanics within this Module
+
+#### 🔷 **Pseudo-Position System:**
+- **No grid-based movement**, instead uses **relative offsets (PseudoPos)** (e.g., `0, +/-1, +/-2`) [source: 13-14, 86, 119].
+- Allows **range-based skills & positioning tactics**.
+
+#### 🔥 **Skill Point (SP) System:**
+- A **shared resource** for the team (**max 4-5 SP**).
+- **Basic Attacks generate SP**, most **Skills consume SP**.
+- Encourages **tactical resource management**.
+
+#### ⚡ **Gauge & Ultimate System:**
+- Heroes accumulate **Gauge** through **actions & damage taken**.
+- When full, heroes can unleash their **Ultimate** 🔥.
+
+#### 🎓 **Technique System:**
+- Before battle, **Kyuris selects a Technique** (one-time advantage).
+- Techniques **cost Technique Points (TP)**, regenerated via real-life progress 🎖️.
+- Examples: Bonus SP, starting Gauge, enemy debuffs.
+
+#### 🌀 **Kyuris (Main Character) Uniqueness:**
+- **Adaptive Skill Mimicry**: Kyuris learns **many Skills** but has **only one active at a time**, randomized **each round** 🎲.
+- **Summoner Ultimate**: Kyuris **summons a Gacha hero** to fight temporarily (then applies standard cooldown).
+- **Commander Role (Talent)**: Enhances allies, interacts with Skill Mimicry, and allows **Inventory access**.
+- **Inventory Use**: Kyuris can use **LifeUp consumables** (e.g., SP/Gauge potions) **without consuming a turn** 🧪.
+
+#### 📈 **Stats, Growth & Life Level Cap:**
+- Heroes follow **Gamicraft-wide RPG growth formulas** [source: 16, 117].
+- **Growth is capped** by the player's real-life **Life Level** 📊 [source: 16, 118].
+- **Kyuris's stats** primarily increase via **real-life exercise** 🏃‍♂️ [source: 17, 108, 252].
+
+#### 🌍 **Integration Points:**
+- **Hero Cooldowns** impact cross-module interactions [source: 19, 116, 132].
+- **LifeUp consumables** bridge real life & gameplay.
+- **Technique unlocking & TP regeneration** link to **real-life achievements**.
+- **Cross-module effects** (e.g., synergy with farming or exploration systems) [source: 19, 139].
+
+---
+
+### 🚀 1.4. Future Planned Features & Expansion
+
+🔮 With **SP/Gauge/Techniques** now central, future expansions may include:
+- 📜 **Expanding Skill Types & Trigger Conditions**.
+- 🎭 **Hero Ascension System** (Gacha duplicates, Tokens 🎰).
+- 🏞️ **Environmental & Tile Effects** based on **PseudoPos**.
+- 🧠 **Advanced Enemy AI** that uses **SP, Gauge & Techniques**.
+- 🔗 **Complex Buff/Debuff interactions**.
+- ☁️ **Real-Life Integration** (e.g., weather-based bonuses ☀️❄️).
+
+---
+
+✅ **This draft serves as a blueprint for development & refinement.** Stay tuned for updates as we iterate and expand Gamicraft’s combat experience! 🎮🔥
