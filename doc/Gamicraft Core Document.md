@@ -62,15 +62,15 @@ Utilizes a **blueprint aesthetic** 🏗️ with white strokes and hatching shade
 Gamicraft isn't a single game—it’s a **flexible framework** that supports multiple game modules:
 
 - **Turn-Based Combat** ⚔️
-- 
+  
 - **Virtual Pets (Tamagotchi-style)** 🐾
-- 
+  
 - **Farming Simulation** 🌱
-- 
+  
 - **Idle Token Generation** ⏳
-- 
+  
 - **Dungeon Dice (Dice-Based Exploration)** 🎲
-- 
+  
 - **Integration with External Games (e.g., Minecraft)** ⛏️
 
 ### 🔄 Deep Real-Life Integration (Two-Way System)
