@@ -32,7 +32,9 @@ Many people struggle with **wanting to play games** 🕹️ while feeling **guil
 ### **Gamicraft utilizes three core tools:**
 
 1️⃣ **LifeUp** 📈 - Tracks habits & tasks, providing EXP, Coins, and Attributes.
+
 2️⃣ **Tasker** 🤖 - Automates logic, processes LifeUp data, and handles game mechanics.
+
 3️⃣ **KLWP** 🎨 - UI/UX layer for a modern dashboard-like game interface.
 
 ---
