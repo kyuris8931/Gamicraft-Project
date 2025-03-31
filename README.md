@@ -28,7 +28,7 @@ This project is currently under active development by a solo developer. The core
     * **[Turn-Based Combat](./docs/modules/Turn_Based_Combat.md)** (Current focus - Basic implementation with win/lose state)
     * Virtual Pets (Planned)
     * Farming Sim (Planned)
-    * Idle Tokens (Concept)
+    * [Idle Tokens](https://www.youtube.com/watch?v=KdiujrEFOZQ&ab_channel=Gamicraft) (Concept)
     * Minecraft Integration (Concept)
     * Exercise RPG (Concept)
     * ... and more!
