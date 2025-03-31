@@ -42,6 +42,7 @@ Many people struggle with **wanting to play games** 🕹️ while feeling **guil
 ## 4. Content Messages 🎤
 
 ✅ **Insightful:** Focuses on modular game design and human psychology.
+
 ✅ **Inspirational:** Encourages creative gamification in real-life activities.
 
 ### 🏷️ Tagline:
@@ -61,15 +62,21 @@ Utilizes a **blueprint aesthetic** 🏗️ with white strokes and hatching shade
 Gamicraft isn't a single game—it’s a **flexible framework** that supports multiple game modules:
 
 - **Turn-Based Combat** ⚔️
+- 
 - **Virtual Pets (Tamagotchi-style)** 🐾
+- 
 - **Farming Simulation** 🌱
+- 
 - **Idle Token Generation** ⏳
+- 
 - **Dungeon Dice (Dice-Based Exploration)** 🎲
+- 
 - **Integration with External Games (e.g., Minecraft)** ⛏️
 
 ### 🔄 Deep Real-Life Integration (Two-Way System)
 
 1️⃣ **Productivity Fuels Gameplay:** Completing tasks in **LifeUp** grants resources (Coins, EXP, Tokens) that fuel game mechanics.
+
 2️⃣ **Gameplay Enables Productivity:** Certain activities require "Tickets" (e.g., "Exercise Ticket") bought with in-game resources, turning tasks into privileges.
 
 ### 💰 Dual Economy (Coins & Tokens)
@@ -99,8 +106,11 @@ To **maintain value** and **prevent farming abuse**, **Token-based purchases** f
 ### 🎯 Core Motivational Loop
 
 1️⃣ Complete **real-life tasks** → Earn **Coins, EXP, Tokens** 🏆
+
 2️⃣ Spend resources on **Game Modules** or **Tickets** 🎟️
+
 3️⃣ Earn **rewards** 🎁 → Boost productivity 📈
+
 4️⃣ Repeat! 🔄
 
 ### ⏳ Short Play Sessions
@@ -113,7 +123,9 @@ Most interactions are **under 3 minutes**, reducing friction while reinforcing r
 
 Gamicraft applies **behavioral psychology** to boost motivation:
 ✅ **Reverse psychology:** Pay for the _privilege_ of doing beneficial tasks 💡
+
 ✅ **Light FOMO:** Daily resets encourage consistent engagement 🔥
+
 ✅ **Reward anticipation:** Meaningful in-game progression creates excitement ⚡
 
 ---
@@ -123,16 +135,23 @@ Gamicraft applies **behavioral psychology** to boost motivation:
 ### **Core Tools:**
 
 - **LifeUp** (Habit Tracker 📊)
+  
 - **Tasker** (Automation & JavaScript Engine 🤖)
+  
 - **KLWP** (Dynamic UI/UX 🎨)
+  
     
 
 ### **Future Expansion Possibilities:**
 
 - Smartwatch integration ⌚
+  
 - Discord integration 💬
+  
 - Web-based dashboards 🌐
+  
 - Native apps 📱
+  
 - VR/AR integration 🎮
     
 ---
