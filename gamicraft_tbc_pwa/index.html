@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamicraft TBC Simple</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="battle-info">
+            <p>Round: <span id="round-number">1</span>, Turn: <span id="turn-number">1</span></p>
+            <p>Status: <span id="battle-status">Ongoing</span></p>
+        </div>
+
+        <div id="battlefield">
+            <div id="ally-area" class="team-area">
+                <h2>Allies</h2>
+                </div>
+            <div id="enemy-area" class="team-area">
+                <h2>Enemies</h2>
+                </div>
+        </div>
+
+        <div id="action-panel">
+            <h3 id="active-unit-name">Active Unit: -</h3>
+            <div id="player-actions">
+                <button id="attack-button" disabled>Basic Attack</button>
+                <p>Select a target to attack.</p>
+            </div>
+            <div id="target-info">
+                Selected Target: <span id="selected-target-name">-</span>
+            </div>
+        </div>
+
+        <div id="log-area">
+            <h3>Battle Log</h3>
+            <div id="battle-log">
+                </div>
+        </div>
+    </div>
+
+    <script src="js/battle.js"></script>
+</body>
+</html>
