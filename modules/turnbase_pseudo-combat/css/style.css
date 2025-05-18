@@ -1,0 +1,435 @@
+/* js/config.js
+   PWA TBC - css/style.css (Stage 1 - English)
+*/
+
+/* --- Global Styles & Variables --- */
+:root {
+    --bg-main: #1e1e2e; /* Darker, slightly purplish-blue background */
+    --bg-panel: #2a2a3e; /* Panel background, a bit lighter */
+    --bg-panel-lighter: #3c3c52; /* Lighter panel elements */
+    --text-main: #cdd6f4; /* Main text color (Catppuccin Macchiato Text) */
+    --text-light: #bac2de; /* Lighter text (Catppuccin Macchiato Subtext0) */
+    --text-dark: #181825; /* Dark text for light backgrounds */
+    --border-color: #494d64; /* Border color (Catppuccin Macchiato Overlay0) */
+    
+    --ally-color: #89b4fa;  /* Ally Blue (Catppuccin Macchiato Blue) */
+    --enemy-color: #f38ba8; /* Enemy Red (Catppuccin Macchiato Red) */
+    --active-unit-color: #a6e3a1; /* Active Unit Green (Catppuccin Macchiato Green) */
+    --highlight-color: #fab387; /* Highlight/Targetable Orange (Catppuccin Macchiato Peach) */
+    --special-accent-color: #cba6f7; /* Purple for buttons/accents (Catppuccin Macchiato Mauve) */
+    --message-color: #f9e2af; /* Yellow for messages (Catppuccin Macchiato Yellow) */
+
+    --hp-bar-bg: #585b70; /* HP Bar background (Catppuccin Macchiato Surface2) */
+    --hp-bar-ally: var(--active-unit-color);
+    --hp-bar-enemy: var(--highlight-color); /* Using orange for enemy HP for better contrast */
+
+    --diamond-clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    --font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --border-radius-main: 8px;
+    --border-radius-small: 4px;
+}
+
+body {
+    font-family: var(--font-family);
+    margin: 0;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    font-size: 14px;
+}
+
+/* --- Main Battle Screen Layout --- */
+.battle-screen {
+    width: 100%;
+    max-width: 400px; /* Optimized for mobile portrait */
+    height: 100%;
+    max-height: 750px; /* Typical mobile height */
+    background-color: var(--bg-panel);
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--border-radius-main);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    overflow: hidden;
+    position: relative;
+}
+
+/* --- Top Info Bar --- */
+.top-info-bar {
+    padding: 8px 12px;
+    text-align: center;
+    background-color: rgba(0,0,0,0.2);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+    color: var(--text-light);
+}
+#round-turn-info {
+    font-size: 0.9em;
+    font-weight: 500;
+}
+#battle-message-area {
+    font-size: 0.85em;
+    min-height: 1.8em; /* Roughly 2 lines */
+    color: var(--message-color);
+    margin-top: 4px;
+    font-style: italic;
+}
+
+/* --- Main Enemy Display Area --- */
+#main-enemy-display-container {
+    flex-grow: 1; /* Takes up available vertical space */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    position: relative;
+    overflow: hidden; /* Crucial for swipe effect */
+    background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-panel) 100%);
+}
+
+#main-enemy-display-wrapper {
+    display: flex; /* Enables horizontal arrangement of enemy items */
+    transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Smooth swipe animation */
+    width: 100%; /* Wrapper takes full width of container */
+    height: 100%;
+}
+
+.enemy-display-item {
+    min-width: 100%; /* Each enemy item fills the container width */
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Center content vertically */
+    align-items: center;   /* Center content horizontally */
+    text-align: center;
+    padding: 5px;
+    box-sizing: border-box;
+    opacity: 1;
+    transition: opacity 0.3s ease, filter 0.3s ease; /* For targetability feedback */
+}
+
+.enemy-display-item img {
+    max-width: 100px; /* Adjust as needed */
+    max-height: 100px; /* Adjust as needed */
+    object-fit: contain;
+    margin-bottom: 8px;
+    border-radius: var(--border-radius-small);
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+}
+
+.enemy-display-item .enemy-name {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: var(--text-light);
+    margin-bottom: 4px;
+}
+
+.enemy-display-item .hp-bar-container {
+    width: 60%;
+    max-width: 120px;
+    height: 10px;
+    background-color: var(--hp-bar-bg);
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.enemy-display-item .hp-bar {
+    height: 100%;
+    background-color: var(--hp-bar-enemy);
+    border-radius: 5px 0 0 5px;
+    transition: width 0.3s ease;
+}
+.enemy-display-item .hp-text {
+    font-size: 0.75em;
+    margin-top: 3px;
+    color: var(--text-main);
+}
+
+.enemy-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(42, 42, 62, 0.7); /* --bg-panel with alpha */
+    color: var(--text-light);
+    border: 1px solid var(--border-color);
+    width: 30px;
+    height: 30px;
+    font-size: 1em;
+    cursor: pointer;
+    border-radius: 50%;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.2s;
+}
+.enemy-nav-btn:hover {
+    background-color: rgba(60, 60, 82, 0.9); /* --bg-panel-lighter with alpha */
+}
+#prev-enemy-btn { left: 5px; }
+#next-enemy-btn { right: 5px; }
+
+/* Feedback for targetable/invalid enemies in main display */
+.enemy-display-item.targetable-enemy {
+    border: 2px solid red;
+    background-color: rgba(255, 0, 0, 0.1);
+    cursor: pointer;
+}
+.enemy-display-item.invalid-target {
+    opacity: 0.4;
+    filter: grayscale(90%);
+}
+
+/* --- PseudoMap Area --- */
+#pseudomap-container {
+    padding: 10px 0;
+    background-color: rgba(0,0,0,0.1);
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+    white-space: nowrap;
+    text-align: center;
+    flex-shrink: 0;
+    scrollbar-width: thin; /* For Firefox */
+    scrollbar-color: var(--border-color) var(--bg-panel); /* For Firefox */
+}
+#pseudomap-container::-webkit-scrollbar { /* For Chrome, Safari, Edge */
+    height: 6px;
+}
+#pseudomap-container::-webkit-scrollbar-track {
+    background: var(--bg-panel);
+}
+#pseudomap-container::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 3px;
+}
+
+#pseudomap-strip {
+    display: inline-flex; /* Allows centering if content is narrower than container */
+    padding: 0 8px; /* Padding at the ends of the strip */
+}
+
+.pseudomap-frame {
+    width: 55px;  /* Diamond width */
+    height: 80px; /* Diamond height */
+    margin: 0 3px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 0.3s, filter 0.3s; /* For defeated state */
+}
+
+.pseudomap-frame .diamond-border {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: var(--bg-panel-lighter);
+    clip-path: var(--diamond-clip-path);
+    border: 2px solid var(--border-color); /* Default border */
+    box-sizing: border-box;
+    z-index: 1;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.pseudomap-frame.ally .diamond-border { border-color: var(--ally-color); }
+.pseudomap-frame.enemy .diamond-border { border-color: var(--enemy-color); }
+
+.pseudomap-frame.active-unit .diamond-border {
+    border-color: var(--active-unit-color);
+    box-shadow: 0 0 6px var(--active-unit-color);
+}
+
+.pseudomap-frame img.unit-portrait {
+    width: 80%; /* Portrait size within diamond */
+    height: 80%;
+    object-fit: cover;
+    clip-path: var(--diamond-clip-path); /* Clip image to diamond shape */
+    z-index: 2;
+    position: relative;
+}
+
+.pseudomap-frame.is-defeated {
+    opacity: 0.3;
+    filter: grayscale(100%);
+}
+
+/* --- Active Hero Panel (Bottom Area) --- */
+#active-hero-panel {
+    padding: 12px;
+    background-color: rgba(0,0,0,0.25);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    flex-shrink: 0;
+}
+#active-hero-panel:hover {
+    background-color: rgba(42, 42, 62, 0.4); /* --bg-panel with more alpha */
+}
+#active-hero-panel.ready-to-attack { /* Highlight when ready to select target */
+    background-color: rgba(166, 227, 161, 0.15); /* --active-unit-color with alpha */
+    border-top-color: var(--active-unit-color);
+}
+
+#active-hero-panel .hero-portrait {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 2px solid var(--ally-color);
+    margin-right: 12px;
+    object-fit: cover;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+#active-hero-panel .hero-info .hero-name {
+    font-size: 1em;
+    font-weight: bold;
+    color: var(--text-light);
+}
+#active-hero-panel .hero-info .hp-bar-container {
+    width: 100px;
+    height: 8px;
+    background-color: var(--hp-bar-bg);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 4px;
+    border: 1px solid var(--border-color);
+}
+#active-hero-panel .hero-info .hp-bar {
+    height: 100%;
+    background-color: var(--hp-bar-ally);
+    border-radius: 4px 0 0 4px;
+    transition: width 0.3s ease;
+}
+#active-hero-panel .hero-info .hp-text {
+    font-size: 0.75em;
+    margin-top: 2px;
+    color: var(--text-main);
+}
+
+/* --- Battle End Screen --- */
+.battle-end-screen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(30, 30, 46, 0.97); /* --bg-main with alpha */
+    color: var(--text-light);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    text-align: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+.battle-end-screen h2 {
+    font-size: 1.6em;
+    margin-bottom: 25px;
+}
+.battle-end-screen button {
+    padding: 10px 20px;
+    font-size: 1em;
+    background-color: var(--special-accent-color);
+    color: var(--text-dark);
+    border: none;
+    border-radius: var(--border-radius-main);
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+.battle-end-screen button:hover {
+    background-color: #b792f5; /* Lighter Mauve */
+}
+.battle-end-screen.win h2 { color: var(--active-unit-color); }
+.battle-end-screen.lose h2 { color: var(--enemy-color); }
+
+/* --- Animations & Popups --- */
+.unit-attacking-ally { animation: attack-ally-anim 0.4s ease-in-out; }
+.unit-attacking-enemy { animation: attack-enemy-anim 0.4s ease-in-out; }
+.unit-hit { animation: hit-effect-anim 0.3s ease-in-out; }
+
+@keyframes attack-ally-anim { /* Ally (bottom) attacks: slight up and forward */
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(0, -8px) scale(1.05); }
+}
+@keyframes attack-enemy-anim { /* Enemy (top/middle) attacks: slight down and forward */
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(0, 8px) scale(1.05); }
+}
+@keyframes hit-effect-anim { /* Unit gets hit: quick shake and blink */
+    0%, 100% { transform: translateX(0); opacity: 1; }
+    20% { transform: translateX(3px); opacity: 0.7; }
+    40% { transform: translateX(-3px); opacity: 1; }
+    60% { transform: translateX(2px); opacity: 0.7; }
+    80% { transform: translateX(-2px); opacity: 1; }
+}
+
+.damage-text-popup {
+    position: absolute; /* Relative to the .battle-screen or a positioned parent */
+    font-size: 1.1em;
+    font-weight: bold;
+    color: var(--enemy-color); /* Red for damage */
+    text-shadow: 0 0 3px var(--bg-main), 0 0 5px var(--bg-main); /* Make it pop */
+    animation: damage-popup-anim 0.9s ease-out forwards;
+    pointer-events: none;
+    z-index: 100;
+    padding: 2px 5px;
+    background-color: rgba(30,30,46,0.5);
+    border-radius: var(--border-radius-small);
+}
+@keyframes damage-popup-anim {
+    0% { transform: translate(-50%, -100%) scale(0.7); opacity: 1; } /* Start above target */
+    70% { transform: translate(-50%, -180%) scale(1.1); opacity: 1; } /* Move up and grow */
+    100% { transform: translate(-50%, -200%) scale(1.1); opacity: 0; } /* Fade out further up */
+}
+
+/* --- PWA Log Display Area --- */
+.pwa-log-display-area { 
+    position: fixed; 
+    bottom: 5px; right: 5px; 
+    width: calc(50% - 10px); /* Wider for better readability */
+    max-width: 250px;
+    background-color: rgba(24, 24, 37, 0.85); /* --bg-main with alpha */
+    color: #89b4fa; /* Log text blue */
+    font-size:0.65em; 
+    max-height: 120px; 
+    overflow-y:auto; padding: 6px; 
+    box-sizing: border-box; 
+    z-index: 2000; 
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-small);
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--bg-panel);
+}
+.pwa-log-display-area::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+.pwa-log-display-area::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 3px;
+}
+.pwa-log-display-area strong {
+    color: var(--active-unit-color); /* Green for "PWA Log:" title */
+    display: block;
+    margin-bottom: 3px;
+}
+.pwa-log-display-area pre { 
+    margin:0; 
+    white-space: pre-wrap; 
+    word-break: break-all; 
+}
+
+/* --- Utility Classes --- */
+.is-hidden {
+    display: none !important;
+}

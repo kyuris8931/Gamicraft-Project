@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Gamicraft TBC - Showcase</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <meta name="autotoolswebscreen" type="variablejs" id="initialBattleState" label="Initial Battle State JSON" defaultValue='{}' />
+    <meta name="autotoolswebscreen" type="variablejs" id="initialAssetCache" label="Initial Asset Cache JSON" defaultValue='{}' />
+
+</head>
+<body>
+    <div id="battle-screen" class="battle-screen">
+        <div class="top-info-bar">
+            <div id="round-turn-info">Round: 1 - Turn: 1</div>
+            <div id="battle-message-area">Battle Start!</div>
+        </div>
+
+        <div id="main-enemy-display-container">
+            <div id="main-enemy-display-wrapper">
+                </div>
+            <button id="prev-enemy-btn" class="enemy-nav-btn" aria-label="Previous Enemy">&lt;</button>
+            <button id="next-enemy-btn" class="enemy-nav-btn" aria-label="Next Enemy">&gt;</button>
+        </div>
+
+        <div id="pseudomap-container">
+            <div id="pseudomap-strip">
+                </div>
+        </div>
+
+        <div id="active-hero-panel">
+            </div>
+    </div>
+
+    <div id="battle-end-screen" class="battle-end-screen is-hidden">
+        <h2 id="battle-result-message">Battle Result</h2>
+        <button id="quit-battle-btn">Quit Battle</button>
+    </div>
+
+    <div class="pwa-log-display-area">
+        <strong>PWA Log:</strong>
+        <pre id="pwaLogOutputArea"></pre>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/ui_renderer.js"></script>
+    <script src="js/event_handlers.js"></script>
+    <script src="js/autotools_interface.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
