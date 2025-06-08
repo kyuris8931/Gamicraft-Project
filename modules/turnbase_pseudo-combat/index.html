@@ -3,53 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Gamicraft TBC - Showcase</title>
+    <title>Gamicraft TBC - Webscreen</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Press+Start+2P&display=swap" rel="stylesheet">
 
-    <meta name="autotoolswebscreen" type="variablejs" id="initialBattleState" label="Initial Battle State JSON" defaultValue='{}' />
-    <meta name="autotoolswebscreen" type="variablejs" id="initialAssetCache" label="Initial Asset Cache JSON" defaultValue='{}' />
+    <!-- Variabel yang akan diisi oleh Tasker saat WebScreen dibuka atau diupdate -->
+    <meta name="autotoolswebscreen" type="variablejs" id="battleState" label="Full Battle State JSON" defaultValue='{}' />
+    <meta name="autotoolswebscreen" type="variablejs" id="assetBasePath" label="Asset Base Path (from Tasker)" description="Absolute base path to the asset folder (e.g., /storage/emulated/0/MyApp/data/)" defaultValue="/storage/emulated/0/gamicraft/modules/turnbase_pseudo-combat" />
 
 </head>
 <body>
-    <div id="battle-screen" class="battle-screen">
-        <div class="top-info-bar">
-            <div id="round-turn-info">Round: 1 - Turn: 1</div>
-            <div id="battle-message-area">Battle Start!</div>
-        </div>
+    <!-- Latar belakang dinamis -->
+    <div id="dynamic-background" class="dynamic-background"></div>
 
-        <div id="main-enemy-display-container">
-            <div id="main-enemy-display-wrapper">
-                </div>
-            <button id="prev-enemy-btn" class="enemy-nav-btn" aria-label="Previous Enemy">&lt;</button>
-            <button id="next-enemy-btn" class="enemy-nav-btn" aria-label="Next Enemy">&gt;</button>
-        </div>
-
-        <div id="pseudomap-container">
-            <div id="pseudomap-strip">
-                </div>
-        </div>
-
-        <div id="active-hero-panel">
+    <!-- Antarmuka utama pertempuran -->
+    <div id="battle-interface" class="battle-interface">
+        <!-- Bar bagian atas untuk info ronde, pesan, dan opsi -->
+        <header class="top-bar glass-panel">
+            <div id="round-turn-display" class="round-turn-display">ROUND I-1</div>
+            <div id="battle-message-display" class="battle-message-display">Battle Started!</div>
+            <div id="battle-options-trigger" class="battle-options-trigger" aria-label="Battle Options">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             </div>
+        </header>
+
+        <!-- Area untuk menampilkan musuh -->
+        <main id="enemy-stage" class="enemy-stage glass-panel">
+            <div id="enemy-carousel" class="enemy-carousel">
+                <!-- Kartu musuh akan dirender di sini oleh ui_renderer.js -->
+            </div>
+            <button id="prev-enemy-btn" class="carousel-nav-btn prev" aria-label="Previous Enemy">&lt;</button>
+            <button id="next-enemy-btn" class="carousel-nav-btn next" aria-label="Next Enemy">&gt;</button>
+        </main>
+
+        <!-- Area untuk pseudomap (urutan giliran unit) -->
+        <section id="pseudomap-area" class="pseudomap-area glass-panel">
+            <div id="pseudomap-track" class="pseudomap-track">
+                <!-- Frame unit di pseudomap akan dirender di sini -->
+            </div>
+        </section>
+
+        <!-- Area untuk dek hero pemain -->
+        <section id="player-heroes-deck" class="player-heroes-deck glass-panel">
+            <div id="player-heroes-carousel" class="player-heroes-carousel">
+                <!-- Kartu hero pemain akan dirender di sini -->
+            </div>
+        </section>
+
+        <!-- Bar aksi pemain (resource tim dan tombol skill) -->
+        <footer id="player-action-bar" class="player-action-bar glass-panel">
+            <div id="team-resources-display" class="team-resources-display">SP: 0/0</div>
+            <div id="action-buttons-group" class="action-buttons-group">
+                <!-- Tombol aksi (skill) akan dirender di sini -->
+            </div>
+        </footer>
     </div>
 
-    <div id="battle-end-screen" class="battle-end-screen is-hidden">
-        <h2 id="battle-result-message">Battle Result</h2>
-        <button id="quit-battle-btn">Quit Battle</button>
+    <!-- Overlay untuk Battle Log -->
+    <div id="battle-log-overlay" class="battle-log-overlay is-hidden">
+        <div class="battle-log-content glass-panel">
+            <h3>Battle Log</h3>
+            <div id="battle-log-entries">
+                <!-- Entri log akan ditambahkan di sini -->
+            </div>
+            <div class="battle-log-controls">
+                <!-- MODIFIKASI: Tombol "Open WS Log" DIKEMBALIKAN -->
+                <button id="open-ws-log-btn" class="styled-button ws-log-toggle-btn">Open WS Log</button>
+                <button id="close-log-btn" class="styled-button">Close Battle Log</button>
+            </div>
+        </div>
     </div>
 
-    <div class="pwa-log-display-area">
-        <strong>PWA Log:</strong>
-        <pre id="pwaLogOutputArea"></pre>
+    <!-- Layar untuk WS Logger (Log Eksekusi WebScreen) -->
+    <div id="ws-logger-screen" class="ws-logger-screen is-hidden">
+        <div class="ws-logger-header">
+            <h2>WebScreen Execution Log</h2>
+            <div>
+                <button id="copy-ws-log-btn" class="styled-button ws-log-action-btn">Copy Log</button>
+                <button id="clear-ws-log-btn" class="styled-button ws-log-action-btn">Clear Log</button>
+                <button id="close-ws-logger-btn" class="styled-button">Close WS Log</button>
+            </div>
+        </div>
+        <pre id="ws-log-output" class="ws-log-output-fullscreen"></pre>
     </div>
 
+    <!-- Memuat skrip JavaScript -->
     <script src="js/config.js"></script>
-    <script src="js/ui_renderer.js"></script>
-    <script src="js/event_handlers.js"></script>
-    <script src="js/autotools_interface.js"></script>
     <script src="js/main.js"></script>
+    <script src="js/targeting_handler.js"></script>
+    <script src="js/event_handlers.js"></script>
+    <script src="js/ui_renderer.js"></script>
+    <script src="js/autotools_interface.js"></script>
+
+    <!-- Skrip inline untuk menangani update dari AutoTools -->
+    <script type="text/javascript">
+        // Variabel ini menyimpan stringified JSON dari battleState yang terakhir berhasil diproses
+        // untuk mencegah refresh UI yang tidak perlu jika data dari Tasker tidak berubah.
+        let inline_lastSuccessfullyProcessedBattleStateString = "";
+
+        // Fungsi ini dipanggil oleh AutoTools ketika Tasker mengirim update.
+        var autoToolsUpdateValues = function(values) {
+            const log = typeof wsLogger === 'function' ? wsLogger : console.log;
+            log("INLINE autoToolsUpdateValues CALLED BY TASKER.");
+
+            let needsUiRefreshForAssetPath = false;
+            let newBStateCandidate = null;
+            let potentialNewBattleStateString = "";
+            let battleStateDataFoundInValues = false;
+
+            // 1. Proses update untuk assetBasePath (jika dikirim oleh Tasker)
+            if (values && values.hasOwnProperty('assetBasePath')) {
+                const newRawPathFromTasker = values.assetBasePath;
+                if (typeof newRawPathFromTasker === 'string' && newRawPathFromTasker.trim() !== "") {
+                    let newModuleRoot = newRawPathFromTasker;
+                    if (newModuleRoot.startsWith('file:///')) {
+                        newModuleRoot = newModuleRoot.substring('file:///'.length);
+                    }
+                    if (newModuleRoot.endsWith('/')) {
+                        newModuleRoot = newModuleRoot.slice(0, -1);
+                    }
+                    const newFullModuleRootWithProtocol = "file://" + newModuleRoot;
+
+                    if (typeof window.AutoToolsAndroid !== 'undefined') { // Hanya di Android
+                        if (window.gcpcRootPath !== newFullModuleRootWithProtocol) {
+                            log("INLINE_AUTOTOOLS: Tasker sent a NEW assetBasePath. Updating global paths...");
+                            window.gcpcRootPath = newFullModuleRootWithProtocol;
+                            window.gcpcDataPath = window.gcpcRootPath + "/data/";
+                            window.gcpcPlaceholderPath = window.gcpcRootPath + "/app/mockup/";
+                            log(`INLINE_AUTOTOOLS: Android paths RE-UPDATED. Root: ${window.gcpcRootPath}, Data: ${window.gcpcDataPath}, Placeholders: ${window.gcpcPlaceholderPath}`);
+                            needsUiRefreshForAssetPath = true;
+                        } else {
+                            log("INLINE_AUTOTOOLS: Received assetBasePath is same as current. No path change.");
+                        }
+                    } else {
+                        log("INLINE_AUTOTOOLS_INFO: assetBasePath received, but not on Android. Path update skipped for PC.");
+                    }
+                } else {
+                    log("INLINE_AUTOTOOLS_WARN: Received assetBasePath is not a valid string or is empty.");
+                }
+            }
+
+            // 2. Proses update untuk battleState (jika dikirim oleh Tasker)
+            if (values && values.hasOwnProperty('battleState')) {
+                const rawBattleStateData = values.battleState;
+                battleStateDataFoundInValues = true;
+
+                if (rawBattleStateData === null || rawBattleStateData === "") {
+                    log("INLINE_AUTOTOOLS_ERROR: Received 'battleState' data is null or an empty string from Tasker. No update.");
+                } else if (typeof rawBattleStateData === 'string') {
+                    if (rawBattleStateData.trim() === "" || rawBattleStateData.trim() === "{}") {
+                        log("INLINE_AUTOTOOLS_INFO: Received 'battleState' string is empty or '{}'. No actual state update from string.");
+                    } else {
+                        potentialNewBattleStateString = rawBattleStateData;
+                        try {
+                            newBStateCandidate = JSON.parse(potentialNewBattleStateString);
+                        } catch (e) {
+                            log(`INLINE_AUTOTOOLS_ERROR: Exception during JSON.parse() for battleState string: ${e}. Data: ${potentialNewBattleStateString.substring(0,100)}...`);
+                            newBStateCandidate = null;
+                        }
+                    }
+                } else if (typeof rawBattleStateData === 'object') {
+                    try {
+                        if (Object.keys(rawBattleStateData).length === 0 && rawBattleStateData.constructor === Object) {
+                             log("INLINE_AUTOTOOLS_INFO: Received 'battleState' object is empty '{}'. No actual state update from object.");
+                        } else {
+                            potentialNewBattleStateString = JSON.stringify(rawBattleStateData); // Untuk perbandingan
+                            newBStateCandidate = rawBattleStateData; // Gunakan objek secara langsung
+                        }
+                    } catch (stringifyError) {
+                        log("INLINE_AUTOTOOLS_ERROR: Could not stringify received 'battleState' object for comparison: " + stringifyError);
+                        newBStateCandidate = rawBattleStateData; // Tetap coba gunakan objek
+                    }
+                } else {
+                    log("INLINE_AUTOTOOLS_ERROR: Received 'battleState' data is not a string or object. Type: " + typeof rawBattleStateData);
+                }
+            }
+
+            // 3. Jika kandidat bState baru yang valid telah diparsing, proses
+            if (newBStateCandidate) {
+                // Validasi dasar untuk objek kandidat
+                if (typeof newBStateCandidate === 'object' &&
+                    newBStateCandidate.hasOwnProperty('units') && Array.isArray(newBStateCandidate.units) &&
+                    newBStateCandidate.hasOwnProperty('battleMessage')) {
+
+                    const currentProcessingString = potentialNewBattleStateString || JSON.stringify(newBStateCandidate);
+
+                    if (currentProcessingString === inline_lastSuccessfullyProcessedBattleStateString && inline_lastSuccessfullyProcessedBattleStateString !== "") {
+                        log("INLINE_AUTOTOOLS: Received 'battleState' data is IDENTICAL to the last. Skipping processing. wsMode: " + (typeof wsMode !== 'undefined' ? wsMode : 'N/A'));
+                    } else {
+                        log("INLINE_AUTOTOOLS: New, different 'battleState' data received. Calling handleNewBattleState. wsMode before: " + (typeof wsMode !== 'undefined' ? wsMode : 'N/A'));
+                        if (typeof handleNewBattleState === "function") {
+                            handleNewBattleState(newBStateCandidate); // Panggil handler utama di main.js
+                            inline_lastSuccessfullyProcessedBattleStateString = currentProcessingString;
+                            log("INLINE_AUTOTOOLS: handleNewBattleState finished. wsMode after: " + (typeof wsMode !== 'undefined' ? wsMode : 'N/A'));
+                        } else {
+                            log("INLINE_AUTOTOOLS_CRITICAL_ERROR: handleNewBattleState function is NOT defined in main.js!");
+                        }
+                    }
+                } else {
+                    log("INLINE_AUTOTOOLS_ERROR: Parsed 'newBStateCandidate' is invalid or missing essential properties. Not processing.");
+                }
+            } else if (battleStateDataFoundInValues) {
+                log("INLINE_AUTOTOOLS_INFO: 'battleState' key was present in 'values' but data was invalid or empty, no update processed for bState.");
+            }
+
+
+            // 4. Tangani refresh UI jika HANYA assetBasePath berubah dan tidak ada update battleState
+            if (needsUiRefreshForAssetPath && !newBStateCandidate && battleStateDataFoundInValues === false) {
+                 if (typeof refreshAllUIElements === "function") {
+                    log("INLINE_AUTOTOOLS: Calling refreshAllUIElements() due to assetBasePath change ONLY. wsMode: " + (typeof wsMode !== 'undefined' ? wsMode : 'N/A'));
+                    refreshAllUIElements(typeof previousBState !== 'undefined' ? previousBState : null);
+                } else {
+                    log("INLINE_AUTOTOOLS_ERROR: refreshAllUIElements function not found for assetBasePath refresh!");
+                }
+            } else if (!needsUiRefreshForAssetPath && !newBStateCandidate && battleStateDataFoundInValues === false && values) {
+                 log("INLINE_AUTOTOOLS: No UI refresh explicitly needed from this update call (no assetPath change, no valid new bState, but 'values' object was received).");
+            } else if (!values) {
+                 log("INLINE_AUTOTOOLS_WARNING: 'values' object itself was null or undefined. No update at all.");
+            }
+        };
+
+        if (typeof wsLogger === 'function') {wsLogger("INLINE_SCRIPT: autoToolsUpdateValues (inline) has been defined and is ready.");}
+        else {console.log("INLINE_SCRIPT: autoToolsUpdateValues (inline) has been defined and is ready (wsLogger not fully initialized yet).");}
+    </script>
 </body>
 </html>

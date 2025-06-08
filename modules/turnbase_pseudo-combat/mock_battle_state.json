@@ -1,0 +1,94 @@
+{
+    "battleState": "Ongoing",
+    "round": 1,
+    "turnInRound": 1,
+    "activeUnitID": "player_kyuris_01_mock",
+    "activeUnitType": "Ally",
+    "battleMessage": "PC MOCK: Kyuris's Turn. Double tap a target for Basic Attack or select a Skill.",
+    "teamSP": 9,
+    "maxTeamSP": 10,
+    "assets": {
+        "backgroundImageFilename": "backgrounds/mock_battle_bg.png",
+        "sfx": {}
+    },
+    "units": [
+        {
+            "id": "player_kyuris_01_mock",
+            "name": "Kyuris (Mock)",
+            "type": "Ally",
+            "role": "Ranged",
+            "status": "Active",
+            "pseudoPos": 0,
+            "portraitFilename": "",
+            "fullBodyFilename": "",
+            "stats": { "level": 1, "hp": 45, "maxHp": 45, "atk": 12, "def": 5, "gauge": 10, "maxGauge": 100 },
+            "commands": [
+                {
+                    "commandId": "ky_skill_mock_001", "name": "Swift Shot", "description": "A quick ranged attack.", "type": "Skill", "spCost": 2,
+                    "iconFilename": "", "animationGifFilename": "",
+                    "targetingParams": {
+                        "selection": { "targetableTypes": ["Enemy"], "pattern": { "shape": "WithinDistance", "distance": 2, "direction": "Both" }},
+                        "area": { "origin": "SelectedTarget", "shape": "SingleOnSelected", "affectedTypes": ["Enemy"] }
+                    }
+                },
+                {
+                    "commandId": "ky_skill_mock_002", "name": "Healing Aura", "description": "Minor heal to self.", "type": "Skill", "spCost": 4,
+                    "iconFilename": "", "animationGifFilename": "",
+                    "targetingParams": {
+                        "selection": { "targetableTypes": ["Ally"], "pattern": { "shape": "WithinDistance", "distance": 2, "direction": "Both" } },
+                        "area": { "origin": "SelectedTarget", "shape": "SingleOnSelected", "affectedTypes": ["Ally"] }
+                    }
+                },
+                {
+                    "commandId": "ky_skill_mock_003", "name": "Burst Bomb", "description": "Hits target and 1 adjacent.", "type": "Skill", "spCost": 7,
+                    "iconFilename": "", "animationGifFilename": "",
+                    "targetingParams": {
+                        "selection": { "targetableTypes": ["Enemy"], "pattern": { "shape": "WithinDistance", "distance": 2, "direction": "Both" } },
+                        "area": { "origin": "SelectedTarget", "shape": "RadiusAroundOrigin", "distance": 1, "affectedTypes": ["Enemy"] }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "player_hero_02_mock",
+            "name": "Hero Ally (Mock)",
+            "type": "Ally",
+            "role": "Melee",
+            "status": "Idle",
+            "pseudoPos": -1,
+            "portraitFilename": "",
+            "fullBodyFilename": "",
+            "stats": { "level": 1, "hp": 60, "maxHp": 60, "atk": 10, "def": 8, "gauge": 0, "maxGauge": 100, "shieldHP": 50 },
+            "commands": [
+                 {
+                    "commandId": "hero_skill_mock_001", "name": "Guard Break", "description": "Medium melee attack.", "type": "Skill", "spCost": 3,
+                    "iconFilename": "",
+                    "targetingParams": {
+                        "selection": {"targetableTypes": ["Enemy"], "pattern": {"shape": "Adjacent", "distance": 1, "direction": "Both"}},
+                        "area": {"origin": "SelectedTarget", "shape": "SingleOnSelected", "affectedTypes": ["Enemy"]}
+                    }
+                }
+            ]
+        },
+        {
+            "id": "enemy_goblin_A_mock_01", "name": "Goblin A (Mock)", "type": "Enemy", "role": "Melee", "status": "Idle", "pseudoPos": 1,
+            "portraitFilename": "", "fullBodyFilename": "",
+            "stats": { "level": 2, "hp": 30, "maxHp": 30, "atk": 8, "def": 3, "shieldHP": 10},
+            "commands": []
+        },
+        {
+            "id": "enemy_goblin_B_mock_02", "name": "Goblin B (Mock)", "type": "Enemy", "role": "Ranged", "status": "Idle", "pseudoPos": 2,
+            "portraitFilename": "", "fullBodyFilename": "",
+            "stats": { "level": 2, "hp": 35, "maxHp": 35, "atk": 7, "def": 2 },
+            "commands": []
+        },
+        {
+            "id": "enemy_goblin_C_mock_03", "name": "Goblin C (Mock)", "type": "Enemy", "role": "Melee", "status": "Idle", "pseudoPos": -2,
+            "portraitFilename": "", "fullBodyFilename": "",
+            "stats": { "level": 1, "hp": 25, "maxHp": 25, "atk": 6, "def": 1 },
+            "commands": []
+        }
+    ],
+    "totalUnits": 5,
+    "lastActionDetails": null
+}

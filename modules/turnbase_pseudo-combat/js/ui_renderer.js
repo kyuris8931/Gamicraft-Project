@@ -1,376 +1,622 @@
 // js/ui_renderer.js
-
-// --- DOM Element References (will be initialized in main.js) ---
-// let elBattleScreen, elRoundTurnInfo, elBattleMessageArea;
-// let elMainEnemyDisplayContainer, elMainEnemyDisplayWrapper, elPrevEnemyBtn, elNextEnemyBtn;
-// let elPseudomapStrip;
-// let elActiveHeroPanel;
-// let elBattleEndScreen, elBattleResultMessage;
-// Note: pwaLogOutputElement is initialized in main.js and used by pwaLogger from config.js
-
-// --- UI State Variables ---
-let currentEnemyDisplayIndex = 0; // Index for the currently shown enemy in the main display
-let visibleEnemies = [];          // Array of living enemies for the main display
+// Handles all UI rendering logic for the Gamicraft WebScreen Turn-Based Combat.
+// Includes targeting visuals, hints, damage animations, and scrolling.
 
 // --- Helper Functions ---
+
+/**
+ * Gets a unit object from bState by its ID.
+ * @param {string} unitId
+ * @returns {object|null}
+ */
 function getUnitById(unitId) {
-    if (!bState || !bState.Units) return null;
-    return bState.Units.find(u => u.id === unitId);
+    if (!bState || !bState.units || !Array.isArray(bState.units)) {
+        wsLogger(`GET_UNIT_BY_ID_ERROR: bState or bState.units is not available or not an array. Cannot find unit: ${unitId}`);
+        return null;
+    }
+    return bState.units.find(u => u.id === unitId);
 }
 
-function getActiveHeroFromState() {
-    if (!bState || !bState.Units || !bState.ActiveUnitID) return null;
-    const activeUnit = getUnitById(bState.ActiveUnitID);
-    return (activeUnit && activeUnit.type === "Ally" && activeUnit.status !== "Defeated") ? activeUnit : null;
+/**
+ * Gets the currently active unit object from bState.
+ * @returns {object|null}
+ */
+function getActiveUnit() {
+    if (!bState || !bState.activeUnitID) {
+        wsLogger("GET_ACTIVE_UNIT_ERROR: bState or activeUnitID is missing.");
+        return null;
+    }
+    return getUnitById(bState.activeUnitID);
 }
 
-function getLivingUnits(type = null) { // type can be "Ally", "Enemy", or null for all
-    if (!bState || !bState.Units) return [];
-    return bState.Units.filter(unit => {
-        const isAlive = unit.status !== "Defeated";
-        if (type) {
-            return isAlive && unit.type === type;
+/**
+ * Constructs the full image path for a unit.
+ * @param {string} filenameFromState
+ * @param {string} unitType
+ * @param {string} displayContext
+ * @param {boolean} [isErrorFallback=false]
+ * @returns {string}
+ */
+function getImagePathForUnit(filenameFromState, unitType, displayContext, isErrorFallback = false) {
+    let basePathToUse;
+    let finalFilename;
+
+    if (typeof window.gcpcDataPath === 'undefined' || typeof window.gcpcPlaceholderPath === 'undefined') {
+        wsLogger(`GET_IMAGE_PATH_ERROR: Global path variables undefined!`);
+        return "assets/images/path_error_generic.png";
+    }
+
+    if (filenameFromState && typeof filenameFromState === 'string' && filenameFromState.trim() !== '' && !isErrorFallback) {
+        basePathToUse = window.gcpcDataPath;
+        finalFilename = filenameFromState;
+    } else {
+        basePathToUse = window.gcpcPlaceholderPath;
+        let placeholderKey;
+        if (displayContext === "fullBody") {
+            placeholderKey = staticAssetFilenames.portraits.placeholder_enemy_sprite_fullbody;
+        } else {
+            placeholderKey = (unitType === "Ally")
+                ? staticAssetFilenames.portraits.placeholder_hero_portrait_head
+                : staticAssetFilenames.portraits.placeholder_enemy_portrait_head;
         }
-        return isAlive;
-    });
+        finalFilename = placeholderKey;
+    }
+    if (typeof basePathToUse === 'undefined' || typeof finalFilename === 'undefined') {
+         return "assets/images/filename_error_generic.png";
+    }
+    return basePathToUse + finalFilename;
 }
+
+/**
+ * Constructs the full path for general assets like backgrounds.
+ * @param {string} filenameFromState
+ * @param {string} assetCategory
+ * @returns {string}
+ */
+function getGeneralAssetPath(filenameFromState, assetCategory) {
+    if (typeof window.gcpcDataPath === 'undefined') return "";
+    if (!filenameFromState || filenameFromState.trim() === '') {
+        if (assetCategory === 'fx' && staticAssetFilenames && staticAssetFilenames.animations) {
+             return window.gcpcPlaceholderPath + staticAssetFilenames.animations.default_attack_fx;
+        }
+        return "";
+    }
+    return window.gcpcDataPath + filenameFromState;
+}
+
+/**
+ * Helper function to get valid basic attack target IDs for UI highlighting.
+ * @param {object} actorUnit
+ * @param {Array<object>} allAliveUnits
+ * @returns {Array<string>}
+ */
+function getValidBasicAttackTargetIdsForUI(actorUnit, allAliveUnits) {
+    if (!actorUnit || actorUnit.type !== "Ally" || !allAliveUnits) return [];
+
+    const aliveEnemies = allAliveUnits.filter(u => u.type === "Enemy");
+    if (aliveEnemies.length === 0) return [];
+
+    const actorRole = actorUnit.role || "Melee";
+    const attackRange = (actorRole === "Ranged") ? [2, -2] : [1, -1];
+    
+    const validTargets = aliveEnemies.filter(enemy => attackRange.includes(enemy.pseudoPos));
+    return validTargets.map(u => u.id);
+}
+
 
 // --- Main UI Rendering Orchestrator ---
-function refreshAllUIElements() {
-    pwaLogger("UI_RENDERER: Refreshing all UI elements.");
-    if (!bState || Object.keys(bState).length === 0) {
-        pwaLogger("UI_RENDERER: bState is empty. Cannot refresh UI.");
-        if (elBattleMessageArea) elBattleMessageArea.textContent = "Waiting for battle data...";
+
+/**
+ * Updates all UI elements based on the current bState.
+ * @param {object|null} [passedPreviousBState=null] - The battle state before the current update, for animations.
+ */
+function refreshAllUIElements(passedPreviousBState = null) {
+    wsLogger("UI_RENDERER: refreshAllUIElements CALLED.");
+    if (!bState || Object.keys(bState).length === 0 || !bState.units) {
+        wsLogger("UI_RENDERER_ERROR: Battle state (bState) is empty or invalid.");
         return;
     }
 
-    // Handle Battle End Screen first
-    if (bState.BattleState === "Win" || bState.BattleState === "Lose") {
-        showBattleEndScreen(bState.BattleState);
-        if (elBattleScreen) elBattleScreen.classList.add("is-hidden"); // Hide main battle screen
-        return;
-    } else {
-        if (elBattleEndScreen) elBattleEndScreen.classList.add("is-hidden");
-        if (elBattleScreen) elBattleScreen.classList.remove("is-hidden");
-    }
-
-    renderBattleInfo();
-    renderMainEnemyDisplay();
-    renderPseudomap();
-    renderActiveHeroPanel();
-    // Animations and damage popups will be triggered by game logic/events, not directly in refreshAll.
-    pwaLogger("UI_RENDERER: Finished refreshing UI elements.");
-}
-
-// --- Individual UI Component Renderers ---
-function renderBattleInfo() {
-    if (elRoundTurnInfo) {
-        elRoundTurnInfo.textContent = `Round: ${bState.Round || '-'} - Turn: ${bState.TurnInRound || '-'}`;
-    }
-    if (elBattleMessageArea) {
-        elBattleMessageArea.textContent = bState.BattleMessage || "---";
-    }
-}
-
-function renderMainEnemyDisplay() {
-    if (!elMainEnemyDisplayWrapper || !elMainEnemyDisplayContainer) {
-        pwaLogger("UI_RENDERER_ENEMY: Wrapper or container element not found.");
-        return;
-    }
-    pwaLogger("UI_RENDERER_ENEMY: Rendering main enemy display.");
-
-    visibleEnemies = getLivingUnits("Enemy");
-    elMainEnemyDisplayWrapper.innerHTML = ''; // Clear previous enemies
-
-    if (visibleEnemies.length === 0) {
-        const noEnemiesItem = document.createElement('div');
-        noEnemiesItem.classList.add('enemy-display-item');
-        noEnemiesItem.innerHTML = `<p>No enemies remaining!</p>`;
-        elMainEnemyDisplayWrapper.appendChild(noEnemiesItem);
-        if (elPrevEnemyBtn) elPrevEnemyBtn.classList.add('is-hidden');
-        if (elNextEnemyBtn) elNextEnemyBtn.classList.add('is-hidden');
-        currentEnemyDisplayIndex = 0; // Reset index
-        return;
-    }
-
-    if (elPrevEnemyBtn) elPrevEnemyBtn.classList.toggle('is-hidden', visibleEnemies.length <= 1);
-    if (elNextEnemyBtn) elNextEnemyBtn.classList.toggle('is-hidden', visibleEnemies.length <= 1);
-
-    // Ensure currentEnemyDisplayIndex is valid
-    currentEnemyDisplayIndex = Math.max(0, Math.min(currentEnemyDisplayIndex, visibleEnemies.length - 1));
-
-    visibleEnemies.forEach((enemy) => {
-        const enemyItem = document.createElement('div');
-        enemyItem.classList.add('enemy-display-item');
-        enemyItem.dataset.enemyId = enemy.id; // For event handling
-
-        const portraitImg = document.createElement('img');
-        portraitImg.src = assetCache.portraits[enemy.portraitRef] || staticAssetCache.portraits.placeholder_enemy_portrait; // Fallback
-        portraitImg.alt = enemy.name;
-        portraitImg.onerror = function() { this.src = staticAssetCache.portraits.placeholder_enemy_portrait; };
-
-
-        const nameDiv = document.createElement('div');
-        nameDiv.classList.add('enemy-name');
-        nameDiv.textContent = enemy.name;
-
-        const hpBarContainerDiv = document.createElement('div');
-        hpBarContainerDiv.classList.add('hp-bar-container');
-        const hpBarDiv = document.createElement('div');
-        hpBarDiv.classList.add('hp-bar');
-        const hpPercentage = (enemy.stats.HP / enemy.stats.MaxHP) * 100;
-        hpBarDiv.style.width = `${Math.max(0, hpPercentage)}%`;
-        hpBarContainerDiv.appendChild(hpBarDiv);
-
-        const hpTextDiv = document.createElement('div');
-        hpTextDiv.classList.add('hp-text');
-        hpTextDiv.textContent = `${enemy.stats.HP} / ${enemy.stats.MaxHP}`;
-
-        enemyItem.appendChild(portraitImg);
-        enemyItem.appendChild(nameDiv);
-        enemyItem.appendChild(hpBarContainerDiv);
-        enemyItem.appendChild(hpTextDiv);
-
-        // Add click listener for targeting
-        enemyItem.addEventListener('click', () => handleEnemyDisplayTap(enemy));
-
-        elMainEnemyDisplayWrapper.appendChild(enemyItem);
-    });
-
-    // Apply transform to show the correct enemy
-    elMainEnemyDisplayWrapper.style.transform = `translateX(-${currentEnemyDisplayIndex * 100}%)`;
-    updateEnemyDisplayTargetabilityVisuals(); // Update visual cues for targetability
-}
-
-function updateEnemyDisplayTargetabilityVisuals() {
-    if (!elMainEnemyDisplayWrapper) return;
-
-    const activeHero = getActiveHeroFromState();
-    const enemyItems = elMainEnemyDisplayWrapper.querySelectorAll('.enemy-display-item');
-
-    enemyItems.forEach(item => {
-        item.classList.remove('targetable-enemy', 'invalid-target'); // Reset classes
-        if (pwaMode === "targeting_enemy" && activeHero) {
-            const enemyId = item.dataset.enemyId;
-            const enemyUnit = visibleEnemies.find(e => e.id === enemyId);
-            if (enemyUnit) {
-                const command = activeHero.commands.find(cmd => cmd.commandType === "NormalAttack");
-                if (command) {
-                    const relativePos = enemyUnit.pseudoPos - activeHero.pseudoPos;
-                    if (Math.abs(relativePos) <= command.range && enemyUnit.type === command.targetableType) {
-                        item.classList.add('targetable-enemy');
-                    } else {
-                        item.classList.add('invalid-target');
+    // --- Animation Logic: Detect damage/healing ---
+    if (passedPreviousBState && bState.units && passedPreviousBState.units) {
+        bState.units.forEach(currentUnit => {
+            const prevUnitData = passedPreviousBState.units.find(prevU => prevU.id === currentUnit.id);
+            if (prevUnitData && prevUnitData.stats && currentUnit.stats) {
+                const oldHp = prevUnitData.stats.hp;
+                const newHp = currentUnit.stats.hp;
+                if (newHp < oldHp) {
+                    const damageTaken = oldHp - newHp;
+                    wsLogger(`UI_RENDERER_ANIM: Unit ${currentUnit.name} took ${damageTaken} damage. Triggering animation.`);
+                    if (typeof ui_playDamageAnimation === "function") {
+                        ui_playDamageAnimation(currentUnit.id, damageTaken, currentUnit.type);
                     }
-                } else {
-                     item.classList.add('invalid-target'); // No normal attack defined for hero
                 }
             }
+        });
+    }
+
+    // --- Render base elements ---
+    renderDynamicBackground();
+    if (bState.battleState === "Win" || bState.battleState === "Lose") {
+        renderBattleLogOverlay(true, bState.battleState, bState.battleMessage || (bState.battleState === "Win" ? "Victory!" : "Defeat!"));
+        if(elActionButtonsGroup) elActionButtonsGroup.innerHTML = `<p class="battle-over-message">${bState.battleState.toUpperCase()}!</p>`;
+        if(elPseudomapArea) elPseudomapArea.classList.add('is-hidden');
+        if(elPlayerHeroesDeck) elPlayerHeroesDeck.classList.add('is-hidden');
+    } else {
+        if (elBattleLogOverlay && elBattleLogOverlay.classList.contains('is-visible') && !bState.showLog) {
+             renderBattleLogOverlay(false);
         }
-    });
+        if(elPseudomapArea) elPseudomapArea.classList.remove('is-hidden');
+        if(elPlayerHeroesDeck) elPlayerHeroesDeck.classList.remove('is-hidden');
+    }
+    renderTopBar();
+    renderEnemyStage();
+    renderPlayerHeroesDeck();
+    renderPlayerActionBar();
+    
+    // --- Render Pseudomap (handles its own idle state visuals) ---
+    renderPseudomap();
+
+    // --- Scroll to active elements ---
+    if (typeof scrollToActiveUnitInPseudomap === "function") {
+        requestAnimationFrame(() => { requestAnimationFrame(scrollToActiveUnitInPseudomap); });
+    }
+    const activeUnitForScroll = getActiveUnit();
+    if (activeUnitForScroll && activeUnitForScroll.type === "Ally") {
+        if (typeof scrollToPlayerHero === "function") {
+             requestAnimationFrame(() => { scrollToPlayerHero(activeUnitForScroll.id, true); });
+        }
+    }
+
+    // --- Re-apply targeting visuals HANYA jika wsMode BUKAN idle ---
+    const allUnitFrames = elPseudomapTrack ? elPseudomapTrack.querySelectorAll('.pseudomap-unit-frame') : [];
+    
+    if (wsMode === "selecting_primary_target" && typeof validPrimaryTargetIds !== 'undefined') {
+        if (typeof ui_renderSelectPrimaryTargetMode === "function") ui_renderSelectPrimaryTargetMode(validPrimaryTargetIds, allUnitFrames);
+    } else if (wsMode === "confirming_effect_area" && typeof selectedPrimaryTargetId !== 'undefined') {
+        let isNoChoice = false;
+        if (selectedActionDetails && selectedActionDetails.commandObject?.targetingParams?.selection?.pattern?.shape === "Self") {
+            isNoChoice = true;
+        }
+        if (typeof ui_renderConfirmAreaMode === "function") ui_renderConfirmAreaMode(selectedPrimaryTargetId, currentAffectedTargetIds, allUnitFrames, isNoChoice);
+    } else if (wsMode === "confirming_basic_attack" && typeof lastTappedUnitId !== 'undefined') {
+        if (typeof ui_highlightPotentialBasicAttackTarget === "function") {
+            allUnitFrames.forEach(frame => ui_highlightPotentialBasicAttackTarget(frame.dataset.unitId, frame.dataset.unitId === lastTappedUnitId));
+        }
+    }
+    // Note: No 'else if (wsMode === "idle")' block is needed here, as renderPseudomap handles all idle-state visuals.
+
+    wsLogger("UI_RENDERER: All UI elements refreshed.");
 }
 
 
+// --- Individual Component Renderers ---
+
+function renderDynamicBackground() {
+    if (!elDynamicBackground) { return; }
+    const bgFilename = bState.assets?.backgroundImageFilename;
+    if (bgFilename && typeof bgFilename === 'string' && bgFilename.trim() !== '') {
+        const fullPath = getGeneralAssetPath(bgFilename, "background");
+        if (fullPath) {
+            elDynamicBackground.style.backgroundImage = `url('${fullPath}')`;
+            elDynamicBackground.style.backgroundColor = '';
+        } else {
+            elDynamicBackground.style.backgroundImage = '';
+            elDynamicBackground.style.backgroundColor = DEFAULT_BACKGROUND_COLOR;
+        }
+    } else {
+        elDynamicBackground.style.backgroundImage = '';
+        elDynamicBackground.style.backgroundColor = DEFAULT_BACKGROUND_COLOR;
+    }
+}
+
+function renderTopBar() {
+    if (elRoundTurnDisplay) {
+        const roundText = bState.round ? toRoman(bState.round) : 'N/A';
+        const turnText = bState.turnInRound || 'N/A';
+        elRoundTurnDisplay.innerHTML = `<span>${roundText}</span>-<span>${turnText}</span>`;
+    }
+    if (elBattleMessageDisplay) {
+        elBattleMessageDisplay.textContent = bState.battleMessage || "---";
+    }
+}
+
+function renderEnemyStage() {
+    if (!elEnemyCarousel) { return; }
+    elEnemyCarousel.innerHTML = '';
+    const enemies = bState.units ? bState.units.filter(unit => unit.type === "Enemy" && unit.status !== "Defeated") : [];
+    if (enemies.length === 0) {
+        elEnemyCarousel.innerHTML = '<div class="character-card enemy-card no-target"><p>No enemies left!</p></div>';
+        if (elPrevEnemyBtn) elPrevEnemyBtn.style.display = 'none';
+        if (elNextEnemyBtn) elNextEnemyBtn.style.display = 'none';
+        currentEnemyIndex = 0;
+        return;
+    }
+    if (currentEnemyIndex >= enemies.length) currentEnemyIndex = Math.max(0, enemies.length - 1);
+    if (currentEnemyIndex < 0) currentEnemyIndex = 0;
+
+    enemies.forEach((enemy, index) => {
+        const card = document.createElement('div');
+        card.classList.add('character-card', 'enemy-card');
+        card.dataset.unitId = enemy.id;
+        if (index === currentEnemyIndex) card.classList.add('active-enemy');
+
+        const detailsWrapper = document.createElement('div');
+        detailsWrapper.classList.add('character-details');
+        const nameElement = document.createElement('h3');
+        nameElement.classList.add('character-name');
+        nameElement.textContent = enemy.name || "Unknown Enemy";
+        const hpContainer = document.createElement('div');
+        hpContainer.classList.add('hp-bar-container');
+        const hpBar = document.createElement('div');
+        hpBar.classList.add('hp-bar');
+        const maxHp = enemy.stats?.maxHp || 0;
+        const currentHp = enemy.stats?.hp || 0;
+        const hpPercentage = maxHp > 0 ? (currentHp / maxHp) * 100 : 0;
+        hpBar.style.width = `${Math.max(0, hpPercentage)}%`;
+        const hpText = document.createElement('div');
+        hpText.classList.add('hp-text');
+        hpText.textContent = `${currentHp}/${maxHp}`;
+        hpContainer.appendChild(hpBar);
+        hpContainer.appendChild(hpText);
+        detailsWrapper.appendChild(nameElement);
+        detailsWrapper.appendChild(hpContainer);
+
+        const spriteContainer = document.createElement('div');
+        spriteContainer.classList.add('character-sprite-container');
+        const sprite = document.createElement('img');
+        let imageToLoad = getImagePathForUnit(enemy.fullBodyFilename, enemy.type, "fullBody");
+        if (!enemy.fullBodyFilename && enemy.portraitFilename) {
+            imageToLoad = getImagePathForUnit(enemy.portraitFilename, enemy.type, "portraitHead");
+        } else if (!enemy.fullBodyFilename && !enemy.portraitFilename) {
+             imageToLoad = getImagePathForUnit(null, enemy.type, "fullBody");
+        }
+        sprite.src = imageToLoad;
+        sprite.alt = (enemy.name || "Unknown Enemy") + " Sprite";
+        sprite.classList.add('character-sprite');
+        sprite.onerror = function() {
+            this.src = getImagePathForUnit(null, enemy.type, "fullBody", true);
+            this.onerror = null;
+        };
+        spriteContainer.appendChild(sprite);
+        card.appendChild(detailsWrapper);
+        card.appendChild(spriteContainer);
+        elEnemyCarousel.appendChild(card);
+    });
+
+    elEnemyCarousel.style.transform = `translateX(-${currentEnemyIndex * 100}%)`;
+    if (elPrevEnemyBtn) elPrevEnemyBtn.style.display = enemies.length > 1 ? 'block' : 'none';
+    if (elNextEnemyBtn) elNextEnemyBtn.style.display = enemies.length > 1 ? 'block' : 'none';
+}
+
+function renderPlayerHeroesDeck() {
+    if (!elPlayerHeroesCarousel) { return; }
+    elPlayerHeroesCarousel.innerHTML = '';
+    const playerHeroes = bState.units ? bState.units.filter(unit => unit.type === "Ally" && unit.status !== "Defeated") : [];
+    if (playerHeroes.length === 0) {
+        elPlayerHeroesCarousel.innerHTML = '<p class="no-heroes-message">No active heroes.</p>';
+        if (elPlayerHeroesCarousel) elPlayerHeroesCarousel.style.transform = 'translateX(0px)';
+        currentPlayerHeroStartIndex = 0;
+        return;
+    }
+    playerHeroes.forEach((hero) => {
+        const card = document.createElement('div');
+        card.classList.add('character-card', 'player-card');
+        card.dataset.unitId = hero.id;
+        if (hero.id === bState.activeUnitID) {
+            card.classList.add('active-player-hero');
+        }
+        const spriteContainer = document.createElement('div');
+        spriteContainer.classList.add('character-sprite-container');
+        const sprite = document.createElement('img');
+        sprite.src = getImagePathForUnit(hero.portraitFilename, hero.type, "portraitHead");
+        sprite.alt = (hero.name || "Hero") + " Portrait";
+        sprite.classList.add('character-sprite');
+        sprite.onerror = function() {
+            this.src = getImagePathForUnit(null, hero.type, "portraitHead", true);
+            this.onerror = null;
+        };
+        spriteContainer.appendChild(sprite);
+
+        const details = document.createElement('div');
+        details.classList.add('character-details');
+        const name = document.createElement('h4');
+        name.classList.add('character-name');
+        name.textContent = hero.name || "Unknown Hero";
+        const hpContainer = document.createElement('div');
+        hpContainer.classList.add('hp-bar-container');
+        const hpBar = document.createElement('div');
+        hpBar.classList.add('hp-bar');
+        const maxHp = hero.stats?.maxHp || 0;
+        const currentHp = hero.stats?.hp || 0;
+        const hpPercentage = maxHp > 0 ? (currentHp / maxHp) * 100 : 0;
+        hpBar.style.width = `${Math.max(0, hpPercentage)}%`;
+        const hpText = document.createElement('div');
+        hpText.classList.add('hp-text');
+        hpText.textContent = `${currentHp}/${maxHp}`;
+        hpContainer.appendChild(hpBar);
+        if (hero.stats?.maxHp) hpContainer.appendChild(hpText);
+        details.appendChild(name);
+        details.appendChild(hpContainer);
+        card.appendChild(spriteContainer);
+        card.appendChild(details);
+        elPlayerHeroesCarousel.appendChild(card);
+    });
+}
+
+function renderPlayerActionBar() {
+    if (elTeamResourcesDisplay) {
+        elTeamResourcesDisplay.textContent = `SP: ${bState.teamSP || 0}/${bState.maxTeamSP || 5}`;
+    }
+    if (!elActionButtonsGroup) { wsLogger("UI_RENDERER_ACTION_BAR_ERROR: Action buttons group not found."); return; }
+    elActionButtonsGroup.innerHTML = '';
+
+    const activeUnit = getActiveUnit();
+    if (!activeUnit || activeUnit.type !== "Ally" || bState.battleState !== "Ongoing") {
+        elActionButtonsGroup.innerHTML = '<p class="no-actions-message">No actions available.</p>';
+        return;
+    }
+    const skills = activeUnit.commands ? activeUnit.commands.filter(cmd => cmd.type !== "BasicAttack") : [];
+
+    if (skills.length === 0) {
+        elActionButtonsGroup.innerHTML = '<p class="no-actions-message">No skills. Double tap enemy for Basic Attack.</p>';
+        return;
+    }
+    skills.forEach(cmd => {
+        const button = document.createElement('button');
+        button.textContent = cmd.name || "Skill";
+        button.dataset.commandId = cmd.commandId;
+        button.dataset.actionType = cmd.type;
+        let isDisabled = false;
+        let disabledReason = "";
+        if (cmd.type === "Skill" && typeof cmd.spCost === 'number' && bState.teamSP < cmd.spCost) {
+            isDisabled = true;
+            disabledReason = `Needs ${cmd.spCost} SP`;
+        }
+        if (isDisabled) {
+            button.classList.add('disabled');
+            button.disabled = true;
+            button.title = disabledReason;
+        }
+        elActionButtonsGroup.appendChild(button);
+    });
+}
+
+function renderBattleLogOverlay(show, resultState = null, endMessage = null) {
+    if (!elBattleLogOverlay || !elBattleLogEntries) { return; }
+    if (show) {
+        const titleElement = elBattleLogOverlay.querySelector('h3');
+        if (titleElement) {
+            titleElement.textContent = resultState === "Win" ? "VICTORY!" : (resultState === "Lose" ? "DEFEAT!" : "Battle Log");
+        }
+        if (endMessage) {
+            addLogEntry(endMessage, resultState === "Win" ? 'log-victory' : (resultState === "Lose" ? 'log-defeat' : 'system'), true);
+        }
+        elBattleLogOverlay.classList.remove('is-hidden');
+        elBattleLogOverlay.classList.add('is-visible');
+    } else {
+        elBattleLogOverlay.classList.remove('is-visible');
+    }
+}
+
+function addLogEntry(message, type = "system", forceShow = false) {
+    if (!elBattleLogEntries) return;
+    const entry = document.createElement('p');
+    entry.classList.add(`log-entry-${type}`);
+    entry.innerHTML = message;
+    elBattleLogEntries.appendChild(entry);
+    elBattleLogEntries.scrollTop = elBattleLogEntries.scrollHeight;
+    if (forceShow && elBattleLogOverlay && !elBattleLogOverlay.classList.contains('is-visible')) {
+        renderBattleLogOverlay(true);
+    }
+}
+
+/**
+ * Renders the pseudomap and handles all idle-state visuals.
+ */
 function renderPseudomap() {
-    if (!elPseudomapStrip) {
-        pwaLogger("UI_RENDERER_PSEUDO: Strip element not found.");
-        return;
-    }
-    pwaLogger("UI_RENDERER_PSEUDO: Rendering PseudoMap.");
-    elPseudomapStrip.innerHTML = ''; // Clear previous frames
+    if (!elPseudomapTrack) { wsLogger("UI_RENDERER_PSEUDOMAP_ERROR: Pseudomap track element not found."); return; }
+    elPseudomapTrack.innerHTML = '';
 
-    const unitsToDisplayOnMap = getLivingUnits(); // Get all living units
-    if (unitsToDisplayOnMap.length === 0) {
-        pwaLogger("UI_RENDERER_PSEUDO: No living units to display on PseudoMap.");
-        return;
-    }
+    const allUnitsForMap = bState.units ? bState.units.filter(u => u.status !== "Defeated") : [];
+    if (allUnitsForMap.length === 0) { wsLogger("UI_RENDERER_PSEUDOMAP: No units to display."); return; }
 
-    // Sort units by pseudoPos for consistent rendering order if needed,
-    // though the centering logic will primarily dictate visual order.
-    unitsToDisplayOnMap.sort((a, b) => a.pseudoPos - b.pseudoPos);
+    allUnitsForMap.sort((a, b) => (a.pseudoPos || 0) - (b.pseudoPos || 0));
 
-    let displaySlots = new Array(PSEUDOMAP_MAX_VISIBLE_UNITS).fill(null);
-    const activeUnit = getUnitById(bState.ActiveUnitID);
-    let activeUnitPseudoPos = 0;
-
-    if (activeUnit && activeUnit.status !== "Defeated") {
-        activeUnitPseudoPos = activeUnit.pseudoPos;
-    } else if (unitsToDisplayOnMap.length > 0) {
-        // Fallback if active unit is defeated or not found, center on the first living unit
-        activeUnitPseudoPos = unitsToDisplayOnMap[0].pseudoPos;
-        pwaLogger("UI_RENDERER_PSEUDO: Active unit not found or defeated, centering on first living unit.");
-    }
-    
-    const centerSlotIndex = Math.floor(PSEUDOMAP_MAX_VISIBLE_UNITS / 2);
-
-    // Populate displaySlots centered around the active unit's pseudoPos
-    for (let i = 0; i < PSEUDOMAP_MAX_VISIBLE_UNITS; i++) {
-        const targetPseudoPos = activeUnitPseudoPos + (i - centerSlotIndex);
-        const unitForSlot = unitsToDisplayOnMap.find(u => u.pseudoPos === targetPseudoPos);
-        if (unitForSlot) {
-            displaySlots[i] = unitForSlot;
+    // Get valid basic attack targets to highlight them during idle mode
+    let validBasicTargets = [];
+    const activeUnit = getActiveUnit();
+    if (wsMode === "idle" && activeUnit && activeUnit.type === "Ally" && !(bState.battleState === "Win" || bState.battleState === "Lose")) {
+        if (typeof getValidBasicAttackTargetIdsForUI === "function") {
+            validBasicTargets = getValidBasicAttackTargetIdsForUI(activeUnit, allUnitsForMap);
         }
     }
-    
-    // If fewer units than slots, and we want to keep active unit centered,
-    // we might need to adjust. For now, this fills from the calculated center.
-    // If PSEUDOMAP_MAX_VISIBLE_UNITS is less than actual units, overflow-x: auto handles scrolling.
-    // If we always want to show ALL units when <= MAX_VISIBLE_SLOTS, the logic would be different.
-    // For now, we show a "window" of MAX_VISIBLE_SLOTS centered on active unit.
 
-    let actualUnitsToRender = displaySlots;
-    if (unitsToDisplayOnMap.length < PSEUDOMAP_MAX_VISIBLE_UNITS) {
-        // If total living units are few, just display them all, trying to center the active one.
-        // This part can be complex to perfectly center a small number of units within a fixed number of slots.
-        // A simpler approach for few units:
-        actualUnitsToRender = unitsToDisplayOnMap; // Display all living units directly
-        // And then apply CSS to #pseudomap-strip to center them if they don't fill the container.
-    }
+    allUnitsForMap.forEach(unit => {
+        const frame = document.createElement('div');
+        frame.classList.add('pseudomap-unit-frame', unit.type.toLowerCase());
+        frame.dataset.unitId = unit.id;
 
-
-    actualUnitsToRender.forEach(unit => {
-        if (!unit && unitsToDisplayOnMap.length >= PSEUDOMAP_MAX_VISIBLE_UNITS) { // Only add placeholders if we are in "windowed" mode
-            const placeholderFrame = document.createElement('div');
-            placeholderFrame.classList.add('pseudomap-frame', 'placeholder');
-            // Optionally, add a specific style or content for placeholder
-            elPseudomapStrip.appendChild(placeholderFrame);
-            return;
+        // Apply idle-state visuals
+        if (unit.id === bState.activeUnitID && wsMode === "idle") {
+            frame.classList.add('active', 'active-turn-idle');
+        } else if (unit.id === bState.activeUnitID) {
+            frame.classList.add('active');
         }
-        if (!unit) return; // Skip if still null after adjustments
 
-        const frameDiv = document.createElement('div');
-        frameDiv.classList.add('pseudomap-frame', unit.type.toLowerCase());
-        frameDiv.dataset.unitId = unit.id;
-        if (unit.id === bState.ActiveUnitID) {
-            frameDiv.classList.add('active-unit');
+        if (unit.status === "EndTurn") frame.classList.add('end-turn');
+        else if (unit.status === "Defeated") frame.classList.add('defeated', 'end-turn');
+
+        if (wsMode === "idle" && validBasicTargets.includes(unit.id)) {
+            frame.classList.add('valid-basic-attack-target');
         }
-        // No 'is-defeated' class here as we filter for living units
 
-        const borderDiv = document.createElement('div');
-        borderDiv.classList.add('diamond-border');
-
-        const portraitImg = document.createElement('img');
-        portraitImg.classList.add('unit-portrait');
-        portraitImg.src = assetCache.portraits[unit.portraitRef] || (unit.type === "Ally" ? staticAssetCache.portraits.placeholder_ally_portrait : staticAssetCache.portraits.placeholder_enemy_portrait);
-        portraitImg.alt = unit.name;
-        portraitImg.onerror = function() { this.src = (unit.type === "Ally" ? staticAssetCache.portraits.placeholder_ally_portrait : staticAssetCache.portraits.placeholder_enemy_portrait); };
-
-        frameDiv.appendChild(borderDiv);
-        frameDiv.appendChild(portraitImg);
-        elPseudomapStrip.appendChild(frameDiv);
+        const portrait = document.createElement('img');
+        portrait.src = getImagePathForUnit(unit.portraitFilename, unit.type, "portraitHead");
+        portrait.alt = (unit.name || "Unit") + " Portrait";
+        portrait.classList.add('pseudomap-portrait');
+        portrait.onerror = function() { this.src = getImagePathForUnit(null, unit.type, "portraitHead", true); this.onerror = null; };
+        frame.appendChild(portrait);
+        elPseudomapTrack.appendChild(frame);
     });
 }
 
-
-function renderActiveHeroPanel() {
-    if (!elActiveHeroPanel) {
-        pwaLogger("UI_RENDERER_HERO: Panel element not found.");
-        return;
+// --- UI Hint and Targeting Visual Functions ---
+function ui_showEndTurnHint(unitId, show) {
+    const unitFrame = elPseudomapTrack ? elPseudomapTrack.querySelector(`.pseudomap-unit-frame[data-unit-id="${unitId}"]`) : null;
+    if (unitFrame && bState.activeUnitID && unitId === bState.activeUnitID) {
+        if (show) {
+            unitFrame.classList.remove('active-turn-idle');
+            unitFrame.classList.add('active-turn-first-tap', 'can-double-tap-end-turn');
+        } else {
+            unitFrame.classList.remove('active-turn-first-tap', 'can-double-tap-end-turn');
+            if (wsMode === "idle") unitFrame.classList.add('active-turn-idle');
+        }
     }
-    pwaLogger("UI_RENDERER_HERO: Rendering active hero panel.");
+}
 
-    const activeHero = getActiveHeroFromState();
-    if (!activeHero) {
-        elActiveHeroPanel.innerHTML = `<p style="padding: 10px; text-align: center;">No active ally.</p>`;
-        elActiveHeroPanel.classList.remove('ready-to-attack');
-        return;
+function ui_highlightPotentialBasicAttackTarget(targetUnitId, show) {
+    const unitFrame = elPseudomapTrack ? elPseudomapTrack.querySelector(`.pseudomap-unit-frame[data-unit-id="${targetUnitId}"]`) : null;
+    if (unitFrame) {
+        unitFrame.classList.toggle('potential-basic-attack-target', show);
+        unitFrame.classList.toggle('pulsing', show);
+    }
+}
+
+function ui_renderSelectPrimaryTargetMode(validIds, allFrames) {
+    if (elPseudomapArea) elPseudomapArea.classList.add('targeting-select-primary');
+    allFrames.forEach(f => {
+        f.classList.remove('active-turn-idle', 'valid-basic-attack-target');
+        f.classList.toggle('valid-primary-target', validIds.includes(f.dataset.unitId));
+        f.classList.toggle('invalid-primary-target', !validIds.includes(f.dataset.unitId));
+    });
+}
+
+function ui_renderConfirmAreaMode(primaryId, affectedIds, allFrames) {
+    if (elPseudomapArea) {
+        elPseudomapArea.classList.remove('targeting-select-primary');
+        elPseudomapArea.classList.add('targeting-confirm-area');
+    }
+     allFrames.forEach(f => {
+        f.classList.remove('active-turn-idle', 'valid-basic-attack-target', 'valid-primary-target', 'invalid-primary-target');
+        const unitId = f.dataset.unitId;
+        f.classList.toggle('primary-selected-for-effect', unitId === primaryId);
+        f.classList.toggle('affected-by-action', affectedIds.includes(unitId));
+    });
+}
+
+function ui_clearAllTargetingVisuals() {
+    if (elPseudomapArea) {
+        elPseudomapArea.classList.remove('targeting-select-primary', 'targeting-confirm-area');
+    }
+    const allUnitFrames = elPseudomapTrack ? elPseudomapTrack.querySelectorAll('.pseudomap-unit-frame') : [];
+    allUnitFrames.forEach(frame => {
+        frame.classList.remove(
+            'valid-primary-target', 'invalid-primary-target',
+            'primary-selected-for-effect', 'affected-by-action',
+            'potential-basic-attack-target', 'pulsing',
+            'active-turn-first-tap', 'can-double-tap-end-turn'
+        );
+    });
+}
+
+// --- Animation & Scroll Functions ---
+function ui_playDamageAnimation(unitId, damageAmount, unitType) {
+    wsLogger(`UI_ANIM_INFO: Playing damage animation for Unit ID: ${unitId}, Damage: ${damageAmount}`);
+    let popUpAnchorElement = null;
+    const pseudomapFrame = elPseudomapTrack ? elPseudomapTrack.querySelector(`.pseudomap-unit-frame[data-unit-id="${unitId}"]`) : null;
+    if (pseudomapFrame) popUpAnchorElement = pseudomapFrame;
+
+    if (unitType === "Enemy") {
+        const enemyCard = elEnemyCarousel ? elEnemyCarousel.querySelector(`.character-card.enemy-card[data-unit-id="${unitId}"]`) : null;
+        if (enemyCard) {
+            const spriteContainer = enemyCard.querySelector('.character-sprite-container');
+            popUpAnchorElement = spriteContainer || enemyCard;
+            enemyCard.classList.add('unit-damaged-flash');
+            setTimeout(() => { if (enemyCard) enemyCard.classList.remove('unit-damaged-flash'); }, 500);
+        }
+    } else if (unitType === "Ally") {
+        const heroCard = elPlayerHeroesCarousel ? elPlayerHeroesCarousel.querySelector(`.character-card.player-card[data-unit-id="${unitId}"]`) : null;
+        if (heroCard) {
+            popUpAnchorElement = heroCard;
+            heroCard.classList.add('unit-damaged-flash');
+            setTimeout(() => { if (heroCard) heroCard.classList.remove('unit-damaged-flash'); }, 500);
+        }
     }
 
-    elActiveHeroPanel.innerHTML = `
-        <img src="${assetCache.portraits[activeHero.portraitRef] || staticAssetCache.portraits.placeholder_ally_portrait}" alt="${activeHero.name}" class="hero-portrait" onerror="this.src='${staticAssetCache.portraits.placeholder_ally_portrait}'">
-        <div class="hero-info">
-            <div class="hero-name">${activeHero.name}</div>
-            <div class="hp-bar-container">
-                <div class="hp-bar" style="width: ${Math.max(0, (activeHero.stats.HP / activeHero.stats.MaxHP) * 100)}%;"></div>
-            </div>
-            <div class="hp-text">${activeHero.stats.HP} / ${activeHero.stats.MaxHP}</div>
-        </div>
-    `;
-
-    if (pwaMode === "targeting_enemy") {
-        elActiveHeroPanel.classList.add('ready-to-attack');
+    if (popUpAnchorElement) {
+        const damagePopup = document.createElement('div');
+        damagePopup.classList.add('damage-popup');
+        damagePopup.textContent = `-${damageAmount}`;
+        damagePopup.style.position = 'absolute';
+        damagePopup.style.left = '50%';
+        damagePopup.style.top = '0%';
+        damagePopup.style.transform = 'translateX(-50%) translateY(-120%)';
+        popUpAnchorElement.appendChild(damagePopup);
+        requestAnimationFrame(() => {
+            damagePopup.style.opacity = '1';
+            damagePopup.style.transform = 'translateX(-50%) translateY(-150%)';
+        });
+        setTimeout(() => {
+            damagePopup.style.opacity = '0';
+            damagePopup.style.transform = 'translateX(-50%) translateY(-200%)';
+        }, 800);
+        setTimeout(() => { if (damagePopup.parentNode) damagePopup.parentNode.removeChild(damagePopup); }, 1600);
     } else {
-        elActiveHeroPanel.classList.remove('ready-to-attack');
+        wsLogger(`UI_ANIM_ERROR: popUpAnchorElement NOT found for unit ${unitId}.`);
     }
 }
 
-function showBattleEndScreen(resultState) { // resultState: "Win" or "Lose"
-    if (!elBattleScreen || !elBattleEndScreen || !elBattleResultMessage) {
-        pwaLogger("UI_RENDERER_END: Battle end screen elements not found.");
-        return;
-    }
+function scrollToActiveUnitInPseudomap() {
+    if (!elPseudomapArea || !elPseudomapTrack || !bState || !bState.activeUnitID) return;
+    const activeUnitFrame = elPseudomapTrack.querySelector(`.pseudomap-unit-frame[data-unit-id="${bState.activeUnitID}"]`);
+    if (!activeUnitFrame) return;
 
-    elBattleScreen.classList.add('is-hidden'); // Hide main battle screen
-    elBattleEndScreen.classList.remove('is-hidden', 'win', 'lose'); // Show end screen and reset result classes
+    const areaRect = elPseudomapArea.getBoundingClientRect();
+    const unitCenterInTrack = activeUnitFrame.offsetLeft + (activeUnitFrame.offsetWidth / 2);
+    const areaCenter = areaRect.width / 2;
+    let scrollTarget = unitCenterInTrack - areaCenter;
+    const maxScrollLeft = elPseudomapTrack.scrollWidth - elPseudomapArea.clientWidth;
+    scrollTarget = Math.max(0, Math.min(scrollTarget, maxScrollLeft));
 
-    if (resultState === "Win") {
-        elBattleResultMessage.textContent = "Victory!";
-        elBattleEndScreen.classList.add('win');
-    } else if (resultState === "Lose") {
-        elBattleResultMessage.textContent = "Defeat!";
-        elBattleEndScreen.classList.add('lose');
-    } else {
-        elBattleResultMessage.textContent = "Battle Over."; // Fallback
+    if (Math.abs(elPseudomapArea.scrollLeft - scrollTarget) > 1) { // Check with a small tolerance
+        elPseudomapArea.scrollTo({ left: scrollTarget, behavior: 'smooth' });
     }
-    pwaLogger(`UI_RENDERER_END: Displaying Battle End Screen - ${resultState}`);
 }
 
-// --- Animation & Visual Feedback Functions ---
-function showDamagePopup(targetUnitId, damageAmount) {
-    if (!damageAmount || damageAmount <= 0) return; // Don't show for 0 or negative damage
+function scrollToPlayerHero(heroId, centerIfPossible = true) {
+    if (!elPlayerHeroesCarousel || !elPlayerHeroesDeck || !bState || !bState.units) return;
+    const playerHeroes = bState.units.filter(unit => unit.type === "Ally" && unit.status !== "Defeated");
+    const heroIndex = playerHeroes.findIndex(hero => hero.id === heroId);
+    if (heroIndex === -1) return;
+    const heroCardElement = elPlayerHeroesCarousel.querySelector(`.character-card.player-card[data-unit-id="${heroId}"]`);
+    if (!heroCardElement) return;
 
-    // Find the target element in the main enemy display or pseudomap
-    let targetElement = elMainEnemyDisplayWrapper?.querySelector(`.enemy-display-item[data-enemy-id="${targetUnitId}"] img`);
-    if (!targetElement) {
-        targetElement = elPseudomapStrip?.querySelector(`.pseudomap-frame[data-unit-id="${targetUnitId}"] img.unit-portrait`);
+    const carousel = elPlayerHeroesCarousel;
+    const cardWidth = heroCardElement.offsetWidth;
+    const cardGapStyle = getComputedStyle(carousel).gap;
+    const cardGap = cardGapStyle && cardGapStyle !== 'normal' ? parseInt(cardGapStyle) : 10;
+    const cardWidthWithGap = cardWidth + cardGap;
+    const deckContainerWidth = elPlayerHeroesDeck.offsetWidth;
+
+    let targetScrollPositionPx = heroIndex * cardWidthWithGap;
+    if (centerIfPossible) {
+        targetScrollPositionPx -= (deckContainerWidth / 2) - (cardWidthWithGap / 2);
     }
-    if (!targetElement || !elBattleScreen) return; // Need a positioned parent like battle-screen
-
-    const damagePopup = document.createElement('div');
-    damagePopup.classList.add('damage-text-popup');
-    damagePopup.textContent = damageAmount;
-
-    // Append to battle-screen to ensure it's positioned correctly relative to it
-    elBattleScreen.appendChild(damagePopup);
-
-    // Position popup near the target element
-    // This is a simplified positioning, might need refinement
-    const targetRect = targetElement.getBoundingClientRect();
-    const battleScreenRect = elBattleScreen.getBoundingClientRect();
-    
-    // Calculate position relative to elBattleScreen
-    damagePopup.style.left = `${targetRect.left - battleScreenRect.left + targetRect.width / 2}px`;
-    damagePopup.style.top = `${targetRect.top - battleScreenRect.top}px`;
-
-
-    pwaLogger(`UI_ANIM: Showing damage popup: ${damageAmount} on ${targetUnitId}`);
-    damagePopup.addEventListener('animationend', () => {
-        damagePopup.remove();
-    });
+    const maxScrollOffsetPx = Math.max(0, (playerHeroes.length * cardWidthWithGap) - deckContainerWidth - cardGap);
+    targetScrollPositionPx = Math.max(0, Math.min(targetScrollPositionPx, maxScrollOffsetPx));
+    carousel.style.transform = `translateX(-${targetScrollPositionPx}px)`;
+    currentPlayerHeroStartIndex = Math.round(targetScrollPositionPx / cardWidthWithGap);
 }
 
-function animateUnitAction(unitId, actionType) { // actionType: "attack_ally", "attack_enemy", "hit"
-    // Find unit in PseudoMap
-    const pseudoFrame = elPseudomapStrip?.querySelector(`.pseudomap-frame[data-unit-id="${unitId}"]`);
-    const pseudoPortrait = pseudoFrame?.querySelector('img.unit-portrait');
-
-    // Find unit in Main Enemy Display (if it's an enemy)
-    const mainEnemyItem = elMainEnemyDisplayWrapper?.querySelector(`.enemy-display-item[data-enemy-id="${unitId}"]`);
-    const mainEnemyPortrait = mainEnemyItem?.querySelector('img');
-
-    let animationClass = '';
-    if (actionType === "attack_ally") animationClass = 'unit-attacking-ally';
-    else if (actionType === "attack_enemy") animationClass = 'unit-attacking-enemy';
-    else if (actionType === "hit") animationClass = 'unit-hit';
-    else return;
-
-    const elementsToAnimate = [pseudoPortrait, mainEnemyPortrait].filter(el => el); // Filter out nulls
-
-    elementsToAnimate.forEach(element => {
-        element.classList.add(animationClass);
-        element.addEventListener('animationend', () => {
-            element.classList.remove(animationClass);
-        }, { once: true });
-    });
-    pwaLogger(`UI_ANIM: Animating ${unitId} with ${actionType}`);
+function scrollToEnemyInCarousel(enemyId) {
+    if (!bState || !bState.units) return;
+    const enemies = bState.units.filter(unit => unit.type === "Enemy" && unit.status !== "Defeated");
+    const enemyIndex = enemies.findIndex(enemy => enemy.id === enemyId);
+    if (enemyIndex !== -1 && enemyIndex !== currentEnemyIndex) {
+        currentEnemyIndex = enemyIndex;
+        if (typeof renderEnemyStage === "function") renderEnemyStage();
+    }
 }
+
+wsLogger("UI_RENDERER_JS: ui_renderer.js (Full Code) loaded.");

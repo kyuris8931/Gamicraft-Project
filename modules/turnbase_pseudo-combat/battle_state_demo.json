@@ -1,0 +1,207 @@
+{
+    "battleState": "Ongoing",
+    "round": 1,
+    "turnInRound": 1,
+    "activeUnitID": "player_kyuris_01_mock",
+    "activeUnitType": "Ally",
+    "battleMessage": "DEMO: The fierce battle begins!",
+    "teamSP": 5,
+    "maxTeamSP": 10,
+    "assets": {
+        "backgroundImageFilename": "backgrounds/mock_battle_bg.png",
+        "sfx": {}
+    },
+    "units": [
+        {
+            "id": "player_kyuris_01_mock",
+            "name": "Kyuris (Demo)",
+            "type": "Ally",
+            "role": "Melee",
+            "status": "Active",
+            "pseudoPos": 0,
+            "portraitFilename": "heroes/Kyuris_Portrait.png",
+            "fullBodyFilename": "heroes/Kyuris_Full.png",
+            "stats": { "level": 1, "hp": 62, "maxHp": 62, "atk": 11, "def": 5, "gauge": 0, "maxGauge": 100, "shieldHP": 0 },
+            "commands": [
+                {
+                    "commandId": "ky_skill_patch_up", "name": "Patch Up (2)", "description": "Heals single ally (2x ATK).", "type": "Skill", "spCost": 2,
+                    "targetingParams": {
+                        "selection": { "targetableTypes": ["Ally"], "pattern": { "shape": "WithinDistance", "distance": 2, "direction": "Both" } },
+                        "area": { "origin": "SelectedTarget", "shape": "SingleOnSelected", "affectedTypes": ["Ally"] }
+                    },
+                    "effects": [ { "type": "heal", "multiplier": 2, "basedOn": "caster_atk", "target": "selected" } ]
+                },
+                {
+                    "commandId": "ky_skill_system_reboot", "name": "Reboot (5)", "description": "Revive ally (30% MaxHP).", "type": "Skill", "spCost": 5,
+                    "targetingParams": {
+                        "selection": { "targetableTypes": ["Ally"], "pattern": { "shape": "AnyDefeatedAlly" } },
+                        "area": { "origin": "SelectedTarget", "shape": "SingleOnSelected", "affectedTypes": ["Ally"] }
+                    },
+                    "effects": [ { "type": "revive", "hpPercentage": 0.30, "target": "selected" } ]
+                },
+                {
+                    "commandId": "ky_skill_overdrive_strike", "name": "Overdrive (7)", "description": "Melee (2.5x ATK), 30% Stun.", "type": "Skill", "spCost": 7,
+                    "targetingParams": {
+                        "selection": { "targetableTypes": ["Enemy"], "pattern": { "shape": "Adjacent", "distance": 1, "direction": "Both" } },
+                        "area": { "origin": "SelectedTarget", "shape": "SingleOnSelected", "affectedTypes": ["Enemy"] }
+                    },
+                    "effects": [
+                        { "type": "damage", "multiplier": 2.5, "target": "selected" },
+                        { "type": "status", "statusName": "Stun", "chance": 0.3, "duration": 1, "target": "selected" }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "hero_arthur_01_mock",
+            "name": "Arthur (Demo)",
+            "type": "Ally",
+            "role": "Melee",
+            "status": "Idle",
+            "pseudoPos": -1,
+            "portraitFilename": "heroes/Arthur_Portrait.png",
+            "fullBodyFilename": "heroes/Arthur_Full.png",
+            "stats": { "level": 1, "hp": 60, "maxHp": 60, "atk": 10, "def": 6, "gauge": 0, "maxGauge": 100, "shieldHP": 0 },
+            "commands": [
+                {
+                    "commandId": "ar_skill_executioners_advance", "name": "ExecuteAdv (2)", "description": "Fwd1 (0.8x ATK), Kill=Act Again.", "type": "Skill", "spCost": 2,
+                    "targetingParams": {
+                        "selection": { "targetableTypes": ["Enemy"], "pattern": { "shape": "SpecificPosition", "distance": 1, "direction": "Forward" } },
+                        "area": { "origin": "SelectedTarget", "shape": "SingleOnSelected", "affectedTypes": ["Enemy"] }
+                    },
+                    "effects": [
+                        { "type": "damage", "multiplier": 0.8, "target": "selected" },
+                        { "type": "conditional", "condition": "target_defeated", "action": "act_again" }
+                    ]
+                },
+                {
+                    "commandId": "ar_skill_royal_guard", "name": "RoyalGuard (4)", "description": "AdjDmg (1.5x ATK), SelfShield (2x ATK).", "type": "Skill", "spCost": 4,
+                     "targetingParams": { "selection": { "targetableTypes": ["Self"], "pattern": { "shape": "Self" } } },
+                    "effects": [
+                        { "type": "damage_aoe_adjacent", "multiplier": 1.5, "target": "caster_adjacent_enemies" },
+                        { "type": "shield", "multiplier": 2, "basedOn": "caster_atk", "target": "caster" }
+                    ]
+                },
+                {
+                    "commandId": "ar_skill_excaliburs_might", "name": "Excalibur (7)", "description": "Melee (3.5x ATK), Ignores 50% DEF.", "type": "Skill", "spCost": 7,
+                    "targetingParams": {
+                        "selection": { "targetableTypes": ["Enemy"], "pattern": { "shape": "Adjacent", "distance": 1, "direction": "Both" } },
+                        "area": { "origin": "SelectedTarget", "shape": "SingleOnSelected", "affectedTypes": ["Enemy"] }
+                    },
+                    "effects": [ { "type": "damage", "multiplier": 3.5, "ignoreDefense": 0.5, "target": "selected" } ]
+                }
+            ]
+        },
+        {
+            "id": "hero_robin_01_mock",
+            "name": "Robin (Demo)",
+            "type": "Ally",
+            "role": "Ranged",
+            "status": "Idle",
+            "pseudoPos": 1,
+            "portraitFilename": "heroes/Robin_Portrait.png",
+            "fullBodyFilename": "heroes/Robin_Full.png",
+            "stats": { "level": 1, "hp": 55, "maxHp": 55, "atk": 12, "def": 4, "gauge": 0, "maxGauge": 100, "shieldHP": 0 },
+            "commands": [
+                {
+                    "commandId": "rh_skill_piercing_shot", "name": "PierceShot (3)", "description": "Target (1.8x), Line +/-1 (0.9x).", "type": "Skill", "spCost": 3,
+                    "targetingParams": {
+                        "selection": { "targetableTypes": ["Enemy"], "pattern": { "shape": "WithinDistance", "distance": 2, "direction": "Both" } },
+                        "area": { "origin": "SelectedTarget", "shape": "LineThroughTarget", "distance": 1, "affectedTypes": ["Enemy"] }
+                    },
+                    "effects": [ { "type": "damage_line_pierce", "mainMultiplier": 1.8, "pierceMultiplier": 0.9, "target": "selected_and_line" } ]
+                },
+                {
+                    "commandId": "rh_skill_arrow_rain", "name": "ArrowRain (6)", "description": "Target+Radius1 (1.2x ATK).", "type": "Skill", "spCost": 6,
+                    "targetingParams": {
+                        "selection": { "targetableTypes": ["Enemy"], "pattern": { "shape": "WithinDistance", "distance": 2, "direction": "Both" } },
+                        "area": { "origin": "SelectedTarget", "shape": "RadiusAroundOrigin", "distance": 1, "affectedTypes": ["Enemy"] }
+                    },
+                    "effects": [ { "type": "damage", "multiplier": 1.2, "target": "area" } ]
+                },
+                {
+                    "commandId": "rh_skill_longshot", "name": "Longshot (5)", "description": "Fwd Pos +4 (3x ATK).", "type": "Skill", "spCost": 5,
+                    "targetingParams": {
+                        "selection": { "targetableTypes": ["Enemy"], "pattern": { "shape": "SpecificPositions", "positions": [4], "direction": "Forward", "circular": true } },
+                        "area": { "origin": "SelectedTarget", "shape": "SingleOnSelected", "affectedTypes": ["Enemy"] }
+                    },
+                    "effects": [ { "type": "damage", "multiplier": 3.0, "target": "selected" } ]
+                }
+            ]
+        },
+        {
+            "id": "enemy_minion_melee_01_mock",
+            "name": "Goblin Grunt",
+            "type": "Enemy",
+            "role": "Melee",
+            "status": "Idle",
+            "pseudoPos": 2,
+            "portraitFilename": "enemies/Goblin_Grunt_Portrait.png",
+            "fullBodyFilename": "enemies/Goblin_Grunt_Full.png",
+            "stats": { "level": 1, "hp": 22, "maxHp": 22, "atk": 10, "def": 2 },
+            "commands": []
+        },
+        {
+            "id": "enemy_minion_ranged_01_mock",
+            "name": "Kobold Scout",
+            "type": "Enemy",
+            "role": "Ranged",
+            "status": "Idle",
+            "pseudoPos": 3,
+            "portraitFilename": "enemies/Kobold_Scout_Portrait.png",
+            "fullBodyFilename": "enemies/Kobold_Scout_Full.png",
+            "stats": { "level": 1, "hp": 20, "maxHp": 20, "atk": 9, "def": 1 },
+            "commands": []
+        },
+        {
+            "id": "enemy_minion_ranged_02_mock",
+            "name": "Forest Sprite",
+            "type": "Enemy",
+            "role": "Ranged",
+            "status": "Idle",
+            "pseudoPos": -3,
+            "portraitFilename": "enemies/Forest_Sprite_Portrait.png",
+            "fullBodyFilename": "enemies/Forest_Sprite_Full.png",
+            "stats": { "level": 1, "hp": 18, "maxHp": 18, "atk": 9, "def": 0 },
+            "commands": []
+        },
+        {
+            "id": "enemy_elite_melee_01_mock",
+            "name": "Orc Pillager",
+            "type": "Enemy",
+            "role": "Melee",
+            "status": "Idle",
+            "pseudoPos": -2,
+            "portraitFilename": "enemies/Orc_Pillager_Portrait.png",
+            "fullBodyFilename": "enemies/Orc_Pillager_Full.png",
+            "stats": { "level": 2, "hp": 40, "maxHp": 40, "atk": 15, "def": 4 },
+            "commands": []
+        },
+        {
+            "id": "enemy_elite_ranged_01_mock",
+            "name": "Dark Elf Hunter",
+            "type": "Enemy",
+            "role": "Ranged",
+            "status": "Idle",
+            "pseudoPos": 4,
+            "portraitFilename": "enemies/Dark_Elf_Hunter_Portrait.png",
+            "fullBodyFilename": "enemies/Dark_Elf_Hunter_Full.png",
+            "stats": { "level": 2, "hp": 38, "maxHp": 38, "atk": 14, "def": 3 },
+            "commands": []
+        },
+        {
+            "id": "enemy_boss_melee_01_mock",
+            "name": "Troll Chieftain",
+            "type": "Enemy",
+            "role": "Melee",
+            "status": "Idle",
+            "pseudoPos": -4,
+            "portraitFilename": "enemies/Troll_Chieftain_Portrait.png",
+            "fullBodyFilename": "enemies/Troll_Chieftain_Full.png",
+            "stats": { "level": 3, "hp": 80, "maxHp": 80, "atk": 30, "def": 5 },
+            "commands": []
+        }
+    ],
+    "totalUnits": 9,
+    "lastActionDetails": null
+}

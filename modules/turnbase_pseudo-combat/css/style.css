@@ -1,435 +1,785 @@
-/* js/config.js
-   PWA TBC - css/style.css (Stage 1 - English)
-*/
+/* Gamicraft WebScreen - style.css */
+/* Layout Push Down via Margin-Top, Perbaikan Gauge - v2.3 */
+/* Ditambah Modifikasi untuk Targeting 3 Tahap */
 
-/* --- Global Styles & Variables --- */
+/* --- Global Resets & Variables --- */
 :root {
-    --bg-main: #1e1e2e; /* Darker, slightly purplish-blue background */
-    --bg-panel: #2a2a3e; /* Panel background, a bit lighter */
-    --bg-panel-lighter: #3c3c52; /* Lighter panel elements */
-    --text-main: #cdd6f4; /* Main text color (Catppuccin Macchiato Text) */
-    --text-light: #bac2de; /* Lighter text (Catppuccin Macchiato Subtext0) */
-    --text-dark: #181825; /* Dark text for light backgrounds */
-    --border-color: #494d64; /* Border color (Catppuccin Macchiato Overlay0) */
-    
-    --ally-color: #89b4fa;  /* Ally Blue (Catppuccin Macchiato Blue) */
-    --enemy-color: #f38ba8; /* Enemy Red (Catppuccin Macchiato Red) */
-    --active-unit-color: #a6e3a1; /* Active Unit Green (Catppuccin Macchiato Green) */
-    --highlight-color: #fab387; /* Highlight/Targetable Orange (Catppuccin Macchiato Peach) */
-    --special-accent-color: #cba6f7; /* Purple for buttons/accents (Catppuccin Macchiato Mauve) */
-    --message-color: #f9e2af; /* Yellow for messages (Catppuccin Macchiato Yellow) */
+    /* Light Theme Color Palette */
+    --color-background-base: #f4f6f8;
+    --color-surface-glass: rgba(255, 255, 255, 0.75);
+    --color-surface-glass-alt: rgba(250, 250, 250, 0.9);
+    --color-surface-solid: #ffffff;
 
-    --hp-bar-bg: #585b70; /* HP Bar background (Catppuccin Macchiato Surface2) */
-    --hp-bar-ally: var(--active-unit-color);
-    --hp-bar-enemy: var(--highlight-color); /* Using orange for enemy HP for better contrast */
+    --color-text-primary: #2c3e50;
+    --color-text-secondary: #7f8c8d;
+    --color-text-on-accent: #ffffff;
+    --color-text-hp: #f1f1f1;
 
-    --diamond-clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-    --font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    --border-radius-main: 8px;
+    --color-accent-primary: #3498db; /* Biru umum */
+    --color-accent-secondary: #e74c3c; /* Merah untuk musuh DAN HP pemain */
+    --color-accent-tertiary: #2ecc71; /* Hijau untuk teman (non-HP) */
+    --color-accent-quaternary: #f1c40f; /* Kuning/Emas untuk SP, unit aktif, Gauge */
+
+    --color-border-glass: rgba(255, 255, 255, 0.45);
+    --color-border-strong: rgba(0, 0, 0, 0.1);
+
+    --font-primary: 'Inter', sans-serif;
+    --font-display: 'Press Start 2P', cursive;
+
+    --spacing-unit: 8px;
+    --border-radius-glass: 12px;
+    --border-radius-elements: 6px;
     --border-radius-small: 4px;
+
+    --shadow-glass: 0 5px 25px rgba(0, 0, 0, 0.12);
+    --shadow-elements: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+    --transition-main: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-targeting: 0.15s ease-out; /* Transisi lebih cepat untuk feedback targeting */
+    --diamond-clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    --outline-thickness: 3px;
+
+    /* Ukuran kartu hero di deck */
+    --player-hero-card-size: 120px;
+    --player-hero-deck-padding: var(--spacing-unit);
+    --player-hero-card-gap: calc(var(--spacing-unit) * 1.25);
+
+    /* Warna untuk Targeting */
+    --color-targeting-valid-primary: #2980b9; /* Biru lebih gelap untuk target valid */
+    --color-targeting-invalid-primary: #95a5a6; /* Abu-abu untuk target tidak valid */
+    --color-targeting-affected-overlay: rgba(231, 76, 60, 0.35); /* Merah transparan untuk AoE */
+    --color-targeting-primary-selected-aoe: #f39c12; /* Oranye/Kuning untuk target utama saat AoE */
+    --color-targeting-border-highlight: #007bff; /* Biru cerah untuk highlight border */
+
+    --color-active-turn-idle-border: #3498db; /* Biru untuk border idle unit aktif */
+    --color-active-turn-first-tap-border: #e67e22; /* Oranye untuk border setelah tap pertama */
 }
 
-body {
-    font-family: var(--font-family);
+
+* {
     margin: 0;
-    background-color: var(--bg-main);
-    color: var(--text-main);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    overflow: hidden;
-    font-size: 14px;
-}
-
-/* --- Main Battle Screen Layout --- */
-.battle-screen {
-    width: 100%;
-    max-width: 400px; /* Optimized for mobile portrait */
-    height: 100%;
-    max-height: 750px; /* Typical mobile height */
-    background-color: var(--bg-panel);
-    display: flex;
-    flex-direction: column;
-    border-radius: var(--border-radius-main);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    overflow: hidden;
-    position: relative;
-}
-
-/* --- Top Info Bar --- */
-.top-info-bar {
-    padding: 8px 12px;
-    text-align: center;
-    background-color: rgba(0,0,0,0.2);
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0;
-    color: var(--text-light);
-}
-#round-turn-info {
-    font-size: 0.9em;
-    font-weight: 500;
-}
-#battle-message-area {
-    font-size: 0.85em;
-    min-height: 1.8em; /* Roughly 2 lines */
-    color: var(--message-color);
-    margin-top: 4px;
-    font-style: italic;
-}
-
-/* --- Main Enemy Display Area --- */
-#main-enemy-display-container {
-    flex-grow: 1; /* Takes up available vertical space */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 10px;
-    position: relative;
-    overflow: hidden; /* Crucial for swipe effect */
-    background: linear-gradient(160deg, var(--bg-main) 0%, var(--bg-panel) 100%);
-}
-
-#main-enemy-display-wrapper {
-    display: flex; /* Enables horizontal arrangement of enemy items */
-    transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Smooth swipe animation */
-    width: 100%; /* Wrapper takes full width of container */
-    height: 100%;
-}
-
-.enemy-display-item {
-    min-width: 100%; /* Each enemy item fills the container width */
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center; /* Center content vertically */
-    align-items: center;   /* Center content horizontally */
-    text-align: center;
-    padding: 5px;
+    padding: 0;
     box-sizing: border-box;
-    opacity: 1;
-    transition: opacity 0.3s ease, filter 0.3s ease; /* For targetability feedback */
+    -webkit-tap-highlight-color: transparent;
 }
 
-.enemy-display-item img {
-    max-width: 100px; /* Adjust as needed */
-    max-height: 100px; /* Adjust as needed */
-    object-fit: contain;
-    margin-bottom: 8px;
+html, body {
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-primary);
+    color: var(--color-text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.dynamic-background {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: var(--color-background-base);
+    background-size: cover; background-position: center;
+    z-index: -1; transition: background-image 0.5s ease-in-out;
+}
+
+.battle-interface {
+    width: 100vw; height: 100vh;
+    display: flex; flex-direction: column;
+    overflow: hidden; position: relative;
+    padding: var(--spacing-unit);
+}
+
+.glass-panel {
+    background-color: var(--color-surface-glass);
+    border: 1px solid var(--color-border-glass);
+    border-radius: var(--border-radius-glass);
+    box-shadow: var(--shadow-glass);
+    backdrop-filter: blur(10px) saturate(130%);
+    -webkit-backdrop-filter: blur(10px) saturate(130%);
+    margin-bottom: var(--spacing-unit);
+}
+
+.top-bar {
+    flex-shrink: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: calc(var(--spacing-unit)*0.8) calc(var(--spacing-unit) * 1.5);
+    min-height: 40px;
+}
+.round-turn-display, .battle-message-display { font-size: 0.8em; }
+.round-turn-display {
+    font-family: var(--font-display); color: var(--color-text-primary); letter-spacing: 0.5px;
+}
+.round-turn-display span:first-child { color: var(--color-accent-primary); }
+.battle-message-display {
+    flex-grow: 1; text-align: center; color: var(--color-text-secondary); font-style: italic;
+    padding: 0 var(--spacing-unit); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.battle-options-trigger svg {
+    width: 20px; height: 20px; fill: var(--color-text-secondary); cursor: pointer;
+    transition: fill var(--transition-main);
+}
+.battle-options-trigger svg:hover { fill: var(--color-accent-primary); }
+
+.enemy-stage {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    min-height: 200px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: var(--spacing-unit); position: relative; overflow: hidden;
+}
+.enemy-carousel {
+    display: flex; width: 100%; height: 100%;
+    transition: transform var(--transition-main);
+}
+
+.character-card {
+    background-color: var(--color-surface-solid);
+    border-radius: var(--border-radius-elements);
+    box-shadow: var(--shadow-elements); border: 1px solid var(--color-border-strong);
+    display: flex; align-items: center; text-align: center;
+    transition: transform var(--transition-main), box-shadow var(--transition-main), opacity var(--transition-main);
+    flex-shrink: 0; opacity: 0.7; transform: scale(0.95);
+    position: relative; overflow: hidden;
+}
+.character-card.active-enemy, .character-card.active-player-hero {
+    opacity: 1; transform: scale(1);
+    border-color: var(--color-accent-primary);
+    box-shadow: 0 0 12px var(--color-accent-primary);
+}
+
+.enemy-stage .character-card {
+    flex-direction: column; justify-content: flex-end; align-items: center;
+    width: 100%; height: 100%; padding: var(--spacing-unit);
+}
+.enemy-stage .character-details {
+    display: flex; flex-direction: column; align-items: center;
+    width: 85%; max-width: 300px;
+    margin-bottom: calc(var(--spacing-unit) * 0.5);
+    z-index: 5; flex-shrink: 0;
+}
+.enemy-stage .character-name {
+    font-size: 0.95em; font-weight: 700; color: var(--color-text-primary);
+    background-color: var(--color-surface-glass-alt); padding: 6px 14px;
+    border-radius: var(--border-radius-small); box-shadow: var(--shadow-elements);
+    margin-bottom: var(--spacing-unit); text-align: center;
+    width: fit-content; max-width: 100%;
+}
+.enemy-stage .hp-bar-container { width: 80%; height: 22px; }
+.enemy-stage .character-sprite-container {
+    width: 100%; height: 100%; display: flex;
+    position: relative;
+    justify-content: center; align-items: center;
+    flex-grow: 1; overflow: hidden;
+}
+.character-sprite { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+.hp-bar-container {
+    background-color: rgba(0,0,0,0.2);
+    border-radius: 20px; /* Atau sesuaikan dengan tinggi bar */
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.25);
+    position: relative; /* Penting untuk absolute positioning child */
+    width: 100%;
+    display: flex; /* Membantu alignment jika ada elemen lain di dalamnya */
+    align-items: center; 
+    height: 20px; /* Default height, bisa di-override */
+}
+
+.hp-bar {
+    height: 100%;
+    transition: width var(--transition-main);
+    /* BARU/MODIFIKASI: position absolute agar bisa ditumpuk */
+    position: absolute; 
+    left: 0;
+    top: 0;
+    z-index: 1; /* HP bar di bawah shield bar */
+}
+.enemy-card .hp-bar { background-color: var(--color-accent-secondary); }
+
+/* --- BARU: Shield Bar Style --- */
+.shield-bar {
+    background-color: #A0D2DB; /* Warna biru muda untuk shield (darah putih) */
+    /* Alternatif: var(--color-shield, #A0D2DB); jika Anda mendefinisikan variabel warna */
+    height: 100%;
+    transition: width var(--transition-main);
+    /* BARU: position absolute agar bisa ditumpuk */
+    position: absolute; 
+    left: 0;
+    top: 0;
+    z-index: 2; /* Shield bar di atas HP bar */
+    opacity: 0.85; /* Sedikit transparan agar HP di bawahnya bisa terlihat samar jika shield tidak penuh */
+}
+/* --- AKHIR BARU --- */
+
+.hp-text {
+    font-size: 0.75em; font-weight: 700; color: var(--color-text-hp);
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.7); position: absolute;
+    left: 0; right: 0; top: 50%; transform: translateY(-50%);
+    text-align: center; white-space: nowrap;
+    z-index: 3; 
+    padding: 0 calc(var(--spacing-unit) * 0.5);
+    line-height: 1; width: 100%; z-index: 1;
+}
+
+/* --- Player Heroes Deck --- */
+.player-heroes-deck {
+    flex-shrink: 0;
+    width: 100%;
+    height: calc( var(--player-hero-card-size) + (var(--player-hero-deck-padding) * 2) );
+    padding: var(--player-hero-deck-padding);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.player-heroes-carousel {
+    display: flex;
+    height: var(--player-hero-card-size);
+    gap: var(--player-hero-card-gap);
+    transition: transform var(--transition-main);
+    width: max-content;
+}
+
+.player-heroes-deck .character-card {
+    flex-direction: column;
+    width: var(--player-hero-card-size);
+    height: var(--player-hero-card-size);
+    padding: calc(var(--spacing-unit) * 0.5);
+    position: relative;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.player-heroes-deck .character-sprite-container {
+    width: calc(var(--player-hero-card-size) * 0.65);
+    height: calc(var(--player-hero-card-size) * 0.65);
+    margin-bottom: calc(var(--spacing-unit) * 0.35);
     border-radius: var(--border-radius-small);
-    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.player-heroes-deck .character-sprite {
+    width: 100%; height: 100%; object-fit: cover;
 }
 
-.enemy-display-item .enemy-name {
+.player-heroes-deck .character-details {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    flex-grow: 3;
+    overflow: hidden;
+    padding-bottom: calc(var(--spacing-unit) * 0.55);
+}
+
+.player-heroes-deck .character-name {
+    font-size: 0.6em;
+    font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    width: 90%;
+    line-height: 1.1;
+    flex-shrink: 0;
+}
+
+.player-heroes-deck .hp-bar-container {
+    width: 90%;
+    height: 12px; /* Lebih pendek untuk kartu hero */
+    border-radius: 6px;
+}
+
+.player-heroes-deck .player-card .hp-bar {
+    background-color: var(--color-accent-secondary);
+}
+.player-heroes-deck .hp-text {
+    font-size: 0.6em; 
+    line-height: 12px; /* Sesuaikan dengan tinggi bar */
+}
+
+.carousel-nav-btn {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    background-color: rgba(255, 255, 255, 0.6); border: 1px solid var(--color-border-glass);
+    color: var(--color-text-primary); width: 30px; height: 40px;
+    border-radius: var(--border-radius-elements); font-size: 1.2em; cursor: pointer;
+    z-index: 10; box-shadow: var(--shadow-elements); transition: background-color var(--transition-main);
+}
+.carousel-nav-btn:hover { background-color: rgba(255, 255, 255, 0.9); }
+.carousel-nav-btn.prev { left: var(--spacing-unit); }
+.carousel-nav-btn.next { right: var(--spacing-unit); }
+
+/* --- Pseudomap Area & Unit Frames --- */
+.pseudomap-area {
+    flex-shrink: 0;
+    min-height: 65px;
+    padding: calc(var(--spacing-unit)*0.75);
+    overflow-x: auto; scrollbar-width: none; text-align: center;
+    transition: background-color var(--transition-targeting); /* Transisi untuk perubahan state global */
+}
+.pseudomap-area::-webkit-scrollbar { display: none; }
+
+.pseudomap-track {
+    display: inline-flex;
+    gap: calc(var(--spacing-unit) * 0.75);
+    padding: calc(var(--spacing-unit) * 0.5);
+}
+
+.pseudomap-unit-frame {
+    width: 50px; height: 50px;
+    position: relative;
+    display: flex; justify-content: center; align-items: center;
+    box-shadow: var(--shadow-elements);
+    transition: transform var(--transition-main), box-shadow var(--transition-main), outline var(--transition-targeting);
+    flex-shrink: 0; position: relative;
+    cursor: default; /* Default cursor */
+    outline: 3px solid transparent; /* Outline untuk highlight targeting */
+    outline-offset: -3px; /* Agar outline di dalam batas elemen */
+}
+
+/* Diamond shape and base colors */
+.pseudomap-unit-frame::before { /* Outer diamond border color */
+    content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: transparent;
+    clip-path: var(--diamond-clip-path);
+    z-index: 1;
+    transition: background-color var(--transition-main), opacity var(--transition-targeting); /* Tambahkan transisi opacity */
+}
+.pseudomap-unit-frame::after { /* Inner diamond background */
+    content: ''; position: absolute;
+    top: var(--outline-thickness); left: var(--outline-thickness);
+    right: var(--outline-thickness); bottom: var(--outline-thickness);
+    background-color: var(--color-surface-solid);
+    clip-path: var(--diamond-clip-path);
+    z-index: 2;
+    transition: background-color var(--transition-targeting);
+}
+
+.pseudomap-portrait {
+    width: calc(100% - (2 * var(--outline-thickness)) - 4px);
+    height: calc(100% - (2 * var(--outline-thickness)) - 4px);
+    object-fit: cover; clip-path: var(--diamond-clip-path);
+    z-index: 3; position: relative;
+    transition: filter var(--transition-targeting), opacity var(--transition-targeting);
+}
+
+/* Base unit type colors */
+.pseudomap-unit-frame.ally::before { background-color: var(--color-accent-tertiary); }
+.pseudomap-unit-frame.enemy::before { background-color: var(--color-accent-secondary); }
+/*.pseudomap-unit-frame.active::before { background-color: var(--color-accent-quaternary) !important; } */
+.pseudomap-unit-frame.active { transform: scale(1.15); z-index: 5; }
+
+/* --- BARU: Styling untuk Indikasi Tap End Turn --- */
+.pseudomap-unit-frame.active-turn-idle {
+    outline: 3px solid var(--color-active-turn-idle-border) !important; /* Border kotak biru */
+    outline-offset: -3px;
+}
+
+.pseudomap-unit-frame.active-turn-first-tap {
+    outline: 3px solid var(--color-active-turn-first-tap-border) !important; /* Border kotak oranye */
+    outline-offset: -3px;
+}
+
+/* Animasi Pulse untuk border oranye setelah tap pertama */
+.pseudomap-unit-frame.can-double-tap-end-turn.active-turn-first-tap {
+    animation: pulse-end-turn-border 0.8s infinite alternate;
+}
+
+@keyframes pulse-end-turn-border {
+    from {
+        outline-color: var(--color-active-turn-first-tap-border);
+        box-shadow: 0 0 5px var(--color-active-turn-first-tap-border);
+    }
+    to {
+        outline-color: color-mix(in srgb, var(--color-active-turn-first-tap-border) 70%, white);
+        box-shadow: 0 0 12px color-mix(in srgb, var(--color-active-turn-first-tap-border) 50%, transparent);
+    }
+}
+
+/* NEW: Styling for Valid Basic Attack Target (when wsMode is 'idle') */
+.pseudomap-unit-frame.valid-basic-attack-target {
+    /* Example: A distinct outline or glow, different from skill targeting */
+    outline: 3px solid var(--color-active-turn-first-tap-border) !important; /* Green outline for basic attack targets */
+    outline-offset: -3px;
+    z-index: 5;
+    /* Add a subtle pulse or brightness? */
+    /* filter: brightness(1.1) drop-shadow(0 0 3px #2ecc71); */
+}
+
+/* MODIFIED: Styling for Valid Basic Attack Target (when wsMode is 'idle') */
+.pseudomap-unit-frame.valid-basic-attack-target {
+    outline: 3px solid #FFA500 !important; /* Warna Oranye untuk border basic attack targets */
+    outline-offset: -3px;
+    cursor: pointer; 
+    z-index: 5;
+}
+
+/* NEW: Overlay merah pada portrait untuk valid basic attack target */
+.pseudomap-unit-frame.valid-basic-attack-target .pseudomap-portrait::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 0, 0, 0.3); /* Merah transparan */
+    clip-path: var(--diamond-clip-path); /* Mengikuti bentuk diamond portrait */
+    z-index: 100; /* Di atas portrait tapi di bawah teks/elemen lain jika ada */
+    pointer-events: none; /* Agar tidak mengganggu klik */
+}
+
+/* Unit states */
+.pseudomap-unit-frame.end-turn .pseudomap-portrait {
+    filter: grayscale(100%) brightness(0.7);
+    opacity: 0.6;
+}
+.pseudomap-unit-frame.defeated .pseudomap-portrait {
+    filter: grayscale(100%) brightness(0.4);
+    opacity: 0.4;
+}
+.pseudomap-unit-frame.defeated::before { background-color: #7f8c8d; } /* Warna abu-abu untuk unit kalah */
+
+.pseudomap-unit-frame.can-double-tap-end-turn::before {
+    /* Contoh: buat border diamond berkedip atau ganti warna sedikit */
+    animation: pulse-active-unit-end-turn 1s infinite alternate;
+}
+
+@keyframes pulse-active-unit-end-turn {
+    from {
+        /* Sedikit lebih terang atau warna berbeda */
+        background-color: var(--color-accent-quaternary); /* Warna aktif unit */
+        opacity: 0.8;
+    }
+    to {
+        /* Warna sedikit lebih gelap atau kembali ke warna asli tipe unit */
+        background-color: color-mix(in srgb, var(--color-accent-quaternary) 70%, black);
+        opacity: 1;
+    }
+}
+
+
+/* --- STYLES FOR 3-STAGE TARGETING --- */
+
+/* Tahap 1: Pemilihan Target Utama (Tidak ada perubahan di sini, hanya sebagai referensi) */
+.pseudomap-area.targeting-select-primary .pseudomap-unit-frame.valid-primary-target {
+    opacity: 1;
+    outline-color: var(--color-targeting-valid-primary) !important;
+    cursor: pointer;
+    transform: scale(1.1);
+}
+.pseudomap-area.targeting-select-primary .pseudomap-unit-frame.invalid-primary-target {
+    opacity: 0.5;
+    outline-color: var(--color-targeting-invalid-primary) !important; /* Abu-abu untuk invalid di tahap 1 */
+    cursor: not-allowed;
+}
+/* ... (sisa style Tahap 1) ... */
+
+
+/* Tahap 2: Konfirmasi Area Efek */
+.pseudomap-area.targeting-confirm-area .pseudomap-unit-frame {
+    opacity: 1;
+    /* Default outline untuk unit di Tahap 2 yang TIDAK terkena efek */
+    outline-color: var(--color-targeting-invalid-primary) !important; /* Memberikan border abu-abu by default */
+    transform: scale(1); /* Reset scale jika ada dari tahap 1 */
+}
+.pseudomap-area.targeting-confirm-area .pseudomap-unit-frame .pseudomap-portrait {
+     filter: grayscale(80%) brightness(0.9); /* Grayscale untuk unit yang TIDAK terkena AoE */
+}
+
+/* Untuk unit yang DIPILIH sebagai target utama AoE */
+.pseudomap-area.targeting-confirm-area .pseudomap-unit-frame.primary-selected-for-effect {
+    outline-color: var(--color-targeting-primary-selected-aoe) !important; /* Oranye/Kuning untuk target utama AoE */
+    transform: scale(1.12);
+    z-index: 6;
+}
+.pseudomap-area.targeting-confirm-area .pseudomap-unit-frame.primary-selected-for-effect .pseudomap-portrait {
+    filter: none; /* Target utama AoE jelas (tidak grayscale) */
+}
+
+/* Untuk unit yang akan TERKENA EFEK (termasuk target utama jika applicable) */
+.pseudomap-area.targeting-confirm-area .pseudomap-unit-frame.affected-by-action {
+    /* Unit yang terkena efek juga mendapatkan border oranye/kuning */
+    outline-color: var(--color-targeting-primary-selected-aoe) !important; /* Menggunakan warna yang sama dengan primary selected */
+    /* Jika primary-selected-for-effect juga affected-by-action, rule di atas untuk primary akan tetap berlaku karena bisa jadi lebih spesifik atau urutan di CSS */
+}
+.pseudomap-area.targeting-confirm-area .pseudomap-unit-frame.affected-by-action .pseudomap-portrait {
+    filter: none; /* Unit yang terkena efek juga jelas (tidak grayscale) */
+    position: relative;
+}
+
+/* Overlay merah untuk unit yang terkena efek (tetap ada) */
+.pseudomap-area.targeting-confirm-area .pseudomap-unit-frame.affected-by-action .pseudomap-portrait::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: var(--color-targeting-affected-overlay);
+    clip-path: var(--diamond-clip-path);
+    z-index: 4;
+    pointer-events: none;
+    opacity: 0.8;
+    transition: background-color var(--transition-targeting), opacity var(--transition-targeting);
+}
+
+/* Pastikan unit yang end-turn/defeated tetap terlihat sesuai statusnya dan mendapatkan border yang sesuai jika tidak affected */
+.pseudomap-area.targeting-confirm-area .pseudomap-unit-frame.end-turn:not(.affected-by-action) .pseudomap-portrait,
+.pseudomap-area.targeting-confirm-area .pseudomap-unit-frame.defeated:not(.affected-by-action) .pseudomap-portrait {
+    filter: grayscale(100%) brightness(0.6);
+    opacity: 0.5;
+}
+/* Jika unit end-turn/defeated TAPI KENA EFEK, maka style .affected-by-action akan override filter grayscale-nya */
+.pseudomap-area.targeting-confirm-area .pseudomap-unit-frame.end-turn.affected-by-action .pseudomap-portrait,
+.pseudomap-area.targeting-confirm-area .pseudomap-unit-frame.defeated.affected-by-action .pseudomap-portrait {
+    filter: grayscale(60%) brightness(0.8); /* Tetap sedikit redup meski kena efek, namun overlay merah tetap ada */
+}
+
+/* --- Player Action Bar --- */
+.player-action-bar {
+    margin-top: auto;
+    flex-shrink: 0;
+    min-height: 80px;
+    padding: var(--spacing-unit);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-unit);
+}
+.team-resources-display {
+    text-align: center;
+    font-size: 0.9em; font-weight: 700;
+    color: var(--color-accent-quaternary); padding: calc(var(--spacing-unit)*0.5) var(--spacing-unit);
+    background-color: rgba(0,0,0,0.03); border-radius: var(--border-radius-elements);
+    border: 1px solid var(--color-border-strong); flex-shrink: 0;
+}
+.action-buttons-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: var(--spacing-unit);
+    align-content: flex-start;
+}
+
+.action-buttons-group button.skill-button-active {
+    background-color: var(--color-accent-primary); /* Warna biru standar tombol */
+    color: var(--color-text-on-accent);
+    box-shadow: 0 0 8px var(--color-accent-primary); /* Tambahkan glow atau shadow berbeda */
+    /* Atau, jika warna biru adalah default saat hover, buat warna 'aktif' sedikit berbeda */
+    /* background-color: #2980b9; /* Biru yang sedikit lebih gelap atau berbeda */
+}
+
+.styled-button, .action-buttons-group button {
+    background-color: var(--color-surface-solid); color: var(--color-accent-primary);
+    border: 1px solid var(--color-accent-primary); border-radius: var(--border-radius-elements);
+    padding: calc(var(--spacing-unit)*0.75) calc(var(--spacing-unit)*0.5);
+    font-size: 0.75em; font-weight: 500; text-align: center; cursor: pointer;
+    box-shadow: var(--shadow-elements);
+    transition: background-color var(--transition-main), color var(--transition-main), transform var(--transition-main), box-shadow var(--transition-main);
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 32px;
+    line-height: 1.2;
+}
+.styled-button:hover, .action-buttons-group button:hover {
+    background-color: var(--color-accent-primary); color: var(--color-text-on-accent);
+    box-shadow: 0 3px 10px rgba(52, 152, 219, 0.4);
+}
+.styled-button:active, .action-buttons-group button:active {
+    transform: scale(0.97);
+    box-shadow: 0 1px 5px rgba(52, 152, 219, 0.3);
+}
+.action-buttons-group button.disabled {
+    background-color: #e0e0e0; color: var(--color-text-secondary);
+    border-color: #bdbdbd; cursor: not-allowed; opacity: 0.7;
+    box-shadow: none;
+}
+.action-buttons-group button.disabled:hover {
+    background-color: #e0e0e0; color: var(--color-text-secondary); /* Tetap sama */
+}
+
+
+.ripple {
+    position: absolute; border-radius: 50%; background-color: rgba(255, 255, 255, 0.7);
+    transform: scale(0); animation: ripple-animation 0.6s linear;
+}
+@keyframes ripple-animation { to { transform: scale(4); opacity: 0; } }
+
+.battle-log-overlay {
+    position: fixed; /* Ubah ke fixed agar selalu di atas */
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(244, 246, 248, 0.85); display: flex;
+    justify-content: center; align-items: center; z-index: 1000;
+    opacity: 0; visibility: hidden;
+    transition: opacity var(--transition-main), visibility var(--transition-main);
+}
+.battle-log-overlay.is-visible { opacity: 1; visibility: visible; }
+.battle-log-content {
+    width: 90%; max-width: 380px; max-height: 80%; padding: calc(var(--spacing-unit) * 2);
+    display: flex; flex-direction: column;
+}
+.battle-log-content h3 {
+    font-family: var(--font-display); font-size: 0.9em; color: var(--color-accent-primary);
+    margin-bottom: var(--spacing-unit); text-align: center; flex-shrink: 0;
+}
+#battle-log-entries {
+    flex-grow: 1; overflow-y: auto; font-size: 0.8em; line-height: 1.6;
+    color: var(--color-text-secondary); padding-right: var(--spacing-unit);
+    scrollbar-width: thin; scrollbar-color: var(--color-accent-primary) var(--color-surface-glass-alt);
+}
+#battle-log-entries::-webkit-scrollbar { width: 6px; }
+#battle-log-entries::-webkit-scrollbar-track { background: var(--color-surface-glass-alt); border-radius: 3px;}
+#battle-log-entries::-webkit-scrollbar-thumb { background-color: var(--color-accent-primary); border-radius: 3px; }
+#battle-log-entries p { margin-bottom: calc(var(--spacing-unit)*0.5); }
+#close-log-btn { margin-top: var(--spacing-unit); flex-shrink: 0; }
+
+
+.is-hidden { display: none !important; }
+.no-target, .no-heroes-message, .no-actions-message {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    color: var(--color-text-secondary); font-style: italic; font-size: 0.9em;
+    padding: var(--spacing-unit);
+}
+.battle-over-message {
+    width: 100%; text-align: center; font-family: var(--font-display);
+    font-size: 1.2em; color: var(--color-accent-primary); padding: var(--spacing-unit);
+}
+
+/* Styling untuk kontrol di dalam Battle Log Overlay */
+.battle-log-controls {
+    display: flex;
+    justify-content: space-around; /* Atau space-between, center */
+    gap: var(--spacing-unit);
+    margin-top: var(--spacing-unit);
+    flex-shrink: 0;
+}
+
+.battle-log-controls .styled-button {
+    flex-grow: 1; /* Agar tombol mengisi ruang jika ada 2 tombol */
+}
+
+.ws-log-toggle-btn { /* Styling khusus jika diperlukan untuk tombol Open WS Log */
+    background-color: var(--color-accent-tertiary); /* Contoh: warna hijau */
+    border-color: var(--color-accent-tertiary);
+    color: var(--color-text-on-accent);
+}
+.ws-log-toggle-btn:hover {
+    background-color: color-mix(in srgb, var(--color-accent-tertiary) 85%, black);
+}
+
+
+/* BARU: Styling untuk WS Logger Screen */
+.ws-logger-screen {
+    position: fixed; /* Mengisi seluruh layar */
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(20, 30, 40, 0.98); /* Latar belakang gelap semi-transparan */
+    color: #e0e0e0; /* Teks terang */
+    z-index: 2000; /* Di atas battle log overlay */
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-unit);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+    font-family: 'Courier New', Courier, monospace; /* Font monospace untuk log */
+}
+
+.ws-logger-screen.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.ws-logger-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: var(--spacing-unit);
+    margin-bottom: var(--spacing-unit);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+}
+
+.ws-logger-header h2 {
     font-size: 1.1em;
-    font-weight: bold;
-    color: var(--text-light);
+    font-family: var(--font-primary); /* Bisa pakai font utama untuk header */
+    color: #f0f0f0;
+}
+
+.ws-logger-header .styled-button { /* Tombol Close WS Log */
+    background-color: var(--color-accent-secondary); /* Warna merah untuk close */
+    border-color: var(--color-accent-secondary);
+    color: var(--color-text-on-accent);
+    padding: calc(var(--spacing-unit)*0.6) calc(var(--spacing-unit)*1.2);
+    font-size: 0.8em;
+}
+.ws-logger-header .styled-button:hover {
+    background-color: color-mix(in srgb, var(--color-accent-secondary) 85%, black);
+}
+
+.ws-log-output-fullscreen {
+    flex-grow: 1;
+    overflow-y: auto; /* Scroll jika log panjang */
+    white-space: pre-wrap; /* Agar teks log bisa wrap */
+    word-break: break-all; /* Agar kata yang panjang tidak overflow */
+    font-size: 0.85em;
+    line-height: 1.6;
+    background-color: rgba(0,0,0,0.3);
+    border-radius: var(--border-radius-small);
+    padding: var(--spacing-unit);
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-accent-primary) rgba(0,0,0,0.2);
+}
+
+.ws-log-output-fullscreen::-webkit-scrollbar {
+    width: 8px;
+}
+.ws-log-output-fullscreen::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.2);
+    border-radius: 4px;
+}
+.ws-log-output-fullscreen::-webkit-scrollbar-thumb {
+    background-color: var(--color-accent-primary);
+    border-radius: 4px;
+}
+.ws-log-output-fullscreen div { /* Styling untuk setiap entri log jika wsLogger membuat div */
+    padding-bottom: 4px;
+    border-bottom: 1px dotted rgba(255,255,255,0.1);
     margin-bottom: 4px;
 }
+.ws-log-output-fullscreen div:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
 
-.enemy-display-item .hp-bar-container {
-    width: 60%;
-    max-width: 120px;
-    height: 10px;
-    background-color: var(--hp-bar-bg);
+/* Efek Flash Saat Terkena Serangan */
+.unit-damaged-flash {
+    animation: flash-red 0.5s ease-out;
+}
+
+@keyframes flash-red {
+    0% { filter: brightness(1); }
+    25% { filter: brightness(1.5) drop-shadow(0 0 5px red); } /* Sedikit terang dan ada shadow merah */
+    50% { filter: brightness(0.8) sepia(0.5); } /* Sedikit gelap dan merah */
+    75% { filter: brightness(1.5) drop-shadow(0 0 5px red); }
+    100% { filter: brightness(1); }
+}
+
+/* Styling untuk Pop-up Damage */
+.damage-popup {
+    /* position: absolute; akan di-set oleh JS */
+    /* left, top, transform juga di-set oleh JS */
+    background-color: rgba(220, 50, 50, 0.9); /* Merah lebih solid */
+    color: white;
+    padding: 5px 10px;
     border-radius: 5px;
-    overflow: hidden;
-    border: 1px solid var(--border-color);
-}
-
-.enemy-display-item .hp-bar {
-    height: 100%;
-    background-color: var(--hp-bar-enemy);
-    border-radius: 5px 0 0 5px;
-    transition: width 0.3s ease;
-}
-.enemy-display-item .hp-text {
-    font-size: 0.75em;
-    margin-top: 3px;
-    color: var(--text-main);
-}
-
-.enemy-nav-btn {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background-color: rgba(42, 42, 62, 0.7); /* --bg-panel with alpha */
-    color: var(--text-light);
-    border: 1px solid var(--border-color);
-    width: 30px;
-    height: 30px;
-    font-size: 1em;
-    cursor: pointer;
-    border-radius: 50%;
-    z-index: 10;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: background-color 0.2s;
-}
-.enemy-nav-btn:hover {
-    background-color: rgba(60, 60, 82, 0.9); /* --bg-panel-lighter with alpha */
-}
-#prev-enemy-btn { left: 5px; }
-#next-enemy-btn { right: 5px; }
-
-/* Feedback for targetable/invalid enemies in main display */
-.enemy-display-item.targetable-enemy {
-    border: 2px solid red;
-    background-color: rgba(255, 0, 0, 0.1);
-    cursor: pointer;
-}
-.enemy-display-item.invalid-target {
-    opacity: 0.4;
-    filter: grayscale(90%);
-}
-
-/* --- PseudoMap Area --- */
-#pseudomap-container {
-    padding: 10px 0;
-    background-color: rgba(0,0,0,0.1);
-    border-top: 1px solid var(--border-color);
-    border-bottom: 1px solid var(--border-color);
-    overflow-x: auto;
-    white-space: nowrap;
-    text-align: center;
-    flex-shrink: 0;
-    scrollbar-width: thin; /* For Firefox */
-    scrollbar-color: var(--border-color) var(--bg-panel); /* For Firefox */
-}
-#pseudomap-container::-webkit-scrollbar { /* For Chrome, Safari, Edge */
-    height: 6px;
-}
-#pseudomap-container::-webkit-scrollbar-track {
-    background: var(--bg-panel);
-}
-#pseudomap-container::-webkit-scrollbar-thumb {
-    background-color: var(--border-color);
-    border-radius: 3px;
-}
-
-#pseudomap-strip {
-    display: inline-flex; /* Allows centering if content is narrower than container */
-    padding: 0 8px; /* Padding at the ends of the strip */
-}
-
-.pseudomap-frame {
-    width: 55px;  /* Diamond width */
-    height: 80px; /* Diamond height */
-    margin: 0 3px;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: opacity 0.3s, filter 0.3s; /* For defeated state */
-}
-
-.pseudomap-frame .diamond-border {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background-color: var(--bg-panel-lighter);
-    clip-path: var(--diamond-clip-path);
-    border: 2px solid var(--border-color); /* Default border */
-    box-sizing: border-box;
-    z-index: 1;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.pseudomap-frame.ally .diamond-border { border-color: var(--ally-color); }
-.pseudomap-frame.enemy .diamond-border { border-color: var(--enemy-color); }
-
-.pseudomap-frame.active-unit .diamond-border {
-    border-color: var(--active-unit-color);
-    box-shadow: 0 0 6px var(--active-unit-color);
-}
-
-.pseudomap-frame img.unit-portrait {
-    width: 80%; /* Portrait size within diamond */
-    height: 80%;
-    object-fit: cover;
-    clip-path: var(--diamond-clip-path); /* Clip image to diamond shape */
-    z-index: 2;
-    position: relative;
-}
-
-.pseudomap-frame.is-defeated {
-    opacity: 0.3;
-    filter: grayscale(100%);
-}
-
-/* --- Active Hero Panel (Bottom Area) --- */
-#active-hero-panel {
-    padding: 12px;
-    background-color: rgba(0,0,0,0.25);
-    border-top: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    flex-shrink: 0;
-}
-#active-hero-panel:hover {
-    background-color: rgba(42, 42, 62, 0.4); /* --bg-panel with more alpha */
-}
-#active-hero-panel.ready-to-attack { /* Highlight when ready to select target */
-    background-color: rgba(166, 227, 161, 0.15); /* --active-unit-color with alpha */
-    border-top-color: var(--active-unit-color);
-}
-
-#active-hero-panel .hero-portrait {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    border: 2px solid var(--ally-color);
-    margin-right: 12px;
-    object-fit: cover;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-}
-
-#active-hero-panel .hero-info .hero-name {
-    font-size: 1em;
+    border: 1px solid rgba(255,255,255,0.5);
+    font-size: 1.2em; /* Lebih besar */
     font-weight: bold;
-    color: var(--text-light);
-}
-#active-hero-panel .hero-info .hp-bar-container {
-    width: 100px;
-    height: 8px;
-    background-color: var(--hp-bar-bg);
-    border-radius: 4px;
-    overflow: hidden;
-    margin-top: 4px;
-    border: 1px solid var(--border-color);
-}
-#active-hero-panel .hero-info .hp-bar {
-    height: 100%;
-    background-color: var(--hp-bar-ally);
-    border-radius: 4px 0 0 4px;
-    transition: width 0.3s ease;
-}
-#active-hero-panel .hero-info .hp-text {
-    font-size: 0.75em;
-    margin-top: 2px;
-    color: var(--text-main);
-}
-
-/* --- Battle End Screen --- */
-.battle-end-screen {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background-color: rgba(30, 30, 46, 0.97); /* --bg-main with alpha */
-    color: var(--text-light);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    text-align: center;
-    padding: 20px;
-    box-sizing: border-box;
-}
-.battle-end-screen h2 {
-    font-size: 1.6em;
-    margin-bottom: 25px;
-}
-.battle-end-screen button {
-    padding: 10px 20px;
-    font-size: 1em;
-    background-color: var(--special-accent-color);
-    color: var(--text-dark);
-    border: none;
-    border-radius: var(--border-radius-main);
-    cursor: pointer;
-    font-weight: bold;
-    transition: background-color 0.2s;
-}
-.battle-end-screen button:hover {
-    background-color: #b792f5; /* Lighter Mauve */
-}
-.battle-end-screen.win h2 { color: var(--active-unit-color); }
-.battle-end-screen.lose h2 { color: var(--enemy-color); }
-
-/* --- Animations & Popups --- */
-.unit-attacking-ally { animation: attack-ally-anim 0.4s ease-in-out; }
-.unit-attacking-enemy { animation: attack-enemy-anim 0.4s ease-in-out; }
-.unit-hit { animation: hit-effect-anim 0.3s ease-in-out; }
-
-@keyframes attack-ally-anim { /* Ally (bottom) attacks: slight up and forward */
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(0, -8px) scale(1.05); }
-}
-@keyframes attack-enemy-anim { /* Enemy (top/middle) attacks: slight down and forward */
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(0, 8px) scale(1.05); }
-}
-@keyframes hit-effect-anim { /* Unit gets hit: quick shake and blink */
-    0%, 100% { transform: translateX(0); opacity: 1; }
-    20% { transform: translateX(3px); opacity: 0.7; }
-    40% { transform: translateX(-3px); opacity: 1; }
-    60% { transform: translateX(2px); opacity: 0.7; }
-    80% { transform: translateX(-2px); opacity: 1; }
-}
-
-.damage-text-popup {
-    position: absolute; /* Relative to the .battle-screen or a positioned parent */
-    font-size: 1.1em;
-    font-weight: bold;
-    color: var(--enemy-color); /* Red for damage */
-    text-shadow: 0 0 3px var(--bg-main), 0 0 5px var(--bg-main); /* Make it pop */
-    animation: damage-popup-anim 0.9s ease-out forwards;
+    text-shadow: 1px 1px 3px black;
     pointer-events: none;
-    z-index: 100;
-    padding: 2px 5px;
-    background-color: rgba(30,30,46,0.5);
-    border-radius: var(--border-radius-small);
-}
-@keyframes damage-popup-anim {
-    0% { transform: translate(-50%, -100%) scale(0.7); opacity: 1; } /* Start above target */
-    70% { transform: translate(-50%, -180%) scale(1.1); opacity: 1; } /* Move up and grow */
-    100% { transform: translate(-50%, -200%) scale(1.1); opacity: 0; } /* Fade out further up */
-}
-
-/* --- PWA Log Display Area --- */
-.pwa-log-display-area { 
-    position: fixed; 
-    bottom: 5px; right: 5px; 
-    width: calc(50% - 10px); /* Wider for better readability */
-    max-width: 250px;
-    background-color: rgba(24, 24, 37, 0.85); /* --bg-main with alpha */
-    color: #89b4fa; /* Log text blue */
-    font-size:0.65em; 
-    max-height: 120px; 
-    overflow-y:auto; padding: 6px; 
-    box-sizing: border-box; 
-    z-index: 2000; 
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-small);
-    box-shadow: 0 0 10px rgba(0,0,0,0.3);
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-color) var(--bg-panel);
-}
-.pwa-log-display-area::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-}
-.pwa-log-display-area::-webkit-scrollbar-thumb {
-    background-color: var(--border-color);
-    border-radius: 3px;
-}
-.pwa-log-display-area strong {
-    color: var(--active-unit-color); /* Green for "PWA Log:" title */
-    display: block;
-    margin-bottom: 3px;
-}
-.pwa-log-display-area pre { 
-    margin:0; 
-    white-space: pre-wrap; 
-    word-break: break-all; 
-}
-
-/* --- Utility Classes --- */
-.is-hidden {
-    display: none !important;
+    opacity: 0; /* Mulai transparan, akan diubah JS untuk fade-in */
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out; /* Transisi halus */
+    /* z-index akan di-set oleh JS jika perlu */
+    white-space: nowrap; /* Agar angka damage tidak terpotong jika panjang */
 }
