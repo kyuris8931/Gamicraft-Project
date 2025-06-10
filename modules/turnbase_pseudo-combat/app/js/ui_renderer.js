@@ -1,6 +1,6 @@
 // js/ui_renderer.js
 // Handles all UI rendering logic for the Gamicraft WebScreen Turn-Based Combat.
-// Includes targeting visuals, hints, damage animations, and scrolling.
+// Versi dengan alur animasi kekalahan yang diperbaiki dan feedback pop-up lengkap.
 
 // --- Helper Functions ---
 
@@ -103,13 +103,25 @@ function getValidBasicAttackTargetIdsForUI(actorUnit, allAliveUnits) {
     return validTargets.map(u => u.id);
 }
 
+/**
+ * Finds the best anchor element for a pop-up with a specific priority.
+ * This ensures pop-ups for heroes appear on their card, not their pseudomap icon.
+ * @param {string} unitId - The ID of the unit.
+ * @returns {HTMLElement|null} The best DOM element found or null.
+ */
+function findBestAnchorElement(unitId) {
+    // Priority: Hero Card > Enemy Card > Pseudomap Frame
+    const heroCardAnchor = document.querySelector(`#player-heroes-deck .character-card[data-unit-id="${unitId}"]`);
+    if (heroCardAnchor) return heroCardAnchor;
+
+    const enemyCardAnchor = document.querySelector(`#enemy-stage .character-card[data-unit-id="${unitId}"]`);
+    if (enemyCardAnchor) return enemyCardAnchor;
+
+    const pseudomapAnchor = document.querySelector(`.pseudomap-unit-frame[data-unit-id="${unitId}"]`);
+    return pseudomapAnchor;
+}
 
 // --- Main UI Rendering Orchestrator ---
-
-/**
- * Updates all UI elements based on the current bState.
- * @param {object|null} [passedPreviousBState=null] - The battle state before the current update, for animations.
- */
 function refreshAllUIElements(passedPreviousBState = null) {
     wsLogger("UI_RENDERER: refreshAllUIElements CALLED.");
     if (!bState || Object.keys(bState).length === 0 || !bState.units) {
@@ -117,93 +129,131 @@ function refreshAllUIElements(passedPreviousBState = null) {
         return;
     }
 
-    // --- Animation Logic: Detect damage/healing ---
-    if (passedPreviousBState && bState.units && passedPreviousBState.units) {
-        bState.units.forEach(currentUnit => {
-            const prevUnitData = passedPreviousBState.units.find(prevU => prevU.id === currentUnit.id);
-            if (prevUnitData && prevUnitData.stats && currentUnit.stats) {
-                const oldHp = prevUnitData.stats.hp;
-                const newHp = currentUnit.stats.hp;
-                if (newHp < oldHp) {
-                    const damageTaken = oldHp - newHp;
-                    wsLogger(`UI_RENDERER_ANIM: Unit ${currentUnit.name} took ${damageTaken} damage. Triggering animation.`);
-                    if (typeof ui_playDamageAnimation === "function") {
-                        ui_playDamageAnimation(currentUnit.id, damageTaken, currentUnit.type);
+    const damagedUnitData = [];
+    const healedUnitData = [];
+    const defeatedUnitData = [];
+    let spGained = 0;
+    let spSpent = 0;
+
+    if (passedPreviousBState) {
+        if (typeof bState.teamSP === 'number' && typeof passedPreviousBState.teamSP === 'number') {
+            const spChange = bState.teamSP - passedPreviousBState.teamSP;
+            if (spChange > 0) spGained = spChange;
+            else if (spChange < 0) spSpent = -spChange;
+        }
+
+        if (bState.units && passedPreviousBState.units) {
+            bState.units.forEach(currentUnit => {
+                const prevUnitData = passedPreviousBState.units.find(prevU => prevU.id === currentUnit.id);
+                if (prevUnitData) {
+                    if (currentUnit.status === "Defeated" && prevUnitData.status !== "Defeated") {
+                        defeatedUnitData.push({ unitId: currentUnit.id, type: currentUnit.type });
+                    }
+                    if (prevUnitData.stats && currentUnit.stats) {
+                        const oldHp = prevUnitData.stats.hp;
+                        const newHp = currentUnit.stats.hp;
+                        if (newHp < oldHp) {
+                            damagedUnitData.push({ unitId: currentUnit.id, amount: oldHp - newHp, type: currentUnit.type });
+                        } else if (newHp > oldHp) {
+                            healedUnitData.push({ unitId: currentUnit.id, amount: newHp - oldHp, type: currentUnit.type });
+                        }
                     }
                 }
+            });
+        }
+    }
+
+    // --- LOGIKA UTAMA RENDER DAN ANIMASI ---
+    
+    const performStandardRenderAndPopups = () => {
+        renderDynamicBackground();
+        renderTopBar();
+        renderEnemyStage();
+        renderPlayerHeroesDeck();
+        renderPlayerActionBar();
+        renderPseudomap();
+
+        healedUnitData.forEach(data => {
+            const anchor = findBestAnchorElement(data.unitId);
+            if (anchor) ui_createFeedbackPopup(anchor, `+${data.amount}`, 'heal-popup');
+        });
+        if (spGained > 0 && elTeamResourcesDisplay) {
+            ui_createFeedbackPopup(elTeamResourcesDisplay, `+${spGained} SP`, 'sp-gain-popup');
+        }
+        if (spSpent > 0 && elTeamResourcesDisplay) {
+            ui_createFeedbackPopup(elTeamResourcesDisplay, `-${spSpent} SP`, 'sp-spent-popup');
+        }
+
+        if (bState.battleState === "Win" || bState.battleState === "Lose") {
+            renderBattleLogOverlay(true, bState.battleState, bState.battleMessage || (bState.battleState === "Win" ? "Victory!" : "Defeat!"));
+            if(elActionButtonsGroup) elActionButtonsGroup.innerHTML = `<p class="battle-over-message">${bState.battleState.toUpperCase()}!</p>`;
+            if(elPseudomapArea) elPseudomapArea.classList.add('is-hidden');
+            if(elPlayerHeroesDeck) elPlayerHeroesDeck.classList.add('is-hidden');
+        } else {
+            if (elBattleLogOverlay && elBattleLogOverlay.classList.contains('is-visible') && !bState.showLog) {
+                 renderBattleLogOverlay(false);
+            }
+            if(elPseudomapArea) elPseudomapArea.classList.remove('is-hidden');
+            if(elPlayerHeroesDeck) elPlayerHeroesDeck.classList.remove('is-hidden');
+            if (typeof scrollToActiveUnitInPseudomap === "function") requestAnimationFrame(() => { requestAnimationFrame(scrollToActiveUnitInPseudomap); });
+            const activeUnitForScroll = getActiveUnit();
+            if (activeUnitForScroll && activeUnitForScroll.type === "Ally") {
+                if (typeof scrollToPlayerHero === "function") requestAnimationFrame(() => { scrollToPlayerHero(activeUnitForScroll.id, true); });
+            }
+            const allUnitFrames = elPseudomapTrack ? elPseudomapTrack.querySelectorAll('.pseudomap-unit-frame') : [];
+            if (wsMode === "selecting_primary_target") {
+                if (typeof ui_renderSelectPrimaryTargetMode === "function") ui_renderSelectPrimaryTargetMode(validPrimaryTargetIds, allUnitFrames);
+            } else if (wsMode === "confirming_effect_area") {
+                if (typeof ui_renderConfirmAreaMode === "function") ui_renderConfirmAreaMode(selectedPrimaryTargetId, currentAffectedTargetIds, allUnitFrames);
+            } else if (wsMode === "confirming_basic_attack") {
+                if (typeof ui_highlightPotentialBasicAttackTarget === "function") allUnitFrames.forEach(frame => ui_highlightPotentialBasicAttackTarget(frame.dataset.unitId, frame.dataset.unitId === lastTappedUnitId));
+            }
+        }
+    };
+
+    // --- PENGATURAN ALUR UTAMA ---
+    
+    damagedUnitData.forEach(data => {
+        const anchor = findBestAnchorElement(data.unitId);
+        const popupOptions = (data.type === 'Enemy') ? { verticalOrigin: 'top' } : {};
+        if (anchor) ui_createFeedbackPopup(anchor, `-${data.amount}`, 'damage-popup', popupOptions);
+    });
+
+    if (defeatedUnitData.length > 0) {
+        wsLogger("UI_RENDERER: Defeated unit(s) detected. Starting death animation sequence.");
+        
+        defeatedUnitData.forEach(data => {
+            const cardElement = findBestAnchorElement(data.unitId);
+            if (cardElement) {
+                const hpBar = cardElement.querySelector('.hp-bar');
+                if (hpBar) hpBar.style.width = '0%';
+                
+                setTimeout(() => {
+                    ui_playDeathAnimation(cardElement);
+                    ui_createFeedbackPopup(cardElement, 'KO!', 'damage-popup', { verticalOrigin: 'center' });
+                }, 400);
             }
         });
-    }
-
-    // --- Render base elements ---
-    renderDynamicBackground();
-    if (bState.battleState === "Win" || bState.battleState === "Lose") {
-        renderBattleLogOverlay(true, bState.battleState, bState.battleMessage || (bState.battleState === "Win" ? "Victory!" : "Defeat!"));
-        if(elActionButtonsGroup) elActionButtonsGroup.innerHTML = `<p class="battle-over-message">${bState.battleState.toUpperCase()}!</p>`;
-        if(elPseudomapArea) elPseudomapArea.classList.add('is-hidden');
-        if(elPlayerHeroesDeck) elPlayerHeroesDeck.classList.add('is-hidden');
+        
+        const totalAnimationTime = 1600;
+        wsLogger(`UI_RENDERER: Waiting ${totalAnimationTime}ms for death sequence to finish before full re-render.`);
+        setTimeout(performStandardRenderAndPopups, totalAnimationTime);
     } else {
-        if (elBattleLogOverlay && elBattleLogOverlay.classList.contains('is-visible') && !bState.showLog) {
-             renderBattleLogOverlay(false);
-        }
-        if(elPseudomapArea) elPseudomapArea.classList.remove('is-hidden');
-        if(elPlayerHeroesDeck) elPlayerHeroesDeck.classList.remove('is-hidden');
+        wsLogger("UI_RENDERER: No defeated units. Performing standard render.");
+        performStandardRenderAndPopups();
     }
-    renderTopBar();
-    renderEnemyStage();
-    renderPlayerHeroesDeck();
-    renderPlayerActionBar();
     
-    // --- Render Pseudomap (handles its own idle state visuals) ---
-    renderPseudomap();
-
-    // --- Scroll to active elements ---
-    if (typeof scrollToActiveUnitInPseudomap === "function") {
-        requestAnimationFrame(() => { requestAnimationFrame(scrollToActiveUnitInPseudomap); });
-    }
-    const activeUnitForScroll = getActiveUnit();
-    if (activeUnitForScroll && activeUnitForScroll.type === "Ally") {
-        if (typeof scrollToPlayerHero === "function") {
-             requestAnimationFrame(() => { scrollToPlayerHero(activeUnitForScroll.id, true); });
-        }
-    }
-
-    // --- Re-apply targeting visuals HANYA jika wsMode BUKAN idle ---
-    const allUnitFrames = elPseudomapTrack ? elPseudomapTrack.querySelectorAll('.pseudomap-unit-frame') : [];
-    
-    if (wsMode === "selecting_primary_target" && typeof validPrimaryTargetIds !== 'undefined') {
-        if (typeof ui_renderSelectPrimaryTargetMode === "function") ui_renderSelectPrimaryTargetMode(validPrimaryTargetIds, allUnitFrames);
-    } else if (wsMode === "confirming_effect_area" && typeof selectedPrimaryTargetId !== 'undefined') {
-        let isNoChoice = false;
-        if (selectedActionDetails && selectedActionDetails.commandObject?.targetingParams?.selection?.pattern?.shape === "Self") {
-            isNoChoice = true;
-        }
-        if (typeof ui_renderConfirmAreaMode === "function") ui_renderConfirmAreaMode(selectedPrimaryTargetId, currentAffectedTargetIds, allUnitFrames, isNoChoice);
-    } else if (wsMode === "confirming_basic_attack" && typeof lastTappedUnitId !== 'undefined') {
-        if (typeof ui_highlightPotentialBasicAttackTarget === "function") {
-            allUnitFrames.forEach(frame => ui_highlightPotentialBasicAttackTarget(frame.dataset.unitId, frame.dataset.unitId === lastTappedUnitId));
-        }
-    }
-    // Note: No 'else if (wsMode === "idle")' block is needed here, as renderPseudomap handles all idle-state visuals.
-
-    wsLogger("UI_RENDERER: All UI elements refreshed.");
+    wsLogger("UI_RENDERER: refreshAllUIElements sequence finished.");
 }
 
-
 // --- Individual Component Renderers ---
-
 function renderDynamicBackground() {
     if (!elDynamicBackground) { return; }
     const bgFilename = bState.assets?.backgroundImageFilename;
     if (bgFilename && typeof bgFilename === 'string' && bgFilename.trim() !== '') {
         const fullPath = getGeneralAssetPath(bgFilename, "background");
-        if (fullPath) {
-            elDynamicBackground.style.backgroundImage = `url('${fullPath}')`;
-            elDynamicBackground.style.backgroundColor = '';
-        } else {
-            elDynamicBackground.style.backgroundImage = '';
-            elDynamicBackground.style.backgroundColor = DEFAULT_BACKGROUND_COLOR;
-        }
+        elDynamicBackground.style.backgroundImage = fullPath ? `url('${fullPath}')` : '';
+        elDynamicBackground.style.backgroundColor = fullPath ? '' : DEFAULT_BACKGROUND_COLOR;
     } else {
         elDynamicBackground.style.backgroundImage = '';
         elDynamicBackground.style.backgroundColor = DEFAULT_BACKGROUND_COLOR;
@@ -225,6 +275,7 @@ function renderEnemyStage() {
     if (!elEnemyCarousel) { return; }
     elEnemyCarousel.innerHTML = '';
     const enemies = bState.units ? bState.units.filter(unit => unit.type === "Enemy" && unit.status !== "Defeated") : [];
+    
     if (enemies.length === 0) {
         elEnemyCarousel.innerHTML = '<div class="character-card enemy-card no-target"><p>No enemies left!</p></div>';
         if (elPrevEnemyBtn) elPrevEnemyBtn.style.display = 'none';
@@ -240,7 +291,6 @@ function renderEnemyStage() {
         card.classList.add('character-card', 'enemy-card');
         card.dataset.unitId = enemy.id;
         if (index === currentEnemyIndex) card.classList.add('active-enemy');
-
         const detailsWrapper = document.createElement('div');
         detailsWrapper.classList.add('character-details');
         const nameElement = document.createElement('h3');
@@ -261,17 +311,10 @@ function renderEnemyStage() {
         hpContainer.appendChild(hpText);
         detailsWrapper.appendChild(nameElement);
         detailsWrapper.appendChild(hpContainer);
-
         const spriteContainer = document.createElement('div');
         spriteContainer.classList.add('character-sprite-container');
         const sprite = document.createElement('img');
-        let imageToLoad = getImagePathForUnit(enemy.fullBodyFilename, enemy.type, "fullBody");
-        if (!enemy.fullBodyFilename && enemy.portraitFilename) {
-            imageToLoad = getImagePathForUnit(enemy.portraitFilename, enemy.type, "portraitHead");
-        } else if (!enemy.fullBodyFilename && !enemy.portraitFilename) {
-             imageToLoad = getImagePathForUnit(null, enemy.type, "fullBody");
-        }
-        sprite.src = imageToLoad;
+        sprite.src = getImagePathForUnit(enemy.fullBodyFilename, enemy.type, "fullBody");
         sprite.alt = (enemy.name || "Unknown Enemy") + " Sprite";
         sprite.classList.add('character-sprite');
         sprite.onerror = function() {
@@ -295,29 +338,21 @@ function renderPlayerHeroesDeck() {
     const playerHeroes = bState.units ? bState.units.filter(unit => unit.type === "Ally" && unit.status !== "Defeated") : [];
     if (playerHeroes.length === 0) {
         elPlayerHeroesCarousel.innerHTML = '<p class="no-heroes-message">No active heroes.</p>';
-        if (elPlayerHeroesCarousel) elPlayerHeroesCarousel.style.transform = 'translateX(0px)';
-        currentPlayerHeroStartIndex = 0;
         return;
     }
     playerHeroes.forEach((hero) => {
         const card = document.createElement('div');
         card.classList.add('character-card', 'player-card');
         card.dataset.unitId = hero.id;
-        if (hero.id === bState.activeUnitID) {
-            card.classList.add('active-player-hero');
-        }
+        if (hero.id === bState.activeUnitID) card.classList.add('active-player-hero');
         const spriteContainer = document.createElement('div');
         spriteContainer.classList.add('character-sprite-container');
         const sprite = document.createElement('img');
         sprite.src = getImagePathForUnit(hero.portraitFilename, hero.type, "portraitHead");
         sprite.alt = (hero.name || "Hero") + " Portrait";
         sprite.classList.add('character-sprite');
-        sprite.onerror = function() {
-            this.src = getImagePathForUnit(null, hero.type, "portraitHead", true);
-            this.onerror = null;
-        };
+        sprite.onerror = function() { this.src = getImagePathForUnit(null, hero.type, "portraitHead", true); };
         spriteContainer.appendChild(sprite);
-
         const details = document.createElement('div');
         details.classList.add('character-details');
         const name = document.createElement('h4');
@@ -350,14 +385,12 @@ function renderPlayerActionBar() {
     }
     if (!elActionButtonsGroup) { wsLogger("UI_RENDERER_ACTION_BAR_ERROR: Action buttons group not found."); return; }
     elActionButtonsGroup.innerHTML = '';
-
     const activeUnit = getActiveUnit();
     if (!activeUnit || activeUnit.type !== "Ally" || bState.battleState !== "Ongoing") {
         elActionButtonsGroup.innerHTML = '<p class="no-actions-message">No actions available.</p>';
         return;
     }
     const skills = activeUnit.commands ? activeUnit.commands.filter(cmd => cmd.type !== "BasicAttack") : [];
-
     if (skills.length === 0) {
         elActionButtonsGroup.innerHTML = '<p class="no-actions-message">No skills. Double tap enemy for Basic Attack.</p>';
         return;
@@ -367,16 +400,11 @@ function renderPlayerActionBar() {
         button.textContent = cmd.name || "Skill";
         button.dataset.commandId = cmd.commandId;
         button.dataset.actionType = cmd.type;
-        let isDisabled = false;
-        let disabledReason = "";
-        if (cmd.type === "Skill" && typeof cmd.spCost === 'number' && bState.teamSP < cmd.spCost) {
-            isDisabled = true;
-            disabledReason = `Needs ${cmd.spCost} SP`;
-        }
+        let isDisabled = (cmd.type === "Skill" && typeof cmd.spCost === 'number' && bState.teamSP < cmd.spCost);
         if (isDisabled) {
             button.classList.add('disabled');
             button.disabled = true;
-            button.title = disabledReason;
+            button.title = `Needs ${cmd.spCost} SP`;
         }
         elActionButtonsGroup.appendChild(button);
     });
@@ -386,12 +414,8 @@ function renderBattleLogOverlay(show, resultState = null, endMessage = null) {
     if (!elBattleLogOverlay || !elBattleLogEntries) { return; }
     if (show) {
         const titleElement = elBattleLogOverlay.querySelector('h3');
-        if (titleElement) {
-            titleElement.textContent = resultState === "Win" ? "VICTORY!" : (resultState === "Lose" ? "DEFEAT!" : "Battle Log");
-        }
-        if (endMessage) {
-            addLogEntry(endMessage, resultState === "Win" ? 'log-victory' : (resultState === "Lose" ? 'log-defeat' : 'system'), true);
-        }
+        if (titleElement) titleElement.textContent = resultState === "Win" ? "VICTORY!" : (resultState === "Lose" ? "DEFEAT!" : "Battle Log");
+        if (endMessage) addLogEntry(endMessage, resultState === "Win" ? 'log-victory' : (resultState === "Lose" ? 'log-defeat' : 'system'), true);
         elBattleLogOverlay.classList.remove('is-hidden');
         elBattleLogOverlay.classList.add('is-visible');
     } else {
@@ -411,51 +435,34 @@ function addLogEntry(message, type = "system", forceShow = false) {
     }
 }
 
-/**
- * Renders the pseudomap and handles all idle-state visuals.
- */
 function renderPseudomap() {
     if (!elPseudomapTrack) { wsLogger("UI_RENDERER_PSEUDOMAP_ERROR: Pseudomap track element not found."); return; }
     elPseudomapTrack.innerHTML = '';
-
     const allUnitsForMap = bState.units ? bState.units.filter(u => u.status !== "Defeated") : [];
-    if (allUnitsForMap.length === 0) { wsLogger("UI_RENDERER_PSEUDOMAP: No units to display."); return; }
-
+    if (allUnitsForMap.length === 0) { return; }
     allUnitsForMap.sort((a, b) => (a.pseudoPos || 0) - (b.pseudoPos || 0));
-
-    // Get valid basic attack targets to highlight them during idle mode
     let validBasicTargets = [];
     const activeUnit = getActiveUnit();
-    if (wsMode === "idle" && activeUnit && activeUnit.type === "Ally" && !(bState.battleState === "Win" || bState.battleState === "Lose")) {
-        if (typeof getValidBasicAttackTargetIdsForUI === "function") {
-            validBasicTargets = getValidBasicAttackTargetIdsForUI(activeUnit, allUnitsForMap);
-        }
+    if (wsMode === "idle" && activeUnit && activeUnit.type === "Ally" && bState.battleState === "Ongoing") {
+        validBasicTargets = getValidBasicAttackTargetIdsForUI(activeUnit, allUnitsForMap);
     }
-
     allUnitsForMap.forEach(unit => {
         const frame = document.createElement('div');
         frame.classList.add('pseudomap-unit-frame', unit.type.toLowerCase());
         frame.dataset.unitId = unit.id;
-
-        // Apply idle-state visuals
-        if (unit.id === bState.activeUnitID && wsMode === "idle") {
-            frame.classList.add('active', 'active-turn-idle');
-        } else if (unit.id === bState.activeUnitID) {
+        if (unit.id === bState.activeUnitID) {
             frame.classList.add('active');
+            if (wsMode === "idle") frame.classList.add('active-turn-idle');
         }
-
         if (unit.status === "EndTurn") frame.classList.add('end-turn');
-        else if (unit.status === "Defeated") frame.classList.add('defeated', 'end-turn');
-
         if (wsMode === "idle" && validBasicTargets.includes(unit.id)) {
             frame.classList.add('valid-basic-attack-target');
         }
-
         const portrait = document.createElement('img');
         portrait.src = getImagePathForUnit(unit.portraitFilename, unit.type, "portraitHead");
         portrait.alt = (unit.name || "Unit") + " Portrait";
         portrait.classList.add('pseudomap-portrait');
-        portrait.onerror = function() { this.src = getImagePathForUnit(null, unit.type, "portraitHead", true); this.onerror = null; };
+        portrait.onerror = function() { this.src = getImagePathForUnit(null, unit.type, "portraitHead", true); };
         frame.appendChild(portrait);
         elPseudomapTrack.appendChild(frame);
     });
@@ -464,14 +471,11 @@ function renderPseudomap() {
 // --- UI Hint and Targeting Visual Functions ---
 function ui_showEndTurnHint(unitId, show) {
     const unitFrame = elPseudomapTrack ? elPseudomapTrack.querySelector(`.pseudomap-unit-frame[data-unit-id="${unitId}"]`) : null;
-    if (unitFrame && bState.activeUnitID && unitId === bState.activeUnitID) {
-        if (show) {
-            unitFrame.classList.remove('active-turn-idle');
-            unitFrame.classList.add('active-turn-first-tap', 'can-double-tap-end-turn');
-        } else {
-            unitFrame.classList.remove('active-turn-first-tap', 'can-double-tap-end-turn');
-            if (wsMode === "idle") unitFrame.classList.add('active-turn-idle');
-        }
+    if (unitFrame && bState.activeUnitID === unitId) {
+        unitFrame.classList.toggle('active-turn-first-tap', show);
+        unitFrame.classList.toggle('can-double-tap-end-turn', show);
+        if(show) unitFrame.classList.remove('active-turn-idle');
+        else if (wsMode === "idle") unitFrame.classList.add('active-turn-idle');
     }
 }
 
@@ -520,51 +524,53 @@ function ui_clearAllTargetingVisuals() {
     });
 }
 
+function ui_resetIdleHighlights() {
+    wsLogger("UI_RENDERER: Resetting idle state highlights.");
+    const allFrames = elPseudomapTrack ? elPseudomapTrack.querySelectorAll('.pseudomap-unit-frame') : [];
+    allFrames.forEach(frame => {
+        frame.classList.remove(
+            'potential-basic-attack-target',
+            'pulsing',
+            'active-turn-first-tap',
+            'can-double-tap-end-turn'
+        );
+    });
+    renderPseudomap();
+}
+
+
 // --- Animation & Scroll Functions ---
-function ui_playDamageAnimation(unitId, damageAmount, unitType) {
-    wsLogger(`UI_ANIM_INFO: Playing damage animation for Unit ID: ${unitId}, Damage: ${damageAmount}`);
-    let popUpAnchorElement = null;
-    const pseudomapFrame = elPseudomapTrack ? elPseudomapTrack.querySelector(`.pseudomap-unit-frame[data-unit-id="${unitId}"]`) : null;
-    if (pseudomapFrame) popUpAnchorElement = pseudomapFrame;
+function ui_playDeathAnimation(elementToAnimate) {
+    wsLogger(`UI_ANIM: Playing death animation for element.`);
+    elementToAnimate.classList.add('unit-death-animation');
+    elementToAnimate.style.pointerEvents = 'none';
+}
 
-    if (unitType === "Enemy") {
-        const enemyCard = elEnemyCarousel ? elEnemyCarousel.querySelector(`.character-card.enemy-card[data-unit-id="${unitId}"]`) : null;
-        if (enemyCard) {
-            const spriteContainer = enemyCard.querySelector('.character-sprite-container');
-            popUpAnchorElement = spriteContainer || enemyCard;
-            enemyCard.classList.add('unit-damaged-flash');
-            setTimeout(() => { if (enemyCard) enemyCard.classList.remove('unit-damaged-flash'); }, 500);
-        }
-    } else if (unitType === "Ally") {
-        const heroCard = elPlayerHeroesCarousel ? elPlayerHeroesCarousel.querySelector(`.character-card.player-card[data-unit-id="${unitId}"]`) : null;
-        if (heroCard) {
-            popUpAnchorElement = heroCard;
-            heroCard.classList.add('unit-damaged-flash');
-            setTimeout(() => { if (heroCard) heroCard.classList.remove('unit-damaged-flash'); }, 500);
-        }
+function ui_createFeedbackPopup(anchorElement, text, popupClass, options = {}) {
+    if (!anchorElement) {
+        wsLogger(`UI_ANIM_ERROR: Anchor element for pop-up not provided.`);
+        return;
     }
-
-    if (popUpAnchorElement) {
-        const damagePopup = document.createElement('div');
-        damagePopup.classList.add('damage-popup');
-        damagePopup.textContent = `-${damageAmount}`;
-        damagePopup.style.position = 'absolute';
-        damagePopup.style.left = '50%';
-        damagePopup.style.top = '0%';
-        damagePopup.style.transform = 'translateX(-50%) translateY(-120%)';
-        popUpAnchorElement.appendChild(damagePopup);
-        requestAnimationFrame(() => {
-            damagePopup.style.opacity = '1';
-            damagePopup.style.transform = 'translateX(-50%) translateY(-150%)';
-        });
-        setTimeout(() => {
-            damagePopup.style.opacity = '0';
-            damagePopup.style.transform = 'translateX(-50%) translateY(-200%)';
-        }, 800);
-        setTimeout(() => { if (damagePopup.parentNode) damagePopup.parentNode.removeChild(damagePopup); }, 1600);
-    } else {
-        wsLogger(`UI_ANIM_ERROR: popUpAnchorElement NOT found for unit ${unitId}.`);
-    }
+    const { verticalOrigin = 'center' } = options;
+    const rect = anchorElement.getBoundingClientRect();
+    const popup = document.createElement('div');
+    popup.classList.add('feedback-popup', popupClass);
+    popup.textContent = text;
+    popup.style.left = `${rect.left + rect.width / 2}px`;
+    popup.style.top = (verticalOrigin === 'top') ? `${rect.top}px` : `${rect.top + rect.height / 2}px`;
+    popup.style.transform = 'translateX(-50%) translateY(-50%) scale(0.5)';
+    document.body.appendChild(popup);
+    requestAnimationFrame(() => {
+        popup.style.opacity = '1';
+        popup.style.transform = 'translateX(-50%) translateY(-150%) scale(1)';
+    });
+    setTimeout(() => {
+        popup.style.opacity = '0';
+        popup.style.transform = 'translateX(-50%) translateY(-200%) scale(0.8)';
+    }, 1000); 
+    setTimeout(() => {
+        if (popup.parentNode) popup.parentNode.removeChild(popup);
+    }, 1500);
 }
 
 function scrollToActiveUnitInPseudomap() {
@@ -579,7 +585,7 @@ function scrollToActiveUnitInPseudomap() {
     const maxScrollLeft = elPseudomapTrack.scrollWidth - elPseudomapArea.clientWidth;
     scrollTarget = Math.max(0, Math.min(scrollTarget, maxScrollLeft));
 
-    if (Math.abs(elPseudomapArea.scrollLeft - scrollTarget) > 1) { // Check with a small tolerance
+    if (Math.abs(elPseudomapArea.scrollLeft - scrollTarget) > 1) {
         elPseudomapArea.scrollTo({ left: scrollTarget, behavior: 'smooth' });
     }
 }
@@ -605,7 +611,7 @@ function scrollToPlayerHero(heroId, centerIfPossible = true) {
     }
     const maxScrollOffsetPx = Math.max(0, (playerHeroes.length * cardWidthWithGap) - deckContainerWidth - cardGap);
     targetScrollPositionPx = Math.max(0, Math.min(targetScrollPositionPx, maxScrollOffsetPx));
-    carousel.style.transform = `translateX(-${targetScrollPositionPx}px)`;
+    elPlayerHeroesCarousel.style.transform = `translateX(-${targetScrollPositionPx}px)`;
     currentPlayerHeroStartIndex = Math.round(targetScrollPositionPx / cardWidthWithGap);
 }
 
@@ -619,4 +625,4 @@ function scrollToEnemyInCarousel(enemyId) {
     }
 }
 
-wsLogger("UI_RENDERER_JS: ui_renderer.js (Full Code) loaded.");
+wsLogger("UI_RENDERER_JS: ui_renderer.js (with full functions and death anim) loaded.");

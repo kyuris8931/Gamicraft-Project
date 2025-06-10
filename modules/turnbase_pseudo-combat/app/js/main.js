@@ -1,9 +1,10 @@
 // js/main.js
 // Gamicraft WebScreen Main Initialization - Handles PC and Android asset paths
+// Versi dengan perbaikan state management untuk `previousBState`.
 
 // --- Global State Variables ---
 var bState = {}; // Battle state object
-var previousBState = null; // Untuk menyimpan state sebelumnya (untuk animasi, dll)
+var previousBState = null; // Untuk menyimpan state sebelumnya, penting untuk perbandingan animasi
 var wsMode = "idle"; // Webscreen mode (e.g., "idle", "targeting_enemy")
 
 // --- Global UI State Variables ---
@@ -22,38 +23,45 @@ let elPlayerHeroesCarousel, elPlayerHeroesDeck;
 let elTeamResourcesDisplay, elActionButtonsGroup;
 let elBattleLogOverlay, elBattleLogEntries, elCloseLogBtn;
 let elCopyWsLogBtn, elClearWsLogBtn;
-// elOpenWsLogBtn akan dicari secara spesifik di event_handlers.js karena bisa ada di beberapa tempat
-let elWsLoggerScreen, elCloseWsLoggerBtn; // Untuk WS Logger screen
+let elWsLoggerScreen, elCloseWsLoggerBtn;
 
-
+/**
+ * --- FUNGSI KUNCI YANG DIPERBAIKI ---
+ * Menangani data battle state yang baru dari Tasker.
+ * Memastikan `previousBState` tersimpan dengan benar sebelum memperbarui `bState`.
+ * @param {object} newBStateData - Objek battle state yang baru.
+ */
 var handleNewBattleState = function(newBStateData) {
     wsLogger("MAIN_JS: handleNewBattleState called.");
-    wsLogger("MAIN_JS_DEBUG: newBStateData (first 200 chars): " + (typeof newBStateData === 'object' ? JSON.stringify(newBStateData).substring(0,200) : String(newBStateData).substring(0,200)));
+    wsLogger("MAIN_JS_DEBUG: newBStateData received.");
 
-    // Simpan bState saat ini SEBELUM di-update, jika bState sudah ada isinya
-    if (typeof bState === 'object' && bState !== null && Object.keys(bState).length > 0 && bState.units) {
+    // BUGFIX: Simpan bState saat ini sebagai previousBState SEBELUM di-update.
+    // Ini adalah langkah paling krusial untuk mencegah animasi berulang.
+    if (typeof bState === 'object' && bState !== null && Object.keys(bState).length > 0) {
         try {
+            // DEEP COPY sangat penting di sini agar tidak hanya menjadi referensi.
             previousBState = JSON.parse(JSON.stringify(bState));
-            wsLogger("MAIN_JS: previousBState was DEEP COPIED from current bState.");
-            wsLogger("MAIN_JS_DEBUG: previousBState.activeUnitID (sample): " + (previousBState.activeUnitID || 'N/A'));
+            wsLogger("MAIN_JS: previousBState has been successfully deep-copied from the current bState.");
         } catch (e) {
-            wsLogger("MAIN_JS_ERROR: Could not deep copy bState to previousBState. Error: " + e);
-            previousBState = null; // Penting untuk null jika error
+            wsLogger("MAIN_JS_ERROR: Could not deep-copy bState to previousBState. Error: " + e);
+            previousBState = null; // Reset jika terjadi error.
         }
     } else {
-        wsLogger("MAIN_JS_INFO: Current bState is empty or invalid, previousBState set to null or its last value.");
-        previousBState = null; // Pastikan null jika bState awal kosong atau tidak valid
+        // Jika bState awal kosong, tidak ada state sebelumnya.
+        previousBState = null;
+        wsLogger("MAIN_JS_INFO: Current bState is empty, so previousBState is set to null.");
     }
 
     // Update bState global dengan data BARU
     bState = newBStateData;
-    wsMode = "idle"; // Reset wsMode, penting jika aksi sebelumnya adalah skill
+    wsMode = "idle"; // Selalu reset wsMode ke idle setelah menerima state baru.
 
-    wsLogger("MAIN_JS: bState updated with new data. activeUnitID: " + (bState.activeUnitID || 'N/A') + ". Calling refreshAllUIElements.");
-    wsLogger("MAIN_JS_DEBUG: previousBState being passed to refreshAllUIElements is " + (previousBState ? "DEFINED" : "NULL"));
+    wsLogger("MAIN_JS: Global bState updated. Calling refreshAllUIElements.");
+    wsLogger("MAIN_JS_DEBUG: The previousBState being passed is " + (previousBState ? "DEFINED" : "NULL"));
 
     if (typeof refreshAllUIElements === "function") {
-        refreshAllUIElements(previousBState); // Kirim previousBState untuk perbandingan animasi
+        // Kirim state sebelumnya untuk perbandingan di UI renderer
+        refreshAllUIElements(previousBState); 
     } else {
         wsLogger("MAIN_JS_ERROR: refreshAllUIElements function is not defined!");
     }
@@ -64,20 +72,18 @@ var handleNewBattleState = function(newBStateData) {
  */
 async function initializeApp() {
     wsLogOutputElement = document.getElementById('ws-log-output');
-    // Tombol #open-ws-log-btn akan di-handle oleh event_handlers.js karena bisa ada di beberapa tempat
     elWsLoggerScreen = document.getElementById('ws-logger-screen');
     elCloseWsLoggerBtn = document.getElementById('close-ws-logger-btn');
 
     if (!wsLogOutputElement) {
         console.error("FATAL ERROR: Log output element #ws-log-output not found!");
-        // Fallback logger sederhana jika wsLogger dari config.js gagal
         window.wsLogger = window.wsLogger || function(message) { console.log(`[WS_LOG_FALLBACK] ${message}`); };
     } else {
-        wsLogOutputElement.textContent = ''; // Bersihkan log UI saat init
+        wsLogOutputElement.textContent = '';
     }
     wsLogger("MAIN_JS: initializeApp starting. Logger ready.");
 
-    initializeDOMReferences(); // Referensi ke elemen DOM lainnya
+    initializeDOMReferences();
 
     // Pengaturan Path (Android vs PC)
     if (typeof window.AutoToolsAndroid !== 'undefined') {
@@ -95,14 +101,14 @@ async function initializeApp() {
         window.gcpcPlaceholderPath = window.gcpcRootPath + "/app/mockup/";
         wsLogger(`MAIN_JS: Android Paths Initialized. Root: ${window.gcpcRootPath}`);
     } else {
-        window.gcpcRootPath = ""; // Untuk PC, path relatif ke index.html
+        window.gcpcRootPath = "";
         window.gcpcDataPath = "data/";
         window.gcpcPlaceholderPath = "mockup/";
         wsLogger(`MAIN_JS: PC Paths Initialized. Root: (relative), Data: ${window.gcpcDataPath}`);
     }
 
     // Memuat battle state awal
-    let initialBattleData = window.battleState; // Dari <meta> atau di-set oleh Tasker
+    let initialBattleData = window.battleState;
     let loadedFromTaskerOrMeta = false;
 
     if (initialBattleData) {
@@ -112,41 +118,34 @@ async function initializeApp() {
                 loadedFromTaskerOrMeta = true;
                 wsLogger("MAIN_JS: Initial battle state (string) loaded and parsed from Tasker/meta.");
             } catch (e) {
-                wsLogger("MAIN_JS_ERROR: Failed to parse initial battleState string: " + e + ". Data: " + initialBattleData.substring(0,100));
+                wsLogger("MAIN_JS_ERROR: Failed to parse initial battleState string: " + e);
                 bState = {};
             }
-        } else if (typeof initialBattleData === 'object' && initialBattleData !== null && Object.keys(initialBattleData).length > 0 && initialBattleData.units) {
-            bState = initialBattleData; // Langsung gunakan objek
+        } else if (typeof initialBattleData === 'object' && initialBattleData !== null && Object.keys(initialBattleData).length > 0) {
+            bState = initialBattleData;
             loadedFromTaskerOrMeta = true;
             wsLogger("MAIN_JS: Initial battle state (object) loaded from Tasker/meta.");
-        } else {
-            wsLogger("MAIN_JS_INFO: Initial battleState from Tasker/meta is empty or invalid format.");
         }
     }
 
-    if (!loadedFromTaskerOrMeta || Object.keys(bState).length === 0 || !bState.units) {
-        wsLogger("MAIN_JS: No valid initial state from Tasker/meta OR bState is empty/invalid. Loading MOCK JSON for PC.");
+    if (!loadedFromTaskerOrMeta || Object.keys(bState).length === 0) {
+        wsLogger("MAIN_JS: No valid initial state from Tasker/meta. Loading MOCK JSON for PC.");
         try {
-            const response = await fetch('mock_battle_state.json'); // Path ke mock JSON
+            const response = await fetch('mock_battle_state.json');
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             bState = await response.json();
-            wsLogger("MAIN_JS: Successfully loaded and parsed mock_battle_state.json.");
-            if (bState.activeUnitID && bState.units && !bState.activeUnitType) {
-                const activeUnit = bState.units.find(u => u.id === bState.activeUnitID);
-                if (activeUnit) bState.activeUnitType = activeUnit.type;
-            }
+            wsLogger("MAIN_JS: Successfully loaded mock_battle_state.json.");
         } catch (e) {
             wsLogger("MAIN_JS_ERROR: Failed to load/parse mock_battle_state.json: " + e);
-            wsLogger("MAIN_JS_WARN: Falling back to minimal bState.");
-            bState = { battleState: "Error", battleMessage: "Failed to load any battle data.", units: [], teamSP: 0, maxTeamSP: 0, assets:{} };
+            bState = { battleState: "Error", battleMessage: "Failed to load any battle data.", units: [] };
         }
     }
-    wsLogger("MAIN_JS: Initial bState.battleMessage: " + (bState ? bState.battleMessage : "N/A") + ", activeUnitID: " + (bState ? bState.activeUnitID : "N/A"));
-
-    previousBState = null; // Pastikan previousBState null pada load pertama
+    
+    // Pada render pertama, tidak ada state sebelumnya.
+    previousBState = null; 
 
     if (typeof refreshAllUIElements === "function") {
-        refreshAllUIElements(previousBState); // Kirim null karena ini load pertama
+        refreshAllUIElements(null); // Kirim null karena ini load pertama
         wsLogger("MAIN_JS: Initial UI rendered.");
     } else {
         wsLogger("MAIN_JS_ERROR: refreshAllUIElements function not found!");
@@ -154,7 +153,6 @@ async function initializeApp() {
 
     if (typeof initializeEventListeners === "function") {
         initializeEventListeners();
-        // wsLogger("MAIN_JS: Event listeners initialized."); // Sudah dilog di event_handlers.js
     } else {
         wsLogger("MAIN_JS_ERROR: initializeEventListeners function not found!");
     }
@@ -182,10 +180,8 @@ function initializeDOMReferences() {
     elBattleLogOverlay = document.getElementById('battle-log-overlay');
     elBattleLogEntries = document.getElementById('battle-log-entries');
     elCloseLogBtn = document.getElementById('close-log-btn');
-    // elOpenWsLogBtn tidak perlu di-cache global di sini karena event_handlers akan mencarinya.
     elCopyWsLogBtn = document.getElementById('copy-ws-log-btn');
     elClearWsLogBtn = document.getElementById('clear-ws-log-btn');
-    // elWsLoggerScreen dan elCloseWsLoggerBtn sudah dihandle di initializeApp
     wsLogger("MAIN_JS: DOM elements referenced.");
 }
 

@@ -155,14 +155,15 @@ function getValidPrimaryTargets(actorUnit, command, allUnitsFromState) {
 
         case "Self":
             if (actorIndexInSorted === -1) {
-                 wsLogger(`TARGETING_HANDLER_ERROR [Self]: Actor unit ${actorUnit.name} not found in sorted alive units.`);
-                 break;
-            }
-            if (targetableTypes.includes(actorUnit.type)) {
-                potentialTargetIds.push(actorUnit.id);
-                wsLogger(`TARGETING_HANDLER [Self]: Target is self: ${actorUnit.name}`);
-            }
-            break;
+                wsLogger(`TARGETING_HANDLER_ERROR [Self]: Actor unit ${actorUnit.name} not found in sorted alive units.`);
+                break;
+           }
+           // BUGFIX: Cek apakah "Self" ada di targetableTypes, bukan actorUnit.type
+           if (targetableTypes.includes("Self")) {
+               potentialTargetIds.push(actorUnit.id);
+               wsLogger(`TARGETING_HANDLER [Self]: Target is self: ${actorUnit.name}`);
+           }
+           break;
 
         case "AnyDefeatedAlly":
             // Tidak bergantung pada sortedAliveUnits atau actorIndexInSorted

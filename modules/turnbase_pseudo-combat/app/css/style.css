@@ -765,21 +765,94 @@ html, body {
     100% { filter: brightness(1); }
 }
 
-/* Styling untuk Pop-up Damage */
-.damage-popup {
-    /* position: absolute; akan di-set oleh JS */
-    /* left, top, transform juga di-set oleh JS */
-    background-color: rgba(220, 50, 50, 0.9); /* Merah lebih solid */
-    color: white;
-    padding: 5px 10px;
-    border-radius: 5px;
-    border: 1px solid rgba(255,255,255,0.5);
-    font-size: 1.2em; /* Lebih besar */
+.feedback-popup {
+    position: fixed; /* Gunakan fixed agar relatif terhadap viewport dan tidak terpengaruh scroll */
     font-weight: bold;
-    text-shadow: 1px 1px 3px black;
-    pointer-events: none;
-    opacity: 0; /* Mulai transparan, akan diubah JS untuk fade-in */
-    transition: opacity 0.3s ease-out, transform 0.3s ease-out; /* Transisi halus */
-    /* z-index akan di-set oleh JS jika perlu */
-    white-space: nowrap; /* Agar angka damage tidak terpotong jika panjang */
+    font-size: 1.3em;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
+    pointer-events: none; /* Agar tidak bisa diklik */
+    z-index: 9999; /* Pastikan selalu di atas elemen lain */
+    white-space: nowrap;
+    
+    /* State Awal Animasi */
+    opacity: 0;
+    transform: translateX(-50%) translateY(-50%) scale(0.5);
+
+    /* Transisi untuk animasi */
+    transition: opacity 0.4s ease-out, transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.damage-popup {
+    background-color: rgba(231, 76, 60, 0.9); /* Merah (var --color-accent-secondary) */
+    color: white;
+}
+
+.heal-popup {
+    background-color: rgba(46, 204, 113, 0.9); /* Hijau (var --color-accent-tertiary) */
+    color: white;
+}
+
+.sp-gain-popup {
+    background-color: rgba(241, 196, 15, 0.95); /* Kuning/Emas (var --color-accent-quaternary) */
+    color: #2c3e50; /* Teks gelap agar kontras */
+    border-color: rgba(255, 255, 255, 0.9);
+}
+
+/* --- BARU: Kelas untuk pop-up SP yang digunakan --- */
+.sp-spent-popup {
+    background-color: rgba(192, 57, 43, 0.9); /* Merah lebih gelap/berbeda untuk biaya SP */
+    color: white;
+}
+
+
+/* Efek Flash Saat Terkena Serangan (Tetap ada) */
+.unit-damaged-flash {
+    animation: flash-red 0.5s ease-out;
+}
+
+@keyframes flash-red {
+    0% { filter: brightness(1); }
+    25% { filter: brightness(1.5) drop-shadow(0 0 5px red); }
+    50% { filter: brightness(0.8) sepia(0.5); }
+    75% { filter: brightness(1.5) drop-shadow(0 0 5px red); }
+    100% { filter: brightness(1); }
+}
+
+.unit-death-animation {
+    /* Memicu animasi 'death-rattle' selama 1.2 detik */
+    animation: death-rattle 1.2s forwards ease-in-out;
+    /* Pastikan transform-origin di tengah agar getarannya bagus */
+    transform-origin: center;
+}
+
+@keyframes death-rattle {
+    0% {
+        transform: scale(1);
+        filter: grayscale(0) brightness(1);
+        opacity: 1;
+    }
+    20% {
+        /* Sedikit bergetar */
+        transform: scale(1.02) rotate(2deg);
+        filter: grayscale(0.8) brightness(0.9);
+    }
+    40% {
+        transform: scale(0.98) rotate(-2deg);
+        filter: grayscale(1) brightness(0.7);
+    }
+    80% {
+        /* Mulai menghilang */
+        transform: scale(0.95);
+        filter: grayscale(1) brightness(0.5);
+        opacity: 1;
+    }
+    100% {
+        /* Hilang sepenuhnya */
+        transform: scale(0.8);
+        filter: grayscale(1) brightness(0.5);
+        opacity: 0;
+    }
 }
