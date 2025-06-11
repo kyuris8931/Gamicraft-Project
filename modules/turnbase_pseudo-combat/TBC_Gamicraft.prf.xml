@@ -64,7 +64,7 @@ unit_data&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES5&gt;&lt;/St
 		<cdate>1747025301286</cdate>
 		<name>GC: TBC</name>
 		<pids>25</pids>
-		<tids>27,26</tids>
+		<tids>26,27</tids>
 	</Project>
 	<Task sr="task26">
 		<cdate>1747331478051</cdate>
@@ -557,7 +557,7 @@ Only available if you select &amp;lt;b&amp;gt;Continue Task After Error&amp;lt;/
 	</Task>
 	<Task sr="task27">
 		<cdate>1747483621007</cdate>
-		<edate>1749554995896</edate>
+		<edate>1749564247345</edate>
 		<id>27</id>
 		<nme>Launch TBC</nme>
 		<pri>100</pri>

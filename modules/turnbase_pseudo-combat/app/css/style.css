@@ -856,3 +856,11 @@ html, body {
         opacity: 0;
     }
 }
+
+
+/* -- PERUBAHAN DI SINI: Menambahkan kelas untuk info pop-up -- */
+.info-popup {
+    background-color: rgba(93, 109, 126, 0.9); /* Warna netral/informatif */
+    color: white;
+    font-size: 1.1em; /* Sedikit lebih kecil dari damage */
+}

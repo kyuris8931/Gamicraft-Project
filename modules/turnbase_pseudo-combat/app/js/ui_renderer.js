@@ -1,6 +1,6 @@
 // js/ui_renderer.js
 // Handles all UI rendering logic for the Gamicraft WebScreen Turn-Based Combat.
-// Versi dengan alur animasi kekalahan yang diperbaiki dan feedback pop-up lengkap.
+// Versi dengan perbaikan posisi pop-up dan bug "No Target".
 
 // --- Helper Functions ---
 
@@ -129,6 +129,14 @@ function refreshAllUIElements(passedPreviousBState = null) {
         return;
     }
 
+    const activeUnit = getActiveUnit();
+    if (activeUnit && activeUnit.type === 'Enemy') {
+        if (!passedPreviousBState || activeUnit.id !== passedPreviousBState.activeUnitID) {
+            scrollToEnemyInCarousel(activeUnit.id);
+            wsLogger(`UI_RENDERER: Auto-scrolling to active enemy: ${activeUnit.name}`);
+        }
+    }
+
     const damagedUnitData = [];
     const healedUnitData = [];
     const defeatedUnitData = [];
@@ -163,8 +171,6 @@ function refreshAllUIElements(passedPreviousBState = null) {
         }
     }
 
-    // --- LOGIKA UTAMA RENDER DAN ANIMASI ---
-    
     const performStandardRenderAndPopups = () => {
         renderDynamicBackground();
         renderTopBar();
@@ -172,6 +178,22 @@ function refreshAllUIElements(passedPreviousBState = null) {
         renderPlayerHeroesDeck();
         renderPlayerActionBar();
         renderPseudomap();
+
+        // FIX: Only show "No Target" popup if the state has just changed to this.
+        if (bState.lastActionDetails?.actionOutcome === "NO_TARGET_IN_RANGE") {
+            // Kita hanya tampilkan popup jika state sebelumnya TIDAK sama,
+            // untuk mencegah render ulang pada UI refresh biasa.
+            if (passedPreviousBState?.lastActionDetails?.actionOutcome !== "NO_TARGET_IN_RANGE") {
+                const anchor = elPseudomapArea;
+                if (anchor) {
+                    ui_createFeedbackPopup(anchor, 'No Target', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
+                }
+            }
+            // PENTING: "Konsumsi" sinyal ini di sisi klien agar tidak muncul lagi
+            // sampai sinyal baru yang identik datang dari backend. Ini menghentikan pop-up hantu.
+            bState.lastActionDetails.actionOutcome = null;
+        }
+
 
         healedUnitData.forEach(data => {
             const anchor = findBestAnchorElement(data.unitId);
@@ -210,12 +232,14 @@ function refreshAllUIElements(passedPreviousBState = null) {
             }
         }
     };
-
-    // --- PENGATURAN ALUR UTAMA ---
     
     damagedUnitData.forEach(data => {
         const anchor = findBestAnchorElement(data.unitId);
-        const popupOptions = (data.type === 'Enemy') ? { verticalOrigin: 'top' } : {};
+        // PERUBAHAN DI SINI: yOffset diubah untuk mendorong pop-up lebih ke bawah.
+        // Anda bisa mengubah nilai 40 ini sesuai selera.
+        const popupOptions = (data.type === 'Enemy') 
+            ? { verticalOrigin: 'top', yOffset: 50 } // Mendorong 40px dari atas kartu
+            : {}; 
         if (anchor) ui_createFeedbackPopup(anchor, `-${data.amount}`, 'damage-popup', popupOptions);
     });
 
@@ -546,31 +570,51 @@ function ui_playDeathAnimation(elementToAnimate) {
     elementToAnimate.style.pointerEvents = 'none';
 }
 
+/**
+ * Creates a feedback popup (e.g., for damage, healing) that animates and disappears.
+ * @param {HTMLElement} anchorElement The DOM element to anchor the popup to.
+ * @param {string} text The text to display in the popup.
+ * @param {string} popupClass A CSS class for styling (e.g., 'damage-popup', 'heal-popup').
+ * @param {object} [options={}] Additional options for positioning.
+ * @param {'center'|'top'} [options.verticalOrigin='center'] The vertical point on the anchor to originate from.
+ * @param {number} [options.yOffset=0] An additional vertical pixel offset.
+ */
 function ui_createFeedbackPopup(anchorElement, text, popupClass, options = {}) {
     if (!anchorElement) {
         wsLogger(`UI_ANIM_ERROR: Anchor element for pop-up not provided.`);
         return;
     }
-    const { verticalOrigin = 'center' } = options;
+    const { verticalOrigin = 'center', yOffset = 0 } = options;
     const rect = anchorElement.getBoundingClientRect();
     const popup = document.createElement('div');
     popup.classList.add('feedback-popup', popupClass);
     popup.textContent = text;
+    
+    let topPosition = (verticalOrigin === 'top') 
+        ? rect.top 
+        : rect.top + rect.height / 2;
+    popup.style.top = `${topPosition + yOffset}px`;
+    
     popup.style.left = `${rect.left + rect.width / 2}px`;
-    popup.style.top = (verticalOrigin === 'top') ? `${rect.top}px` : `${rect.top + rect.height / 2}px`;
     popup.style.transform = 'translateX(-50%) translateY(-50%) scale(0.5)';
+    
     document.body.appendChild(popup);
+
     requestAnimationFrame(() => {
         popup.style.opacity = '1';
         popup.style.transform = 'translateX(-50%) translateY(-150%) scale(1)';
     });
+
     setTimeout(() => {
         popup.style.opacity = '0';
         popup.style.transform = 'translateX(-50%) translateY(-200%) scale(0.8)';
-    }, 1000); 
+    }, 1400); // Durasi diperpanjang
+
     setTimeout(() => {
-        if (popup.parentNode) popup.parentNode.removeChild(popup);
-    }, 1500);
+        if (popup.parentNode) {
+            popup.parentNode.removeChild(popup);
+        }
+    }, 1900); // Waktu remove diperpanjang
 }
 
 function scrollToActiveUnitInPseudomap() {
@@ -621,8 +665,11 @@ function scrollToEnemyInCarousel(enemyId) {
     const enemyIndex = enemies.findIndex(enemy => enemy.id === enemyId);
     if (enemyIndex !== -1 && enemyIndex !== currentEnemyIndex) {
         currentEnemyIndex = enemyIndex;
-        if (typeof renderEnemyStage === "function") renderEnemyStage();
+        if (typeof renderEnemyStage === "function") {
+            renderEnemyStage();
+        }
     }
 }
 
-wsLogger("UI_RENDERER_JS: ui_renderer.js (with full functions and death anim) loaded.");
+
+wsLogger("UI_RENDERER_JS: ui_renderer.js (with popup fixes) loaded.");

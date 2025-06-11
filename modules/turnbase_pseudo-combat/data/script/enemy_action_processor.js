@@ -113,7 +113,7 @@ try {
         const damageResult = applyDamage(chosenTarget, damageDealt);
 
         if (chosenTarget.status === "Defeated") {
-            wasTargetEliminated = true; // <-- TAMBAHKAN INI
+            wasTargetEliminated = true;
             scriptLogger(`ENEMY_AI: ${chosenTarget.name} telah dikalahkan!`);
         }
 
@@ -129,6 +129,21 @@ try {
             commandName: "Basic Attack",
             targets: [chosenTarget.id],
             effectsSummary: [`${chosenTarget.name} (-${damageResult.totalDamage} HP)`]
+        };
+    } else {
+        // --- PERUBAHAN DI SINI ---
+        // Kita berikan sinyal ke UI bahwa tidak ada target yang ditemukan
+        scriptLogger(`ENEMY_AI: Tidak ada target valid dalam jangkauan. Melewatkan giliran.`);
+        bState.battleMessage = `${attacker.name} tidak menemukan target dalam jangkauan.`;
+
+        // TAMBAHKAN INI: Buat "sinyal" untuk UI
+        bState.lastActionDetails = {
+            actorId: activeEnemyId,
+            commandId: "__NO_ACTION__", // Menggunakan commandId yang lebih spesifik
+            commandName: "No Target",
+            targets: [],
+            effectsSummary: [],
+            actionOutcome: "NO_TARGET_IN_RANGE" // Ini sinyal penting untuk dibaca UI
         };
     }
 

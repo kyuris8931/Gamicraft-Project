@@ -101,6 +101,7 @@ try {
     scriptLogger("TURN_MANAGER_DEBUG: Raw 'battle_state' input (first 300 chars): [" + (typeof battle_state === 'string' ? battle_state.substring(0,300) : typeof battle_state) + "]");
     if (typeof battle_state === 'string' && battle_state.trim() !== "") {
         bState = JSON.parse(battle_state);
+        bState.lastActionDetails = null;
         scriptLogger("TURN_MANAGER_INFO: Parsed battle_state successfully.");
         // Log crucial properties immediately after parse
         scriptLogger(`TURN_MANAGER_DEBUG: Post-Parse - activeUnitID: ${bState.activeUnitID}, Round: ${bState.round}, TurnInRound: ${bState.turnInRound}, Units type: ${typeof bState.units}, Units length: ${bState.units ? bState.units.length : 'N/A'}`);
