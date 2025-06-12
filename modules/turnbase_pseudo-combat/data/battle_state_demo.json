@@ -85,7 +85,7 @@
                     "effects": [
                         {
                             "type": "heal",
-                            "multiplier": 2,
+                            "multiplier": 2.5,
                             "basedOn": "caster_atk",
                             "target": "area"
                         }
@@ -205,7 +205,7 @@
                     "name": "Excalibur Strike (9)",
                     "description": "Deals melee damage (3x ATK), 100% chance to stun.",
                     "type": "Skill",
-                    "spCost": 9,
+                    "spCost": 8,
                     "targetingParams": {
                         "selection": {
                             "targetableTypes": ["Enemy"],

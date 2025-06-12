@@ -200,20 +200,31 @@ html, body {
 }
 .enemy-card .hp-bar { background-color: var(--color-accent-secondary); }
 
-/* --- BARU: Shield Bar Style --- */
+
 .shield-bar {
-    background-color: #A0D2DB; /* Warna biru muda untuk shield (darah putih) */
-    /* Alternatif: var(--color-shield, #A0D2DB); jika Anda mendefinisikan variabel warna */
-    height: 100%;
-    transition: width var(--transition-main);
-    /* BARU: position absolute agar bisa ditumpuk */
-    position: absolute; 
-    left: 0;
+    position: absolute;
     top: 0;
-    z-index: 2; /* Shield bar di atas HP bar */
-    opacity: 0.85; /* Sedikit transparan agar HP di bawahnya bisa terlihat samar jika shield tidak penuh */
+    left: 0;
+    height: 100%;
+    background-color: #3498db; /* Biru terang untuk shield */
+    border-radius: inherit; /* Mengikuti lengkungan sudut dari parent-nya */
+    z-index: 2; /* Pastikan shield bar berada di atas HP bar (yang z-index: 1) */
+    transition: width 0.3s ease-out;
+    opacity: 0.9;
 }
-/* --- AKHIR BARU --- */
+
+.shield-text {
+    position: absolute;
+    top: 50%;
+    left: 10px; /* Posisi teks shield di sebelah kiri agar tidak bentrok dengan teks HP */
+    transform: translateY(-50%);
+    font-size: 0.7em;
+    font-weight: bold;
+    color: white;
+    z-index: 4; /* Di atas semua bar dan di atas teks HP (yang z-index: 3) */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+}
 
 .hp-text {
     font-size: 0.75em; font-weight: 700; color: var(--color-text-hp);
@@ -889,4 +900,57 @@ html, body {
 /* Pastikan potret di dalamnya tidak ikut termanipulasi aneh saat hover */
 .pseudomap-unit-frame.revive-target:hover .pseudomap-portrait {
     filter: grayscale(20%) brightness(1); /* Kurangi efek grayscale saat di-hover */
+}
+
+
+/* Ini akan menargetkan potret di dalam frame yang memiliki kelas 'is-stunned' */
+.pseudomap-unit-frame.is-stunned .pseudomap-portrait {
+    /* Mirip dengan 'end-turn', tapi lebih gelap dan dengan tint ungu */
+    filter: grayscale(100%) brightness(0.5) sepia(0.3);
+    opacity: 0.5;
+    /* Tambahkan sedikit animasi pulse agar lebih terlihat */
+    animation: pulse-stunned 1.5s infinite ease-in-out;
+}
+
+/* sementara pakai pembeda ini buat unit kena stun, tapi nanti bisa diubah sesuai kebutuhan */
+/* Anda juga bisa mengubah warna border diamond-nya */
+
+/* 1. Aturan untuk Frame secara keseluruhan saat stun */
+.pseudomap-unit-frame.is-stunned {
+    /* Tambahkan sedikit animasi pulse agar lebih terlihat */
+    animation: pulse-stunned-frame 1.5s infinite ease-in-out;
+}
+
+/* 2. Mengubah border diamond menjadi ungu */
+.pseudomap-unit-frame.is-stunned::before {
+    background-color: #8A2BE2; /* Warna ungu (BlueViolet) yang terlihat jelas */
+}
+
+/* 3. Membuat overlay gelap di atas gambar */
+.pseudomap-unit-frame.is-stunned::after {
+    /* Ganti background solid menjadi overlay hitam transparan */
+    background-color: rgba(0, 0, 0, 0.3); 
+    /* Naikkan z-index agar overlay berada di atas gambar (portrait z-index 3) */
+    z-index: 4; 
+}
+
+/* 4. Pastikan potret di bawahnya tidak difilter lagi */
+.pseudomap-unit-frame.is-stunned .pseudomap-portrait {
+    filter: none; /* Hapus filter dari gambar */
+    animation: none; /* Hapus animasi dari gambar */
+    opacity: 1; /* Kembalikan opacity normal */
+}
+
+
+/* 5. Keyframes untuk animasi pulse pada frame */
+@keyframes pulse-stunned-frame {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(0.95);
+    }
+    100% {
+        transform: scale(1);
+    }
 }

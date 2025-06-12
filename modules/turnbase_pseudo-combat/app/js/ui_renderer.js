@@ -347,6 +347,22 @@ function renderEnemyStage() {
         hpText.textContent = `${currentHp}/${maxHp}`;
         hpContainer.appendChild(hpBar);
         hpContainer.appendChild(hpText);
+
+        const shieldHP = enemy.stats?.shieldHP || 0;
+        if (shieldHP > 0) {
+            const shieldBar = document.createElement('div');
+            shieldBar.classList.add('shield-bar');
+            const shieldPercentage = maxHp > 0 ? (shieldHP / maxHp) * 100 : 0;
+            shieldBar.style.width = `${Math.min(100, shieldPercentage)}%`;
+
+            const shieldText = document.createElement('div');
+            shieldText.classList.add('shield-text');
+            shieldText.textContent = shieldHP;
+
+            hpContainer.appendChild(shieldBar);
+            hpContainer.appendChild(shieldText);
+        }
+
         detailsWrapper.appendChild(nameElement);
         detailsWrapper.appendChild(hpContainer);
         const spriteContainer = document.createElement('div');
@@ -409,6 +425,23 @@ function renderPlayerHeroesDeck() {
         hpText.textContent = `${currentHp}/${maxHp}`;
         hpContainer.appendChild(hpBar);
         if (hero.stats?.maxHp) hpContainer.appendChild(hpText);
+        const shieldHP = hero.stats?.shieldHP || 0;
+        
+        // Render shield bar if shieldHP is greater than 0
+        if (shieldHP > 0) {
+            const shieldBar = document.createElement('div');
+            shieldBar.classList.add('shield-bar');
+            const shieldPercentage = maxHp > 0 ? (shieldHP / maxHp) * 100 : 0;
+            shieldBar.style.width = `${Math.min(100, shieldPercentage)}%`;
+
+            const shieldText = document.createElement('div');
+            shieldText.classList.add('shield-text');
+            shieldText.textContent = shieldHP;
+
+            hpContainer.appendChild(shieldBar);
+            hpContainer.appendChild(shieldText);
+        }
+
         details.appendChild(name);
         details.appendChild(hpContainer);
         card.appendChild(spriteContainer);
@@ -495,6 +528,13 @@ function renderPseudomap() {
         if (unit.status === "EndTurn") frame.classList.add('end-turn');
         if (wsMode === "idle" && validBasicTargets.includes(unit.id)) {
             frame.classList.add('valid-basic-attack-target');
+        }
+        // untuk saat ini penanda unit yg kena effect stun akan dirender lebih gelap di pseudoMap, tapi nanti segala status effect ada dibawah HP bar masing masing
+        // ini nanti dihapus jika ada update statusBar
+        // Periksa apakah unit memiliki debuff "Stun"
+        const isStunned = unit.statusEffects?.debuffs?.some(e => e.name === "Stun");
+        if (isStunned) {
+            frame.classList.add('is-stunned');
         }
         const portrait = document.createElement('img');
         portrait.src = getImagePathForUnit(unit.portraitFilename, unit.type, "portraitHead");
