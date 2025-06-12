@@ -38,6 +38,7 @@
                     "description": "Heals a single ally (1.5x ATK).",
                     "type": "Skill",
                     "spCost": 2,
+                    "sfxFilename": "sfx_heal_single.mp3",
                     "targetingParams": {
                         "selection": {
                             "targetableTypes": ["Ally"],
@@ -68,6 +69,7 @@
                     "description": "Heals allies in an area (2x ATK).",
                     "type": "Skill",
                     "spCost": 4,
+                    "sfxFilename": "sfx_heal_area.mp3",
                     "targetingParams": {
                         "selection": {
                             "targetableTypes": ["Self"],
@@ -96,6 +98,7 @@
                     "name": "Soul Revival (7)",
                     "description": "Revives an ally (50% MaxHP).",
                     "type": "Skill",
+                    "sfxFilename": "sfx_revive.mp3",
                     "spCost": 7,
                     "targetingParams": {
                         "selection": {
@@ -146,6 +149,7 @@
                     "description": "Advance 1 position (0.75x ATK), act again.",
                     "type": "Skill",
                     "spCost": 2,
+                    "sfxFilename": "sfx_blade_rush.mp3",
                     "targetingParams": {
                         "selection": {
                             "targetableTypes": ["Enemy"],
@@ -178,6 +182,7 @@
                     "description": "Deals AoE damage (2x ATK), grants self shield (1x ATK).",
                     "type": "Skill",
                     "spCost": 5,
+                    "sfxFilename": "sfx_shield_blast.mp3",
                     "targetingParams": {
                         "selection": {
                             "targetableTypes": ["Self"],
@@ -206,6 +211,7 @@
                     "description": "Deals melee damage (3x ATK), 100% chance to stun.",
                     "type": "Skill",
                     "spCost": 8,
+                    "sfxFilename": "sfx_excalibur_strike.mp3",
                     "targetingParams": {
                         "selection": {
                             "targetableTypes": ["Enemy"],
@@ -261,9 +267,10 @@
                 {
                     "commandId": "rh_arrow_storm",
                     "name": "Arrow Storm (1)",
-                    "description": "Deals AoE damage (0.5x ATK).",
+                    "description": "Deals AoE damage (0.75x ATK).",
                     "type": "Skill",
                     "spCost": 1,
+                    "sfxFilename": "sfx_arrow_storm.mp3",
                     "targetingParams": {
                         "selection": {
                             "targetableTypes": ["Enemy"],
@@ -283,17 +290,18 @@
                     "effects": [
                         {
                             "type": "damage",
-                            "multiplier": 0.5,
+                            "multiplier": 0.75,
                             "target": "area"
                         }
                     ]
                 },
                 {
                     "commandId": "rh_piercing_shot",
-                    "name": "Piercing Shot (5)",
+                    "name": "Piercing Shot (4)",
                     "description": "Deals damage (2x ATK), heals lowest HP ally (1x ATK).",
                     "type": "Skill",
                     "spCost": 5,
+                    "sfxFilename": "sfx_piercing_shot.mp3",
                     "targetingParams": {
                         "selection": {
                             "targetableTypes": ["Enemy"],
@@ -328,6 +336,7 @@
                     "description": "Long-range attack (4x ATK).",
                     "type": "Skill",
                     "spCost": 7,
+                    "sfxFilename": "sfx_eagle_eye.mp3",
                     "targetingParams": {
                         "selection": {
                             "targetableTypes": ["Enemy"],

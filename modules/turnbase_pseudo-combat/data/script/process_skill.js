@@ -5,6 +5,8 @@
 
 let taskerLogOutput = "";
 let wasTargetEliminated = false;
+let skill_sfx = "";
+
 function scriptLogger(message) {
     const now = new Date();
     const timestamp = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}.${now.getMilliseconds()}`;
@@ -154,6 +156,12 @@ try {
         throw new Error("Aktor atau Command tidak ditemukan.");
     }
 
+    // <<< TAMBAHKAN: Ambil nama file sfx dari command object >>>
+    if (commandObject.sfxFilename) {
+        skill_sfx = commandObject.sfxFilename;
+        scriptLogger(`SKILL_PROC: SFX ditemukan: ${skill_sfx}`);
+    }
+
     if (typeof commandObject.spCost === 'number' && commandObject.spCost > 0) {
         if (bState.teamSP >= commandObject.spCost) {
             bState.teamSP -= commandObject.spCost;
@@ -263,3 +271,4 @@ try {
 var battle_state = JSON.stringify(bState);
 var js_script_log = taskerLogOutput;
 var was_target_eliminated = wasTargetEliminated;
+var skills_sfx = skill_sfx;
