@@ -235,73 +235,78 @@ function handleActionButtonClick(event) {
     const button = event.target.closest('button');
     if (!button || button.classList.contains('disabled')) return;
 
-    // DIUBAH: Gunakan fungsi baru
-    sendSoundCommand({ sfx_name: "ui_tap" });
-
-    if (wsMode !== "idle") handleActionCancel();
+    if (wsMode !== "idle") {
+        handleActionCancel();
+    }
     resetDoubleTapState();
 
     const commandId = button.dataset.commandId;
     const activeUnit = getActiveUnit();
     if (!activeUnit) return;
+
     const commandObject = activeUnit.commands.find(cmd => cmd.commandId === commandId);
     if (!commandObject) return;
 
+    // --- PERUBAHAN KRUSIAL DI SINI ---
+    // Hapus 'const' untuk memastikan kita mengisi variabel global, bukan membuat yang baru.
     selectedActionDetails = {
-        commandId: commandId, commandObject: commandObject, actionType: commandObject.type,
-        spCost: commandObject.spCost || 0, actorId: activeUnit.id, actorName: activeUnit.name,
+        commandId: commandId,
+        commandObject: commandObject,
+        actionType: commandObject.type,
+        spCost: commandObject.spCost || 0,
+        actorId: activeUnit.id,
+        actorName: activeUnit.name,
         buttonText: button.textContent
     };
-    addLogEntry(`${activeUnit.name} prepares ${selectedActionDetails.buttonText}.`, "ally-action-intent");
 
     const commandPatternShape = commandObject.targetingParams?.selection?.pattern?.shape;
-    
-    if (commandPatternShape === "AnyDefeatedAlly") {
-        wsLogger("EVENT_HANDLER: Revive skill detected. Entering revive targeting mode.");
-        // Ambil semua ID hero yang sudah kalah
-        const defeatedAllyIds = bState.units
-            .filter(u => u.type === "Ally" && u.status === "Defeated")
-            .map(u => u.id);
 
+    if (commandPatternShape === "AnyDefeatedAlly") {
+        const defeatedAllyIds = bState.units.filter(u => u.type === "Ally" && u.status === "Defeated").map(u => u.id);
         if (defeatedAllyIds.length > 0) {
-            wsMode = "selecting_revive_target"; // Mode baru!
-            validPrimaryTargetIds = defeatedAllyIds; // Simpan target yg valid
+            sendSoundCommand({ sfx_name: "ui_tap" });
+            wsMode = "selecting_revive_target";
+            validPrimaryTargetIds = defeatedAllyIds;
             addLogEntry("Select a fallen hero to revive.", "system-info");
-            
-            // Panggil fungsi render yang baru (akan kita buat di langkah selanjutnya)
+            button.classList.add('skill-button-active');
             if (typeof ui_renderReviveTargetingMode === "function") {
                 ui_renderReviveTargetingMode(validPrimaryTargetIds);
             }
         } else {
-            addLogEntry("No fallen heroes to revive.", "error-feedback");
-            exitTargetingMode();
+            sendSoundCommand({ sfx_name: "ui_error" });
+            if(typeof ui_createFeedbackPopup === "function") {
+                ui_createFeedbackPopup(button, 'No Target', 'info-popup', { verticalOrigin: 'top', yOffset: -10, verticalAnimation: -100 });
+            }
         }
-        return; // Hentikan eksekusi lebih lanjut di fungsi ini
-    }
-
-    if (commandPatternShape === "Self") {
+    } else if (commandPatternShape === "Self") {
+        sendSoundCommand({ sfx_name: "ui_tap" });
         selectedPrimaryTargetId = activeUnit.id;
-        validPrimaryTargetIds = [activeUnit.id];
         currentAffectedTargetIds = getAreaAffectedTargets(selectedPrimaryTargetId, activeUnit, commandObject, bState.units);
         if (currentAffectedTargetIds.length > 0) {
             wsMode = "confirming_effect_area";
+            button.classList.add('skill-button-active');
             addLogEntry(`Confirm skill effect. Tap a highlighted unit to execute.`, "system-info");
-            if (typeof ui_renderConfirmAreaMode === "function") ui_renderConfirmAreaMode(selectedPrimaryTargetId, currentAffectedTargetIds, getAllUnitFramesOnMap());
-        } else {
-            addLogEntry("Error: Could not determine skill area.", "error");
-            exitTargetingMode();
+            if (typeof ui_renderConfirmAreaMode === "function") {
+                ui_renderConfirmAreaMode(selectedPrimaryTargetId, currentAffectedTargetIds, getAllUnitFramesOnMap());
+            }
         }
-        return;
-    }
-    
-    validPrimaryTargetIds = getValidPrimaryTargets(activeUnit, commandObject, bState.units);
-    if (validPrimaryTargetIds.length > 0) {
-        wsMode = "selecting_primary_target";
-        addLogEntry("Select primary target for skill.", "system-info");
-        if (typeof ui_renderSelectPrimaryTargetMode === "function") ui_renderSelectPrimaryTargetMode(validPrimaryTargetIds, getAllUnitFramesOnMap());
     } else {
-        addLogEntry(`No valid targets for ${selectedActionDetails.buttonText}.`, "error-feedback");
-        exitTargetingMode();
+        const validTargets = getValidPrimaryTargets(activeUnit, commandObject, bState.units);
+        if (validTargets.length > 0) {
+            sendSoundCommand({ sfx_name: "ui_tap" });
+            wsMode = "selecting_primary_target";
+            validPrimaryTargetIds = validTargets;
+            button.classList.add('skill-button-active');
+            addLogEntry("Select primary target for skill.", "system-info");
+            if (typeof ui_renderSelectPrimaryTargetMode === "function") {
+                ui_renderSelectPrimaryTargetMode(validPrimaryTargetIds, getAllUnitFramesOnMap());
+            }
+        } else {
+            sendSoundCommand({ sfx_name: "ui_error" });
+            if(typeof ui_createFeedbackPopup === "function") {
+                ui_createFeedbackPopup(button, 'No Target', 'info-popup', { verticalOrigin: 'top', yOffset: -10, verticalAnimation: -100 });
+            }
+        }
     }
 }
 
@@ -341,6 +346,10 @@ function exitTargetingMode() {
     validPrimaryTargetIds = [];
     selectedPrimaryTargetId = null;
     currentAffectedTargetIds = [];
+    
+    const actionButtons = elActionButtonsGroup ? elActionButtonsGroup.querySelectorAll('button') : [];
+    actionButtons.forEach(btn => btn.classList.remove('skill-button-active'));
+
     if (typeof ui_clearAllTargetingVisuals === "function") {
         ui_clearAllTargetingVisuals();
     }

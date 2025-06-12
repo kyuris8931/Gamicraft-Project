@@ -639,7 +639,7 @@ function ui_createFeedbackPopup(anchorElement, text, popupClass, options = {}) {
         wsLogger(`UI_ANIM_ERROR: Anchor element for pop-up not provided.`);
         return;
     }
-    const { verticalOrigin = 'center', yOffset = 0 } = options;
+    const { verticalOrigin = 'center', yOffset = 0, verticalAnimation = -150 } = options;
     const rect = anchorElement.getBoundingClientRect();
     const popup = document.createElement('div');
     popup.classList.add('feedback-popup', popupClass);
@@ -657,13 +657,14 @@ function ui_createFeedbackPopup(anchorElement, text, popupClass, options = {}) {
 
     requestAnimationFrame(() => {
         popup.style.opacity = '1';
-        popup.style.transform = 'translateX(-50%) translateY(-150%) scale(1)';
+        popup.style.transform = `translateX(-50%) translateY(${verticalAnimation}%) scale(1)`;
     });
 
     setTimeout(() => {
         popup.style.opacity = '0';
-        popup.style.transform = 'translateX(-50%) translateY(-200%) scale(0.8)';
-    }, 1400); // Durasi diperpanjang
+        // Gerakan menghilang sedikit lebih jauh dari posisi animasi
+        popup.style.transform = `translateX(-50%) translateY(${verticalAnimation - 50}%) scale(0.8)`;
+    }, 1400);
 
     setTimeout(() => {
         if (popup.parentNode) {
