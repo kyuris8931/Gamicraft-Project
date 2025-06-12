@@ -1,6 +1,6 @@
 // js/event_handlers.js
 // Gamicraft WebScreen Event Handling Logic
-// Versi dengan perbaikan highlight double tap, optimasi, dan penanganan flickering basic attack
+// Versi dengan pemanggilan suara menggunakan fungsi terpisah.
 
 // --- Konstanta ---
 const DOUBLE_TAP_END_TURN_THRESHOLD = 400;
@@ -34,11 +34,27 @@ let isWaitingForSecondTapBasicAttack = false;
  * Inisialisasi semua event listener utama.
  */
 function initializeEventListeners() {
-    wsLogger("EVENT_HANDLER: Initializing event listeners (v9: Ghost Popup Fix).");
-    if (elBattleOptionsTrigger) elBattleOptionsTrigger.addEventListener('click', () => handleToggleBattleLog());
-    if (elCloseLogBtn) elCloseLogBtn.addEventListener('click', () => handleToggleBattleLog(false));
-    if (elPrevEnemyBtn) elPrevEnemyBtn.addEventListener('click', () => navigateEnemyCarousel(-1));
-    if (elNextEnemyBtn) elNextEnemyBtn.addEventListener('click', () => navigateEnemyCarousel(1));
+    wsLogger("EVENT_HANDLER: Initializing event listeners (SFX added).");
+    if (elBattleOptionsTrigger) elBattleOptionsTrigger.addEventListener('click', () => {
+        // DIUBAH: Gunakan fungsi baru
+        sendSoundCommand({ sfx_name: "ui_tap" });
+        handleToggleBattleLog();
+    });
+    if (elCloseLogBtn) elCloseLogBtn.addEventListener('click', () => {
+        // DIUBAH: Gunakan fungsi baru
+        sendSoundCommand({ sfx_name: "ui_tap" });
+        handleToggleBattleLog(false);
+    });
+    if (elPrevEnemyBtn) elPrevEnemyBtn.addEventListener('click', () => {
+        // DIUBAH: Gunakan fungsi baru
+        sendSoundCommand({ sfx_name: "ui_tap" });
+        navigateEnemyCarousel(-1);
+    });
+    if (elNextEnemyBtn) elNextEnemyBtn.addEventListener('click', () => {
+        // DIUBAH: Gunakan fungsi baru
+        sendSoundCommand({ sfx_name: "ui_tap" });
+        navigateEnemyCarousel(1);
+    });
     if (elEnemyCarousel) {
         elEnemyCarousel.addEventListener('touchstart', (e) => handleTouchStart(e, 'enemy'), { passive: true });
         elEnemyCarousel.addEventListener('touchend', (e) => handleTouchEnd(e, 'enemy'), { passive: true });
@@ -50,11 +66,14 @@ function initializeEventListeners() {
     }
     if (elActionButtonsGroup) elActionButtonsGroup.addEventListener('click', handleActionButtonClick);
     if (elPseudomapTrack) elPseudomapTrack.addEventListener('click', handlePseudomapUnitClick);
+    
+    // Listener untuk WS Logger (tidak perlu SFX agar tidak berisik)
     const openWsLogButtonFromBattleLog = document.getElementById('open-ws-log-btn');
     if (openWsLogButtonFromBattleLog) openWsLogButtonFromBattleLog.addEventListener('click', handleToggleWsLoggerScreen);
     if (elCloseWsLoggerBtn) elCloseWsLoggerBtn.addEventListener('click', () => handleToggleWsLoggerScreen(false));
     if (elCopyWsLogBtn) elCopyWsLogBtn.addEventListener('click', handleCopyWsLog);
     if (elClearWsLogBtn) elClearWsLogBtn.addEventListener('click', handleClearWsLog);
+    
     document.body.addEventListener('click', handleGlobalClickToCancelTargeting, true);
     document.querySelectorAll('.styled-button, .action-buttons-group button').forEach(button => {
         button.addEventListener('mousedown', (e) => createRipple(e, button));
@@ -96,7 +115,6 @@ function handleToggleWsLoggerScreen(explicitShow = null) {
         requestAnimationFrame(() => {
             elWsLoggerScreen.classList.add('is-visible');
         });
-        // wsLogger("EVENT_HANDLER: WS Logger screen opened."); // Log standar, bisa di-filter nanti
     } else {
         elWsLoggerScreen.classList.remove('is-visible');
         function afterWsLogTransition() {
@@ -111,7 +129,6 @@ function handleToggleWsLoggerScreen(explicitShow = null) {
                 elWsLoggerScreen.classList.add('is-hidden');
             }
         }, 350);
-        // wsLogger("EVENT_HANDLER: WS Logger screen closed."); // Log standar
     }
 }
 
@@ -121,6 +138,9 @@ function handleToggleWsLoggerScreen(explicitShow = null) {
 function handlePseudomapUnitClick(event) {
     const targetFrame = event.target.closest('.pseudomap-unit-frame');
     if (!targetFrame) return;
+
+    // DIUBAH: Gunakan fungsi baru
+    sendSoundCommand({ sfx_name: "ui_tap" });
 
     const clickedUnitId = targetFrame.dataset.unitId;
     const currentTime = new Date().getTime();
@@ -166,7 +186,6 @@ function handlePseudomapUnitClick(event) {
         return;
     }
 
-    // --- Logic for SKILL Targeting ---
     if (wsMode === "selecting_primary_target") {
         if (validPrimaryTargetIds.includes(clickedUnitId)) {
             selectedPrimaryTargetId = clickedUnitId;
@@ -197,6 +216,10 @@ function handlePseudomapUnitClick(event) {
 function handleActionButtonClick(event) {
     const button = event.target.closest('button');
     if (!button || button.classList.contains('disabled')) return;
+
+    // DIUBAH: Gunakan fungsi baru
+    sendSoundCommand({ sfx_name: "ui_tap" });
+
     if (wsMode !== "idle") handleActionCancel();
     resetDoubleTapState();
 
@@ -263,7 +286,6 @@ function resetDoubleTapState() {
     isWaitingForSecondTapEndTurn = false;
     isWaitingForSecondTapBasicAttack = false;
     
-    // Panggil fungsi pembersih UI yang ringan
     if (typeof ui_resetIdleHighlights === "function") {
         ui_resetIdleHighlights();
     }
@@ -309,7 +331,6 @@ function handleEnemyCarouselClick(event) {
     }
 }
 
-// --- Sisa fungsi helper (getAllUnitFramesOnMap, handleToggleBattleLog, swipe handlers, ripple, copy/clear log) tetap sama ---
 function getAllUnitFramesOnMap() {
     return elPseudomapTrack ? elPseudomapTrack.querySelectorAll('.pseudomap-unit-frame') : [];
 }
@@ -317,13 +338,14 @@ function handleToggleBattleLog(explicitShow = null) {
     const isCurrentlyVisible = elBattleLogOverlay && elBattleLogOverlay.classList.contains('is-visible');
     let showLog = (explicitShow === null) ? !isCurrentlyVisible : explicitShow;
     if (typeof renderBattleLogOverlay === "function") renderBattleLogOverlay(showLog);
-    // wsLogger(`EVENT_HANDLER: Battle log toggled to ${showLog ? 'visible' : 'hidden'}.`); // Log standar
 }
+
 function handleTouchStart(event, carouselType) {
     touchStartX = event.changedTouches[0].clientX;
     touchStartY = event.changedTouches[0].clientY;
     touchStartTime = new Date().getTime();
 }
+
 function handleTouchEnd(event, carouselType) {
     touchEndX = event.changedTouches[0].clientX;
     touchEndY = event.changedTouches[0].clientY;
@@ -333,12 +355,17 @@ function handleTouchEnd(event, carouselType) {
     const elapsedTime = touchEndTime - touchStartTime;
     if (elapsedTime < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
         if (carouselType === 'enemy') {
+            // DIUBAH: Gunakan fungsi baru
+            sendSoundCommand({ sfx_name: "ui_swipe" });
             navigateEnemyCarousel(deltaX > 0 ? -1 : 1);
         } else if (carouselType === 'player') {
+            // Player hero swipe juga bisa diberi suara jika mau
+            // sendSoundCommand({ sfx_name: "ui_swipe" });
             navigatePlayerHeroesCarouselManual(deltaX > 0 ? -1 : 1);
         }
     }
 }
+
 function navigateEnemyCarousel(direction) {
     if (!bState || !bState.units) { wsLogger("NAV_ENEMY_CAROUSEL_ERROR: bState.units not available."); return; }
     const enemies = bState.units.filter(unit => unit.type === "Enemy" && unit.status !== "Defeated");
@@ -429,4 +456,4 @@ function handleClearWsLog() {
     }
 }
 
-wsLogger("EVENT_HANDLER_JS: event_handlers.js (v8: Basic Attack Flicker Addressed) loaded.");
+wsLogger("EVENT_HANDLER_JS: event_handlers.js (with separated sound commands) loaded.");

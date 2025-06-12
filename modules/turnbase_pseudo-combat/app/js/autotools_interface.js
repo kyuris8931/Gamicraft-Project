@@ -51,6 +51,39 @@ function sendCommandToTasker(commandId, payload = null) {
 //     }
 // }
 
+/**
+ * FUNGSI BARU: Mengirim perintah khusus untuk memutar efek suara.
+ * @param {object} payload - Objek yang berisi nama file suara, contoh: { sfx_name: "ui_tap" }.
+ */
+function sendSoundCommand(payload) {
+    const commandId = "PLAY_SFX"; // ID perintah ini selalu sama
+    let commandString = commandId;
+
+    if (payload !== null) {
+        try {
+            const payloadString = JSON.stringify(payload);
+            commandString = `${commandString}=:=${payloadString}`;
+        } catch (e) {
+            const logger = typeof wsLogger === 'function' ? wsLogger : console.log;
+            logger(`SOUND_COMMAND_ERROR: Gagal stringify payload suara: ${e}.`);
+            return; // Batalkan pengiriman jika payload error
+        }
+    }
+
+    const commandPrefix = "GAMICRAFT_PLAYSOUND"; // Awalan BARU khusus untuk suara
+    const logger = typeof wsLogger === 'function' ? wsLogger : console.log;
+    logger(`SOUND_SENDER: Mengirim ke Tasker: Prefix="${commandPrefix}", Command="${commandString}"`);
+    
+    // Logika pengiriman tetap sama
+    if (typeof window.AutoToolsAndroid !== 'undefined' && typeof window.AutoToolsAndroid.sendCommand === 'function') {
+        window.AutoToolsAndroid.sendCommand(commandString, commandPrefix, false);
+    } else if (typeof window.parent !== 'undefined' && typeof window.parent.AutoToolsAndroid !== 'undefined' && typeof window.parent.AutoToolsAndroid.sendCommand === 'function') {
+        window.parent.AutoToolsAndroid.sendCommand(commandString, commandPrefix, false);
+    } else {
+        logger("SOUND_SENDER_ERROR: AutoToolsAndroid.sendCommand tidak tersedia. Perintah suara tidak terkirim.");
+    }
+}
+
 // Log to confirm this minimal file is loaded.
 if (typeof wsLogger === 'function') {
     wsLogger("AUTOTOOLS_INTERFACE_JS: Minimal autotools_interface.js loaded (update function is inline in HTML).");
