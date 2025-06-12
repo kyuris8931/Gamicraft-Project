@@ -864,3 +864,29 @@ html, body {
     color: white;
     font-size: 1.1em; /* Sedikit lebih kecil dari damage */
 }
+
+
+/* Styling untuk container pseudomap saat dalam mode revive */
+.pseudomap-area.targeting-revive {
+    background-color: rgba(44, 62, 80, 0.2); /* Sedikit lebih gelap */
+}
+
+/* Styling untuk setiap frame target revive */
+.pseudomap-unit-frame.revive-target {
+    cursor: pointer;
+    outline: 3px solid #f1c40f !important; /* Outline kuning/emas */
+    outline-offset: -3px;
+    opacity: 0.8;
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+/* Efek saat mouse hover di atas target revive */
+.pseudomap-unit-frame.revive-target:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* Pastikan potret di dalamnya tidak ikut termanipulasi aneh saat hover */
+.pseudomap-unit-frame.revive-target:hover .pseudomap-portrait {
+    filter: grayscale(20%) brightness(1); /* Kurangi efek grayscale saat di-hover */
+}

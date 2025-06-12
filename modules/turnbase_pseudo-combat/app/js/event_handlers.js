@@ -203,6 +203,24 @@ function handlePseudomapUnitClick(event) {
         } else {
             addLogEntry("Invalid skill target. Please select a highlighted unit.", "error-feedback");
         }
+    } else if (wsMode === "selecting_revive_target") {
+        if (validPrimaryTargetIds.includes(clickedUnitId)) {
+            wsLogger(`EVENT_HANDLER: Revive confirmed for target: ${clickedUnitId}`);
+            // Kirim perintah ke Tasker. Strukturnya mirip dengan konfirmasi skill biasa.
+            sendCommandToTasker("PLAYER_ACTION", {
+                actorId: selectedActionDetails.actorId,
+                commandId: selectedActionDetails.commandId,
+                // Backend akan menerima ini sebagai target yang akan di-revive
+                affectedTargetIds: [clickedUnitId] 
+            });
+            // Keluar dari mode targeting setelah perintah dikirim
+            exitTargetingMode();
+        } else {
+            // Jika user mengklik area kosong di pseudomap, batalkan aksi
+            wsLogger("EVENT_HANDLER: Clicked on a non-revivable area. Cancelling revive.");
+            handleActionCancel();
+        }
+
     } else if (wsMode === "confirming_effect_area") {
         if (currentAffectedTargetIds.includes(clickedUnitId)) {
             handleActionConfirm();
@@ -237,6 +255,30 @@ function handleActionButtonClick(event) {
     addLogEntry(`${activeUnit.name} prepares ${selectedActionDetails.buttonText}.`, "ally-action-intent");
 
     const commandPatternShape = commandObject.targetingParams?.selection?.pattern?.shape;
+    
+    if (commandPatternShape === "AnyDefeatedAlly") {
+        wsLogger("EVENT_HANDLER: Revive skill detected. Entering revive targeting mode.");
+        // Ambil semua ID hero yang sudah kalah
+        const defeatedAllyIds = bState.units
+            .filter(u => u.type === "Ally" && u.status === "Defeated")
+            .map(u => u.id);
+
+        if (defeatedAllyIds.length > 0) {
+            wsMode = "selecting_revive_target"; // Mode baru!
+            validPrimaryTargetIds = defeatedAllyIds; // Simpan target yg valid
+            addLogEntry("Select a fallen hero to revive.", "system-info");
+            
+            // Panggil fungsi render yang baru (akan kita buat di langkah selanjutnya)
+            if (typeof ui_renderReviveTargetingMode === "function") {
+                ui_renderReviveTargetingMode(validPrimaryTargetIds);
+            }
+        } else {
+            addLogEntry("No fallen heroes to revive.", "error-feedback");
+            exitTargetingMode();
+        }
+        return; // Hentikan eksekusi lebih lanjut di fungsi ini
+    }
+
     if (commandPatternShape === "Self") {
         selectedPrimaryTargetId = activeUnit.id;
         validPrimaryTargetIds = [activeUnit.id];

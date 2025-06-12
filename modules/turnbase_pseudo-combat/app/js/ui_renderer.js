@@ -535,7 +535,7 @@ function ui_renderConfirmAreaMode(primaryId, affectedIds, allFrames) {
 
 function ui_clearAllTargetingVisuals() {
     if (elPseudomapArea) {
-        elPseudomapArea.classList.remove('targeting-select-primary', 'targeting-confirm-area');
+        elPseudomapArea.classList.remove('targeting-select-primary', 'targeting-confirm-area', 'targeting-revive');
     }
     const allUnitFrames = elPseudomapTrack ? elPseudomapTrack.querySelectorAll('.pseudomap-unit-frame') : [];
     allUnitFrames.forEach(frame => {
@@ -543,7 +543,8 @@ function ui_clearAllTargetingVisuals() {
             'valid-primary-target', 'invalid-primary-target',
             'primary-selected-for-effect', 'affected-by-action',
             'potential-basic-attack-target', 'pulsing',
-            'active-turn-first-tap', 'can-double-tap-end-turn'
+            'active-turn-first-tap', 'can-double-tap-end-turn',
+            'revive-target'
         );
     });
 }
@@ -669,6 +670,49 @@ function scrollToEnemyInCarousel(enemyId) {
             renderEnemyStage();
         }
     }
+}
+
+/**
+ * FUNGSI BARU: Merender ulang pseudomap untuk mode pemilihan target revive.
+ * Mengganti unit yang hidup dengan unit sekutu yang telah kalah.
+ * @param {string[]} defeatedAllyIds - Array berisi ID unit sekutu yang kalah.
+ */
+function ui_renderReviveTargetingMode(defeatedAllyIds) {
+    if (!elPseudomapTrack) {
+        wsLogger("UI_RENDERER_REVIVE_ERROR: Pseudomap track element not found.");
+        return;
+    }
+
+    // 1. Bersihkan isi pseudomap yang sekarang
+    elPseudomapTrack.innerHTML = '';
+    // Tambahkan kelas khusus ke container untuk styling
+    if (elPseudomapArea) elPseudomapArea.classList.add('targeting-revive');
+
+    wsLogger(`UI_RENDERER_REVIVE: Rendering revive targets: ${defeatedAllyIds.join(', ')}`);
+
+    // 2. Loop melalui setiap ID hero yang kalah dan buat frame untuk mereka
+    defeatedAllyIds.forEach(unitId => {
+        const unit = getUnitById(unitId); // getUnitById sudah ada, kita gunakan lagi
+        if (!unit) return;
+
+        // 3. Buat elemen frame, sama seperti di renderPseudomap() tapi dengan kelas berbeda
+        const frame = document.createElement('div');
+        // Gunakan kelas yang sudah ada agar bentuk diamond tetap sama, lalu tambah kelas baru
+        frame.classList.add('pseudomap-unit-frame', 'ally', 'revive-target');
+        frame.dataset.unitId = unit.id; // Simpan ID di data-attribute
+
+        const portrait = document.createElement('img');
+        portrait.src = getImagePathForUnit(unit.portraitFilename, unit.type, "portraitHead");
+        portrait.alt = (unit.name || "Fallen Hero") + " Portrait";
+        portrait.classList.add('pseudomap-portrait');
+        portrait.onerror = function() { this.src = getImagePathForUnit(null, unit.type, "portraitHead", true); };
+
+        // Tambahkan efek grayscale agar terlihat 'mati'
+        portrait.style.filter = 'grayscale(100%) brightness(0.8)';
+
+        frame.appendChild(portrait);
+        elPseudomapTrack.appendChild(frame);
+    });
 }
 
 
