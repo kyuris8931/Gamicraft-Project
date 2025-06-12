@@ -143,6 +143,11 @@ function refreshAllUIElements(passedPreviousBState = null) {
     let spGained = 0;
     let spSpent = 0;
 
+    let stunnedUnitId = null;
+    if (bState.lastActionDetails?.actionOutcome === "STUNNED") {
+        stunnedUnitId = bState.lastActionDetails.actorId;
+    }
+
     if (passedPreviousBState) {
         if (typeof bState.teamSP === 'number' && typeof passedPreviousBState.teamSP === 'number') {
             const spChange = bState.teamSP - passedPreviousBState.teamSP;
@@ -178,6 +183,15 @@ function refreshAllUIElements(passedPreviousBState = null) {
         renderPlayerHeroesDeck();
         renderPlayerActionBar();
         renderPseudomap();
+
+        // --- PERUBAHAN: Tampilkan pop-up "Stunned" ---
+        if (stunnedUnitId) {
+            const anchor = elPseudomapArea;
+            if (anchor) {
+                // Gunakan kelas 'info-popup' atau buat kelas baru 'stun-popup' jika mau
+                ui_createFeedbackPopup(anchor, 'Stunned!', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
+            }
+        }
 
         // FIX: Only show "No Target" popup if the state has just changed to this.
         if (bState.lastActionDetails?.actionOutcome === "NO_TARGET_IN_RANGE") {
