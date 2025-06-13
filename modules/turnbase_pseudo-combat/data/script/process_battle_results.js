@@ -69,7 +69,7 @@ try {
     
     // 6. Proses Progresi (Hero & Musuh)
     progressionData.heroes.forEach(hero => {
-        const expNeededBefore = 50 * (hero.level * (hero.level + 1) / 2);
+        const expNeededBefore = 100 * (hero.level * (hero.level + 1) / 2);
         battleResultSummary.heroesProgression.push({ id: hero.id, levelBefore: hero.level, expBefore: hero.exp, expToLevelUpBefore: expNeededBefore });
     });
     progressionData.heroes.forEach(hero => {
@@ -93,7 +93,7 @@ try {
     if (battleResultSummary.enemyLevelAfter > enemyLevelBefore) battleResultSummary.enemyLeveledUp = true;
     battleResultSummary.heroesProgression.forEach((heroSummary, index) => {
         const heroAfter = progressionData.heroes[index];
-        const expNeededAfter = 50 * (heroAfter.level * (heroAfter.level + 1) / 2);
+        const expNeededAfter = 100 * (heroAfter.level * (heroAfter.level + 1) / 2);
         heroSummary.levelAfter = heroAfter.level; heroSummary.expAfter = heroAfter.exp; heroSummary.expToLevelUpAfter = expNeededAfter;
     });
 

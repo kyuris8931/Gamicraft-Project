@@ -2,6 +2,7 @@
 // Initializes the battle state for Round 1, Turn 1.
 // Sets non-active alive units to "Idle", active unit to "Active",
 // shuffles for initial turn order, sets active unit, and calculates pseudo positions.
+// **MODIFIED: Includes exercise progression for Kyuris.**
 // Assumes 'battle_state' (string) is available from Tasker global variable.
 
 let taskerLogOutput = "";
@@ -94,7 +95,8 @@ try {
     } else {
         throw new Error("bState.units is missing or not an array.");
     }
-    // >> MODIFIKASI INI: Terapkan progresi stats ke unit
+    
+    // Terapkan progresi stats ke unit
     if (bState.units && Array.isArray(bState.units)) {
         const enemyGlobalLevel = progressionData.enemyProgression.globalLevel;
 
@@ -108,19 +110,50 @@ try {
                 
                 if (finalLevel > 1) {
                     const levelBonus = finalLevel - 1;
-                    const statGrowth = (unit.id.includes("kyuris")) ? { hp: 1, atk: 1 } : { hp: 2, atk: 2 };
+                    const statGrowth = (unit.id.includes("kyuris")) ? { hp: 1, atk: 1 } : { hp: 3, atk: 2 }; // Default growth for non-kyuris allies
                     unit.stats.maxHp += levelBonus * statGrowth.hp;
                     unit.stats.hp = unit.stats.maxHp; // Heal penuh di awal battle
                     unit.stats.atk += levelBonus * statGrowth.atk;
                 }
+
+                // --- PENAMBAHAN BARU: Terapkan bonus stats dari progresi olahraga HANYA untuk Kyuris ---
+                if (unit.id.includes("kyuris") && progressionData.exerciseStatsProgression) {
+                    scriptLogger(`INIT_BATTLE_INFO: Applying exercise progression for ${unit.name}.`);
+                    
+                    progressionData.exerciseStatsProgression.forEach(exercise => {
+                        const exerciseLevel = exercise.level || 1;
+                        if (exerciseLevel > 1) {
+                            const statBonus = exerciseLevel - 1; // Bonus adalah (level - 1)
+                            const statToBoost = exercise.stats;
+
+                            switch (statToBoost) {
+                                case "ATK":
+                                    unit.stats.atk += statBonus;
+                                    scriptLogger(`INIT_BATTLE_INFO: -> ${unit.name} gains +${statBonus} ATK from ${exercise.id} (Level ${exerciseLevel}). New ATK: ${unit.stats.atk}`);
+                                    break;
+                                case "HP":
+                                    unit.stats.maxHp += statBonus;
+                                    // HP saat ini juga harus diupdate ke maxHp yang baru
+                                    unit.stats.hp = unit.stats.maxHp;
+                                    scriptLogger(`INIT_BATTLE_INFO: -> ${unit.name} gains +${statBonus} MaxHP from ${exercise.id} (Level ${exerciseLevel}). New MaxHP: ${unit.stats.maxHp}`);
+                                    break;
+                                default:
+                                    scriptLogger(`INIT_BATTLE_WARN: Unknown exercise stat type '${statToBoost}' for ${exercise.id}.`);
+                                    break;
+                            }
+                        }
+                    });
+                }
+
+
             } else if (unit.type === 'Enemy') {
                 finalLevel = enemyGlobalLevel;
                 if (finalLevel > 1) {
                      const levelBonus = finalLevel - 1;
                      let statGrowth = { hp: 0, atk: 0 };
-                     if(unit.tier === "Minion") statGrowth = { hp: 1, atk: 1 };
-                     if(unit.tier === "Elite") statGrowth = { hp: 2, atk: 2 };
-                     if(unit.tier === "Boss") statGrowth = { hp: 3, atk: 3 };
+                     if(unit.tier === "Minion") statGrowth = { hp: 2, atk: 1 };
+                     if(unit.tier === "Elite") statGrowth = { hp: 4, atk: 2 };
+                     if(unit.tier === "Boss") statGrowth = { hp: 6, atk: 3 };
 
                      unit.stats.maxHp += levelBonus * statGrowth.hp;
                      unit.stats.hp = unit.stats.maxHp;
@@ -142,26 +175,15 @@ try {
         scriptLogger("INIT_BATTLE_INFO: Shuffled. Order: " + bState._currentRoundInitialOrderIds.join(', '));
         scriptLogger(`INIT_BATTLE_INFO: First active unit ID: ${bState.activeUnitID}`);
 
-        // BARU: Set status unit yang aktif menjadi "Active" (atau biarkan "Idle" jika itu desainnya)
         const firstActiveUnitObject = bState.units.find(u => u.id === bState.activeUnitID);
         if (firstActiveUnitObject) {
-            // Jika Anda ingin statusnya "Active" secara eksplisit:
-            // firstActiveUnitObject.status = "Active";
-            // scriptLogger(`INIT_BATTLE_INFO: Status for ${firstActiveUnitObject.name} set to Active.`);
-            // Jika Anda ingin tetap "Idle" dan hanya mengandalkan bState.activeUnitID:
-            // Biarkan saja, karena sudah di-set "Idle" di loop sebelumnya.
-            // Untuk saat ini, mari kita coba TETAPKAN "Idle" agar konsisten dengan ide bahwa
-            // activeUnitID adalah penentu utama, dan turn_manager akan mengubahnya ke "EndTurn".
-            // Jika turn_manager error, kita perlu log dari sana.
-            // Untuk tujuan debugging jika ini adalah sumber error di turn_manager:
-             firstActiveUnitObject.status = "Active"; // COBA UBAH KE "Active"
+             firstActiveUnitObject.status = "Active";
              scriptLogger(`INIT_BATTLE_INFO: Status for ${firstActiveUnitObject.name} explicitly set to "Active" for testing turn_manager.`);
-
         }
 
         updateAllPseudoPositions(bState, bState._currentRoundInitialOrderIds);
 
-        if (firstActiveUnitObject) { // Gunakan objek yang sudah ditemukan
+        if (firstActiveUnitObject) {
             bState.battleMessage = `Battle Start! ${firstActiveUnitObject.name}'s turn.`;
         } else {
             bState.battleMessage = "Battle Start! Determining first turn...";
@@ -174,20 +196,17 @@ try {
         bState.activeUnitID = null;
     }
 
-        // Di dalam turn_manager.js, sebelum stringify terakhir
     let finalActiveUnit = bState.units.find(u => u.id === bState.activeUnitID);
     if (finalActiveUnit) {
-        bState.activeUnitType = finalActiveUnit.type; // MENAMBAHKAN INFORMASI TIPE UNIT AKTIF
+        bState.activeUnitType = finalActiveUnit.type;
         bState.battleMessage = `${finalActiveUnit.name}'s turn.`;
     } else if (bState.battleState === "Ongoing") {
         bState.battleMessage = "Error: Active unit not found for message.";
-        bState.activeUnitType = "Unknown"; // Atau null
+        bState.activeUnitType = "Unknown";
         scriptLogger("TURN_MANAGER_ERROR: Active unit for message/type not found, battle 'Ongoing'.");
-    } else { // Battle ended
-        bState.activeUnitType = "None"; // Atau sesuai kondisi akhir
+    } else {
+        bState.activeUnitType = "None";
     }
-
-battle_state = JSON.stringify(bState);
 
     battle_state = JSON.stringify(bState);
     scriptLogger("INIT_BATTLE_INFO: Battle initiation complete. battle_state updated.");

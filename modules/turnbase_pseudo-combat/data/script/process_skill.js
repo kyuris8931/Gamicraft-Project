@@ -188,21 +188,48 @@ try {
         }
     }
 
-    // 3. Proses Setiap Efek dari Skill
+    // 3. Proses Setiap Efek dari Skill (Struktur Loop Baru)
     let targetsHitSummary = [];
     let actorActsAgain = false;
 
     if (commandObject.effects && Array.isArray(commandObject.effects)) {
         commandObject.effects.forEach(effect => {
             
-            // Efek yang tidak butuh target spesifik (misal: act_again)
+            // ==========================================================
+            // ===          STRUKTUR PENANGANAN EFEK BARU             ===
+            // ==========================================================
+
+            // A. Cek dulu apakah ini efek "global" yang tidak butuh target dari UI
             if (effect.type === "act_again") {
                 actorActsAgain = true;
-                scriptLogger(`SKILL_PROC: Aktor ${actor.name} akan mendapatkan giliran lagi.`);
-                return; // Lanjut ke efek berikutnya
+                scriptLogger(`EFEK: Aktor ${actor.name} akan mendapatkan giliran lagi.`);
+                return; // Lanjut ke efek berikutnya di dalam forEach
+            }
+            
+            if (effect.type === "heal_lowest_hp_ally") {
+                scriptLogger("EFEK: Mencari ally dengan HP terendah.");
+                const aliveAllies = bState.units.filter(u => u.type === 'Ally' && u.status !== 'Defeated');
+                if (aliveAllies.length > 0) {
+                    // Safety check untuk sort, jika maxHp 0, anggap persentasenya 1 (penuh)
+                    const sortedAllies = aliveAllies.sort((a, b) => {
+                        const percentA = a.stats.maxHp > 0 ? (a.stats.hp / a.stats.maxHp) : 1;
+                        const percentB = b.stats.maxHp > 0 ? (b.stats.hp / b.stats.maxHp) : 1;
+                        return percentA - percentB;
+                    });
+                    let lowestHpAlly = sortedAllies[0];
+                    
+                    const healBaseStat = (effect.basedOn === "caster_atk") ? actor.stats.atk : lowestHpAlly.stats.maxHp;
+                    const healAmount = calculateHeal(actor.stats, effect.multiplier, healBaseStat);
+                    applyHeal(lowestHpAlly, healAmount);
+                    targetsHitSummary.push(`${lowestHpAlly.name} (+${healAmount} HP)`);
+                    scriptLogger(`EFEK: ${lowestHpAlly.name} di-heal sebesar ${healAmount}.`);
+                } else {
+                    scriptLogger("EFEK: Tidak ada ally yang hidup untuk di-heal.");
+                }
+                return; // Lanjut ke efek berikutnya di dalam forEach
             }
 
-            // Tentukan target untuk efek ini
+            // B. Jika bukan efek global, berarti ini efek yang butuh target
             let actualEffectTargets = [];
             switch(effect.target) {
                 case "caster": 
@@ -210,7 +237,6 @@ try {
                     break;
                 case "selected": 
                 case "area":
-                    // Semua ID dari UI dianggap sebagai target untuk efek tipe 'area' atau 'selected'
                     affectedTargetIdsFromUI.forEach(tid => {
                         const unit = getUnitById(tid, bState.units); 
                         if (unit) actualEffectTargets.push(unit);
@@ -220,11 +246,15 @@ try {
                     actualEffectTargets.push(...getAdjacentEnemies(actor, bState.units));
                     break;
                 default:
-                    scriptLogger(`SKILL_PROC_WARN: Tipe target tidak dikenal: '${effect.target}'`);
-                    return; // Lanjut ke efek berikutnya
+                    scriptLogger(`EFEK_WARN: Tipe target tidak dikenal: '${effect.target}'`);
+                    return; // Lewati efek ini
             }
             
-            scriptLogger(`Efek '${effect.type}' menargetkan: ${actualEffectTargets.map(u => u.name).join(', ')}`);
+            if(actualEffectTargets.length === 0) {
+                 scriptLogger(`EFEK_WARN: Tidak ada target valid ditemukan untuk efek '${effect.type}'`);
+                 return; // Lewati jika tidak ada target sama sekali
+            }
+            scriptLogger(`EFEK: Menerapkan '${effect.type}' ke: ${actualEffectTargets.map(u => u.name).join(', ')}`);
 
             // Terapkan efek ke setiap target yang valid
             actualEffectTargets.forEach(targetUnit => {
@@ -232,13 +262,12 @@ try {
                 
                 switch (effect.type) {
                     case "damage":
-                    case "damage_aoe_adjacent": // Keduanya memanggil fungsi damage yang sama
+                    case "damage_aoe_adjacent":
                         const damage = calculateDamage(actor.stats, effect.multiplier);
                         const damageResult = applyDamage(targetUnit, damage, bState);
                         targetsHitSummary.push(`${targetUnit.name} (-${damageResult.totalDamage} HP)`);
                         break;
                     case "heal":
-                    case "heal_lowest_hp_ally": // Logika heal
                         const healBaseStat = (effect.basedOn === "caster_atk") ? actor.stats.atk : targetUnit.stats.maxHp;
                         const healAmount = calculateHeal(actor.stats, effect.multiplier, healBaseStat);
                         applyHeal(targetUnit, healAmount);
@@ -261,6 +290,7 @@ try {
                         break;
                 }
             });
+
         });
     }
 
