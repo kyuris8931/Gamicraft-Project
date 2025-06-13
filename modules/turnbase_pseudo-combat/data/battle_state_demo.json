@@ -35,7 +35,7 @@
                 {
                     "commandId": "ky_healing_touch",
                     "name": "Healing Touch (2)",
-                    "description": "Heals a single ally (1.5x ATK).",
+                    "description": "Heals a single ally (2x ATK).",
                     "type": "Skill",
                     "spCost": 2,
                     "sfxFilename": "sfx_heal_single.mp3",
@@ -57,7 +57,7 @@
                     "effects": [
                         {
                             "type": "heal",
-                            "multiplier": 1.5,
+                            "multiplier": 2,
                             "basedOn": "caster_atk",
                             "target": "selected"
                         }
@@ -66,7 +66,7 @@
                 {
                     "commandId": "ky_divine_blessing",
                     "name": "Divine Blessing (4)",
-                    "description": "Heals allies in an area (2x ATK).",
+                    "description": "Heals allies in an area (3x ATK).",
                     "type": "Skill",
                     "spCost": 4,
                     "sfxFilename": "sfx_heal_area.mp3",
@@ -87,7 +87,7 @@
                     "effects": [
                         {
                             "type": "heal",
-                            "multiplier": 2.5,
+                            "multiplier": 3,
                             "basedOn": "caster_atk",
                             "target": "area"
                         }
@@ -207,10 +207,10 @@
                 },
                 {
                     "commandId": "ar_excalibur_strike",
-                    "name": "Excalibur Strike (9)",
+                    "name": "Excalibur Strike (7)",
                     "description": "Deals melee damage (3x ATK), 100% chance to stun.",
                     "type": "Skill",
-                    "spCost": 8,
+                    "spCost": 7,
                     "sfxFilename": "sfx_excalibur_strike.mp3",
                     "targetingParams": {
                         "selection": {
@@ -267,7 +267,7 @@
                 {
                     "commandId": "rh_arrow_storm",
                     "name": "Arrow Storm (1)",
-                    "description": "Deals AoE damage (0.75x ATK).",
+                    "description": "Deals AoE damage (0.8x ATK).",
                     "type": "Skill",
                     "spCost": 1,
                     "sfxFilename": "sfx_arrow_storm.mp3",
@@ -368,6 +368,8 @@
             "name": "Goblin Grunt",
             "type": "Enemy",
             "role": "Melee",
+            "tier": "Minion",
+            "expValue": 1,
             "status": "Idle",
             "pseudoPos": 2,
             "portraitFilename": "enemies/Goblin_Grunt_Portrait.png",
@@ -386,6 +388,8 @@
             "name": "Kobold Scout",
             "type": "Enemy",
             "role": "Ranged",
+            "tier": "Minion",
+            "expValue": 1,
             "status": "Idle",
             "pseudoPos": 3,
             "portraitFilename": "enemies/Kobold_Scout_Portrait.png",
@@ -404,6 +408,8 @@
             "name": "Forest Sprite",
             "type": "Enemy",
             "role": "Ranged",
+            "tier": "Minion",
+            "expValue": 1,
             "status": "Idle",
             "pseudoPos": -3,
             "portraitFilename": "enemies/Forest_Sprite_Portrait.png",
@@ -422,6 +428,8 @@
             "name": "Orc Pillager",
             "type": "Enemy",
             "role": "Melee",
+            "tier": "Elite",
+            "expValue": 3,
             "status": "Idle",
             "pseudoPos": -2,
             "portraitFilename": "enemies/Orc_Pillager_Portrait.png",
@@ -440,6 +448,8 @@
             "name": "Dark Elf Hunter",
             "type": "Enemy",
             "role": "Ranged",
+            "tier": "Elite",
+            "expValue": 3,
             "status": "Idle",
             "pseudoPos": 4,
             "portraitFilename": "enemies/Dark_Elf_Hunter_Portrait.png",
@@ -458,6 +468,8 @@
             "name": "Troll Chieftain",
             "type": "Enemy",
             "role": "Melee",
+            "tier": "Boss",
+            "expValue": 6,
             "status": "Idle",
             "pseudoPos": -4,
             "portraitFilename": "enemies/Troll_Chieftain_Portrait.png",

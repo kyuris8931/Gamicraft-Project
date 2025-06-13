@@ -69,6 +69,12 @@ try {
         throw new Error("Input 'battle_state' is empty, null, or not a string.");
     }
 
+    if (typeof progression_data !== 'string' || !progression_data.trim()) {
+        throw new Error("Input 'progression_data' kosong.");
+    }
+    const progressionData = JSON.parse(progression_data);
+    scriptLogger("INIT_BATTLE_INFO: Parsed progression_data.");
+
     bState.round = 1;
     bState.turnInRound = 1;
     bState.battleState = "Ongoing";
@@ -88,7 +94,47 @@ try {
     } else {
         throw new Error("bState.units is missing or not an array.");
     }
+    // >> MODIFIKASI INI: Terapkan progresi stats ke unit
+    if (bState.units && Array.isArray(bState.units)) {
+        const enemyGlobalLevel = progressionData.enemyProgression.globalLevel;
 
+        bState.units.forEach(unit => {
+            let unitProgression;
+            let finalLevel;
+
+            if (unit.type === 'Ally') {
+                unitProgression = progressionData.heroes.find(h => h.id === unit.id);
+                finalLevel = unitProgression ? unitProgression.level : 1;
+                
+                if (finalLevel > 1) {
+                    const levelBonus = finalLevel - 1;
+                    const statGrowth = (unit.id.includes("kyuris")) ? { hp: 1, atk: 1 } : { hp: 2, atk: 2 };
+                    unit.stats.maxHp += levelBonus * statGrowth.hp;
+                    unit.stats.hp = unit.stats.maxHp; // Heal penuh di awal battle
+                    unit.stats.atk += levelBonus * statGrowth.atk;
+                }
+            } else if (unit.type === 'Enemy') {
+                finalLevel = enemyGlobalLevel;
+                if (finalLevel > 1) {
+                     const levelBonus = finalLevel - 1;
+                     let statGrowth = { hp: 0, atk: 0 };
+                     if(unit.tier === "Minion") statGrowth = { hp: 1, atk: 1 };
+                     if(unit.tier === "Elite") statGrowth = { hp: 2, atk: 2 };
+                     if(unit.tier === "Boss") statGrowth = { hp: 3, atk: 3 };
+
+                     unit.stats.maxHp += levelBonus * statGrowth.hp;
+                     unit.stats.hp = unit.stats.maxHp;
+                     unit.stats.atk += levelBonus * statGrowth.atk;
+                }
+                // Update expValue musuh berdasarkan level global
+                unit.expValue = (unit.expValue || 1) * finalLevel;
+            }
+             // Simpan level final untuk referensi di UI jika perlu
+            unit.level = finalLevel;
+        });
+        scriptLogger("INIT_BATTLE_INFO: Progresi stats berdasarkan level telah diterapkan.");
+    }
+    
     if (aliveUnitIdsForFirstRound.length > 0) {
         shuffleArray(aliveUnitIdsForFirstRound);
         bState._currentRoundInitialOrderIds = aliveUnitIdsForFirstRound;

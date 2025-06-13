@@ -1,6 +1,7 @@
-// --- script_tasker/process_basic_attack.js ---
-// Deskripsi: Skrip ini HANYA memproses aksi Basic Attack dari pemain.
-// Versi ini menyertakan logika SP gain yang diacak.
+// --- script_tasker/process_basic_attack.js (Versi Lengkap & Diperbaiki) ---
+// Deskripsi: Memproses aksi Basic Attack dari pemain.
+// Termasuk: kalkulasi damage, penerapan damage, generasi SP secara acak,
+// dan pelacakan musuh yang kalah untuk sistem progresi.
 //
 // Variabel Input dari Tasker:
 // - battle_state: String JSON dari battle_state saat ini.
@@ -14,79 +15,85 @@
 
 let taskerLogOutput = "";
 let wasTargetEliminated = false;
+
 function scriptLogger(message) {
     const now = new Date();
     const timestamp = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}.${now.getMilliseconds()}`;
     taskerLogOutput += `[${timestamp}] ${message}\n`;
 }
 
-/**
- * Helper function untuk mendapatkan objek unit dari state berdasarkan ID.
- * @param {string} unitId - ID unit yang dicari.
- * @param {Array<object>} unitsArray - Array semua unit dari bState.units.
- * @returns {object|null} Objek unit jika ditemukan, jika tidak null.
- */
+// --- FUNGSI HELPER ---
+
 function getUnitById(unitId, unitsArray) {
     if (!unitId || !Array.isArray(unitsArray)) return null;
     return unitsArray.find(u => u.id === unitId);
 }
 
 /**
- * Helper function untuk menerapkan damage ke target, dengan memperhitungkan shield.
- * @param {object} targetUnit - Objek unit target yang akan menerima damage.
- * @param {number} damageAmount - Jumlah damage yang akan diterapkan.
- * @returns {{totalDamage: number, shieldDamage: number, hpDamage: number}} Objek berisi detail damage.
+ * Menerapkan damage ke target, dengan memperhitungkan shield dan melacak progresi.
+ * @param {object} targetUnit - Objek unit target.
+ * @param {number} damageAmount - Jumlah damage.
+ * @param {object} bStateRef - Referensi ke battle_state untuk melacak progresi.
+ * @returns {{totalDamage: number, shieldDamage: number, hpDamage: number}}
  */
-function applyDamage(targetUnit, damageAmount) {
+function applyDamage(targetUnit, damageAmount, bStateRef) {
     let remainingDamage = Math.round(damageAmount);
     let shieldDamageDealt = 0;
     let hpDamageDealt = 0;
 
-    // Kurangi shield terlebih dahulu jika ada
     if (targetUnit.stats.shieldHP && targetUnit.stats.shieldHP > 0) {
         shieldDamageDealt = Math.min(targetUnit.stats.shieldHP, remainingDamage);
         targetUnit.stats.shieldHP -= shieldDamageDealt;
         remainingDamage -= shieldDamageDealt;
-        scriptLogger(`APPLY_DMG: Shield target ${targetUnit.name} menyerap ${shieldDamageDealt} damage. Sisa shield: ${targetUnit.stats.shieldHP}.`);
     }
 
-    // Terapkan sisa damage ke HP
     if (remainingDamage > 0) {
         hpDamageDealt = Math.min(targetUnit.stats.hp, remainingDamage);
         targetUnit.stats.hp -= hpDamageDealt;
-        scriptLogger(`APPLY_DMG: HP target ${targetUnit.name} menerima ${hpDamageDealt} damage. HP sekarang: ${targetUnit.stats.hp}.`);
-    }
-    
-    // Periksa apakah unit kalah
-    if (targetUnit.stats.hp <= 0) {
-        targetUnit.stats.hp = 0; // Pastikan HP tidak negatif
-        targetUnit.status = "Defeated";
-        scriptLogger(`APPLY_DMG: Unit ${targetUnit.name} telah dikalahkan!`);
     }
 
+    if (targetUnit.stats.hp <= 0) {
+        targetUnit.stats.hp = 0;
+        targetUnit.status = "Defeated";
+        wasTargetEliminated = true;
+
+        // Lacak musuh yang kalah untuk progresi
+        if (targetUnit.type === "Enemy" && bStateRef._defeatedEnemiesThisBattle && !bStateRef._defeatedEnemiesThisBattle.some(e => e.id === targetUnit.id)) {
+            const baseExp = bStateRef.units.find(u => u.id === targetUnit.id)?.expValue || 1;
+            bStateRef._defeatedEnemiesThisBattle.push({
+                id: targetUnit.id,
+                tier: targetUnit.tier,
+                expValue: baseExp
+            });
+            scriptLogger(`TRACKING: ${targetUnit.name} (Tier: ${targetUnit.tier}) ditambahkan ke daftar progresi.`);
+        }
+    }
     return { totalDamage: shieldDamageDealt + hpDamageDealt, shieldDamage: shieldDamageDealt, hpDamage: hpDamageDealt };
 }
 
 /**
- * Helper function untuk menghasilkan SP secara acak setelah Basic Attack.
- * @param {object} bState - Objek battle_state.
+ * Menghasilkan SP secara acak dan menambahkannya ke bState.
+ * @param {object} bState - Objek battle_state yang akan dimodifikasi.
  * @returns {number} Jumlah SP yang dihasilkan.
  */
 function generateSPForBasicAttack(bState) {
-    // --- PERUBAHAN: Logika SP Gain sekarang diacak ---
     let spGain = 0;
     const rand = Math.random();
-    if (rand < 0.02) spGain = 5;        // 2% untuk 5 SP (Jackpot!)
-    else if (rand < 0.10) spGain = 4;   // 8% untuk 4 SP
-    else if (rand < 0.27) spGain = 3;   // 17% untuk 3 SP
-    else if (rand < 0.55) spGain = 2;   // 28% untuk 2 SP
-    else spGain = 1;                    // 45% untuk 1 SP
+        
+    if (rand < 0.02) spGain = 5;      // 2% untuk 5 SP
+    else if (rand < 0.10) spGain = 4; // 8% untuk 4 SP
+    else if (rand < 0.27) spGain = 3; // 17% untuk 3 SP
+    else if (rand < 0.55) spGain = 2; // 28% untuk 2 SP
+    else spGain = 1;                  // 45% untuk 1 SP
     
+    // Pastikan teamSP dan maxTeamSP ada sebelum diubah
     if (typeof bState.teamSP === 'number' && typeof bState.maxTeamSP === 'number') {
         bState.teamSP = Math.min(bState.teamSP + spGain, bState.maxTeamSP);
         return spGain;
     }
-    return 0;
+    
+    scriptLogger("SP_GEN_WARN: bState.teamSP atau bState.maxTeamSP tidak terdefinisi. Gagal menambah SP.");
+    return 0; // Gagal menghasilkan SP jika state tidak valid
 }
 
 
@@ -96,12 +103,17 @@ try {
     taskerLogOutput = "";
     scriptLogger("BASIC_ATTACK_PROC: Script dimulai.");
 
-    // 1. Validasi dan Parsing Input dari Tasker
-    if (typeof battle_state !== 'string' || !battle_state.trim()) throw new Error("Input 'battle_state' kosong atau tidak valid.");
+    // 1. Validasi dan Parsing Input
+    if (typeof battle_state !== 'string' || !battle_state.trim()) throw new Error("Input 'battle_state' kosong.");
     if (typeof actor_id !== 'string' || !actor_id.trim()) throw new Error("Input 'actor_id' kosong.");
     if (typeof target_id !== 'string' || !target_id.trim()) throw new Error("Input 'target_id' kosong.");
 
     bState = JSON.parse(battle_state);
+    // Inisialisasi array pelacak progresi jika belum ada
+    if (!bState._defeatedEnemiesThisBattle) {
+        bState._defeatedEnemiesThisBattle = [];
+    }
+
     const attacker = getUnitById(actor_id, bState.units);
     const defender = getUnitById(target_id, bState.units);
 
@@ -110,20 +122,20 @@ try {
     if (attacker.status === "Defeated") throw new Error(`Aktor ${attacker.name} sudah kalah.`);
     if (defender.status === "Defeated") throw new Error(`Target ${defender.name} sudah kalah.`);
 
-    scriptLogger(`BASIC_ATTACK_PROC: Aktor: ${attacker.name}, Target: ${defender.name}`);
+    scriptLogger(`Aktor: ${attacker.name}, Target: ${defender.name}`);
 
     // 2. Kalkulasi dan Terapkan Damage
-    const damageDealt = attacker.stats.atk; // Damage Basic Attack = ATK Aktor
-    const damageResult = applyDamage(defender, damageDealt);
+    const damageDealt = attacker.stats.atk;
+    const damageResult = applyDamage(defender, damageDealt, bState);
+    scriptLogger(`DAMAGE: ${attacker.name} memberikan ${damageResult.totalDamage} total damage.`);
 
-    if (defender.status === "Defeated") {
-        wasTargetEliminated = true; // <-- TAMBAHKAN BARIS INI
-        scriptLogger(`BASIC_ATTACK_PROC: ${defender.name} telah dikalahkan!`);
+    if (wasTargetEliminated) {
+        scriptLogger(`KILL: ${defender.name} telah dikalahkan!`);
     }
     
     // 3. Generate SP
     const spGained = generateSPForBasicAttack(bState);
-    scriptLogger(`BASIC_ATTACK_PROC: Mendapatkan ${spGained} SP. SP Tim sekarang: ${bState.teamSP}.`);
+    scriptLogger(`SP_GEN: Mendapatkan ${spGained} SP. SP Tim sekarang: ${bState.teamSP}/${bState.maxTeamSP}.`);
     
     // 4. Update Battle Message dan Detail Aksi Terakhir
     bState.battleMessage = `${attacker.name} menyerang ${defender.name}, memberikan ${damageResult.totalDamage} damage. (+${spGained} SP)`;
@@ -135,13 +147,12 @@ try {
         effectsSummary: [`${defender.name} (-${damageResult.totalDamage} HP)`]
     };
     
-    // Set status aktor menjadi 'EndTurn'
+    // 5. Set status aktor menjadi 'EndTurn'
     attacker.status = "EndTurn";
-    scriptLogger(`BASIC_ATTACK_PROC: Status ${attacker.name} diubah menjadi EndTurn.`);
-
+    scriptLogger(`STATUS: Status ${attacker.name} diubah menjadi EndTurn.`);
 
 } catch (e) {
-    scriptLogger("BASIC_ATTACK_PROC_ERROR: " + e.message);
+    scriptLogger("BASIC_ATTACK_PROC_ERROR: " + e.message + " | Stack: " + e.stack);
     if (!bState) bState = {};
     bState.battleState = "Error";
     bState.battleMessage = "Basic Attack Error: " + e.message;
