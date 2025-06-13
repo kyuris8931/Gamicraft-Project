@@ -71,11 +71,16 @@ html, body {
     font-size: 14px;
     line-height: 1.5;
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+#app-wrapper {
+    width: 100%;
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
 }
 
 .dynamic-background {
@@ -953,4 +958,253 @@ html, body {
     100% {
         transform: scale(1);
     }
+}
+
+/* --- Battle End Screen Styles --- */
+.battle-end-screen-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(44, 62, 80, 0.85); /* Dark blue overlay */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1500;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease-in-out, visibility 0.4s ease-in-out;
+}
+
+.battle-end-screen-overlay.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.battle-end-content {
+    width: 95%;
+    max-width: 450px;
+    max-height: 90vh;
+    padding: calc(var(--spacing-unit) * 2.5);
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing-unit) * 2);
+}
+
+.battle-end-content h2 {
+    font-family: var(--font-display);
+    font-size: 2em;
+    text-align: center;
+    margin-bottom: var(--spacing-unit);
+    color: var(--color-accent-primary);
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.battle-end-content h2.defeat-title {
+    color: var(--color-accent-secondary);
+}
+
+.end-screen-section h3 {
+    font-family: var(--font-display);
+    font-size: 0.8em;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-unit);
+    border-bottom: 1px solid var(--color-border-strong);
+    padding-bottom: calc(var(--spacing-unit) * 0.5);
+    letter-spacing: 1px;
+}
+
+.hero-results-container {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing-unit) * 1.5);
+    max-height: 30vh;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+.hero-result-card {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-unit);
+}
+
+.hero-result-portrait {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--color-border-strong);
+    flex-shrink: 0;
+}
+
+.hero-result-details {
+    flex-grow: 1;
+}
+
+.hero-result-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.9em;
+    margin-bottom: 4px;
+}
+
+.hero-result-name {
+    font-weight: 700;
+}
+
+.hero-result-level {
+    font-size: 0.8em;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    position: relative;
+}
+
+.level-up-indicator {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--color-accent-quaternary);
+    color: var(--color-text-primary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7em;
+    font-weight: bold;
+    animation: levelUpPulse 1.5s infinite;
+    display: none; /* Hidden by default */
+}
+
+@keyframes levelUpPulse {
+    0% { transform: translateX(-50%) scale(1); opacity: 1; }
+    50% { transform: translateX(-50%) scale(1.15); opacity: 0.8; }
+    100% { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+.exp-bar-container {
+    width: 100%;
+    height: 12px;
+    background-color: rgba(0,0,0,0.15);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.exp-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-accent-tertiary), #58D68D);
+    border-radius: 6px;
+    transition: width 2.5s cubic-bezier(0.25, 1, 0.5, 1); /* <-- BARIS INI KUNCINYA */
+}
+
+.spoils-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-unit);
+}
+.spoils-item {
+    background-color: rgba(0,0,0,0.03);
+    border: 1px solid var(--color-border-strong);
+    padding: var(--spacing-unit);
+    border-radius: var(--border-radius-elements);
+    font-size: 0.8em;
+}
+.spoils-item h4 {
+    font-size: 0.9em;
+    margin-bottom: 4px;
+    color: var(--color-text-secondary);
+}
+
+.spoils-item, .rewards-container {
+    background-color: rgba(0,0,0,0.03);
+    border: 1px solid var(--color-border-strong);
+    padding: var(--spacing-unit);
+    border-radius: var(--border-radius-elements);
+    font-size: 0.8em;
+}
+
+#defeated-enemies-list ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+    max-height: 80px; /* Batasi tinggi agar bisa scroll jika banyak */
+    overflow-y: auto;
+}
+#defeated-enemies-list li {
+    padding: 2px 0;
+}
+
+.rewards-container {
+    display: flex;
+    gap: var(--spacing-unit);
+    flex-wrap: wrap; /* Agar item bisa wrap jika tidak muat */
+    justify-content: center;
+}
+.reward-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--spacing-unit) * 0.5);
+    min-width: 60px;
+}
+.reward-item-img {
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--color-border-strong);
+    padding: 2px;
+}
+
+.reward-item-name {
+    font-size: 1.5em;
+    text-align: center;
+    color: var(--color-text-secondary);
+}
+
+.total-exp-container {
+    text-align: center;
+    margin-top: var(--spacing-unit);
+    padding: var(--spacing-unit);
+    border-top: 1px solid var(--color-border-strong);
+}
+
+.win-bonus-text {
+    font-size: 0.8em;
+    color: var(--color-accent-tertiary);
+    font-weight: 700;
+}
+
+.total-exp-text {
+    font-size: 2em;
+    font-weight: 700;
+    text-align: center;
+    color: var(--color-accent-tertiary);
+}
+
+.enemy-levelup-notification {
+    margin-top: var(--spacing-unit);
+    padding: var(--spacing-unit);
+    background-color: rgba(142, 68, 173, 0.1);
+    border: 1px solid rgba(142, 68, 173, 0.5);
+    border-radius: var(--border-radius-elements);
+    text-align: center;
+    font-size: 0.85em;
+}
+.enemy-levelup-notification.is-hidden {
+    display: none;
+}
+.enemy-levelup-notification p {
+    margin: 0;
+    color: #e0e0e0;
+}
+.enemy-levelup-notification strong {
+    font-family: var(--font-display);
+    color: #9B59B6; /* Purple */
+    letter-spacing: 0.5px;
+}
+
+.is-fully-hidden {
+    display: none !important;
 }

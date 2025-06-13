@@ -142,8 +142,8 @@ function refreshAllUIElements(passedPreviousBState = null) {
     const defeatedUnitData = [];
     let spGained = 0;
     let spSpent = 0;
-
     let stunnedUnitId = null;
+
     if (bState.lastActionDetails?.actionOutcome === "STUNNED") {
         stunnedUnitId = bState.lastActionDetails.actorId;
     }
@@ -177,6 +177,7 @@ function refreshAllUIElements(passedPreviousBState = null) {
     }
 
     const performStandardRenderAndPopups = () => {
+        // Render semua komponen UI utama
         renderDynamicBackground();
         renderTopBar();
         renderEnemyStage();
@@ -184,31 +185,18 @@ function refreshAllUIElements(passedPreviousBState = null) {
         renderPlayerActionBar();
         renderPseudomap();
 
-        // --- PERUBAHAN: Tampilkan pop-up "Stunned" ---
+        // Tampilkan pop-up untuk damage, heal, dll.
         if (stunnedUnitId) {
             const anchor = elPseudomapArea;
-            if (anchor) {
-                // Gunakan kelas 'info-popup' atau buat kelas baru 'stun-popup' jika mau
-                ui_createFeedbackPopup(anchor, 'Stunned!', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
-            }
+            if (anchor) ui_createFeedbackPopup(anchor, 'Stunned!', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
         }
-
-        // FIX: Only show "No Target" popup if the state has just changed to this.
         if (bState.lastActionDetails?.actionOutcome === "NO_TARGET_IN_RANGE") {
-            // Kita hanya tampilkan popup jika state sebelumnya TIDAK sama,
-            // untuk mencegah render ulang pada UI refresh biasa.
             if (passedPreviousBState?.lastActionDetails?.actionOutcome !== "NO_TARGET_IN_RANGE") {
                 const anchor = elPseudomapArea;
-                if (anchor) {
-                    ui_createFeedbackPopup(anchor, 'No Target', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
-                }
+                if (anchor) ui_createFeedbackPopup(anchor, 'No Target', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
             }
-            // PENTING: "Konsumsi" sinyal ini di sisi klien agar tidak muncul lagi
-            // sampai sinyal baru yang identik datang dari backend. Ini menghentikan pop-up hantu.
             bState.lastActionDetails.actionOutcome = null;
         }
-
-
         healedUnitData.forEach(data => {
             const anchor = findBestAnchorElement(data.unitId);
             if (anchor) ui_createFeedbackPopup(anchor, `+${data.amount}`, 'heal-popup');
@@ -219,60 +207,55 @@ function refreshAllUIElements(passedPreviousBState = null) {
         if (spSpent > 0 && elTeamResourcesDisplay) {
             ui_createFeedbackPopup(elTeamResourcesDisplay, `-${spSpent} SP`, 'sp-spent-popup');
         }
-
-        if (bState.battleState === "Win" || bState.battleState === "Lose") {
-            renderBattleLogOverlay(true, bState.battleState, bState.battleMessage || (bState.battleState === "Win" ? "Victory!" : "Defeat!"));
-            if(elActionButtonsGroup) elActionButtonsGroup.innerHTML = `<p class="battle-over-message">${bState.battleState.toUpperCase()}!</p>`;
-            if(elPseudomapArea) elPseudomapArea.classList.add('is-hidden');
-            if(elPlayerHeroesDeck) elPlayerHeroesDeck.classList.add('is-hidden');
-        } else {
-            if (elBattleLogOverlay && elBattleLogOverlay.classList.contains('is-visible') && !bState.showLog) {
-                 renderBattleLogOverlay(false);
-            }
-            if(elPseudomapArea) elPseudomapArea.classList.remove('is-hidden');
-            if(elPlayerHeroesDeck) elPlayerHeroesDeck.classList.remove('is-hidden');
-            if (typeof scrollToActiveUnitInPseudomap === "function") requestAnimationFrame(() => { requestAnimationFrame(scrollToActiveUnitInPseudomap); });
-            const activeUnitForScroll = getActiveUnit();
-            if (activeUnitForScroll && activeUnitForScroll.type === "Ally") {
-                if (typeof scrollToPlayerHero === "function") requestAnimationFrame(() => { scrollToPlayerHero(activeUnitForScroll.id, true); });
-            }
-            const allUnitFrames = elPseudomapTrack ? elPseudomapTrack.querySelectorAll('.pseudomap-unit-frame') : [];
-            if (wsMode === "selecting_primary_target") {
-                if (typeof ui_renderSelectPrimaryTargetMode === "function") ui_renderSelectPrimaryTargetMode(validPrimaryTargetIds, allUnitFrames);
-            } else if (wsMode === "confirming_effect_area") {
-                if (typeof ui_renderConfirmAreaMode === "function") ui_renderConfirmAreaMode(selectedPrimaryTargetId, currentAffectedTargetIds, allUnitFrames);
-            } else if (wsMode === "confirming_basic_attack") {
-                if (typeof ui_highlightPotentialBasicAttackTarget === "function") allUnitFrames.forEach(frame => ui_highlightPotentialBasicAttackTarget(frame.dataset.unitId, frame.dataset.unitId === lastTappedUnitId));
-            }
+        
+        // Pastikan overlay log tertutup jika tidak seharusnya tampil
+        if (elBattleLogOverlay && elBattleLogOverlay.classList.contains('is-visible') && !bState.showLog) {
+             renderBattleLogOverlay(false);
+        }
+        // Pastikan elemen-elemen utama terlihat
+        if(elPseudomapArea) elPseudomapArea.classList.remove('is-hidden');
+        if(elPlayerHeroesDeck) elPlayerHeroesDeck.classList.remove('is-hidden');
+        
+        // Lakukan scroll dan highlight jika perlu
+        if (typeof scrollToActiveUnitInPseudomap === "function") requestAnimationFrame(() => { requestAnimationFrame(scrollToActiveUnitInPseudomap); });
+        const activeUnitForScroll = getActiveUnit();
+        if (activeUnitForScroll && activeUnitForScroll.type === "Ally") {
+            if (typeof scrollToPlayerHero === "function") requestAnimationFrame(() => { scrollToPlayerHero(activeUnitForScroll.id, true); });
+        }
+        
+        // Render highlight untuk targeting mode
+        const allUnitFrames = elPseudomapTrack ? elPseudomapTrack.querySelectorAll('.pseudomap-unit-frame') : [];
+        if (wsMode === "selecting_primary_target") {
+            if (typeof ui_renderSelectPrimaryTargetMode === "function") ui_renderSelectPrimaryTargetMode(validPrimaryTargetIds, allUnitFrames);
+        } else if (wsMode === "confirming_effect_area") {
+            if (typeof ui_renderConfirmAreaMode === "function") ui_renderConfirmAreaMode(selectedPrimaryTargetId, currentAffectedTargetIds, allUnitFrames);
+        } else if (wsMode === "confirming_basic_attack") {
+            if (typeof ui_highlightPotentialBasicAttackTarget === "function") allUnitFrames.forEach(frame => ui_highlightPotentialBasicAttackTarget(frame.dataset.unitId, frame.dataset.unitId === lastTappedUnitId));
         }
     };
     
+    // Proses animasi damage dan kematian
     damagedUnitData.forEach(data => {
         const anchor = findBestAnchorElement(data.unitId);
-        // PERUBAHAN DI SINI: yOffset diubah untuk mendorong pop-up lebih ke bawah.
-        // Anda bisa mengubah nilai 40 ini sesuai selera.
         const popupOptions = (data.type === 'Enemy') 
-            ? { verticalOrigin: 'top', yOffset: 50 } // Mendorong 40px dari atas kartu
+            ? { verticalOrigin: 'top', yOffset: 50 }
             : {}; 
         if (anchor) ui_createFeedbackPopup(anchor, `-${data.amount}`, 'damage-popup', popupOptions);
     });
 
     if (defeatedUnitData.length > 0) {
         wsLogger("UI_RENDERER: Defeated unit(s) detected. Starting death animation sequence.");
-        
         defeatedUnitData.forEach(data => {
             const cardElement = findBestAnchorElement(data.unitId);
             if (cardElement) {
                 const hpBar = cardElement.querySelector('.hp-bar');
                 if (hpBar) hpBar.style.width = '0%';
-                
                 setTimeout(() => {
                     ui_playDeathAnimation(cardElement);
                     ui_createFeedbackPopup(cardElement, 'KO!', 'damage-popup', { verticalOrigin: 'center' });
                 }, 400);
             }
         });
-        
         const totalAnimationTime = 1600;
         wsLogger(`UI_RENDERER: Waiting ${totalAnimationTime}ms for death sequence to finish before full re-render.`);
         setTimeout(performStandardRenderAndPopups, totalAnimationTime);
@@ -772,3 +755,218 @@ function ui_renderReviveTargetingMode(defeatedAllyIds) {
 
 
 wsLogger("UI_RENDERER_JS: ui_renderer.js (with popup fixes) loaded.");
+
+
+/**
+ * FUNGSI BARU: Merender layar hasil akhir pertempuran.
+ * @param {object} bState - Objek bState lengkap yang berisi summary.
+ */
+/**
+ * FUNGSI FINAL: Merender dan menganimasikan layar hasil akhir pertempuran.
+ * Versi ini mempersiapkan posisi awal bar sebelum layar ditampilkan untuk menghindari flicker.
+ * @param {object} bState - Objek bState lengkap yang berisi summary.
+ */
+/**
+ * Merender dan menganimasikan layar hasil akhir pertempuran secara lengkap.
+ * @param {object} bState - Objek bState lengkap yang berisi battleResultSummary.
+ */
+function renderBattleEndScreen(bState) {
+    // 1. Referensi ke semua elemen UI yang dibutuhkan
+    const screen = document.getElementById('battle-end-screen');
+    const titleEl = document.getElementById('end-screen-title');
+    const heroContainer = document.getElementById('hero-results-container');
+    const enemiesListContainer = document.getElementById('defeated-enemies-list');
+    const rewardsContainer = document.getElementById('rewards-container');
+    const expGainedEl = document.getElementById('total-exp-gained');
+    const winBonusEl = document.getElementById('win-bonus-text');
+    const enemyLvlUpEl = document.getElementById('enemy-levelup-notification');
+
+    // Validasi data awal
+    if (!screen || !bState || !bState.battleResultSummary) {
+        wsLogger("UI_RENDERER_ERROR: Elemen end screen atau summary tidak ditemukan untuk dirender!");
+        return;
+    }
+
+    const summary = bState.battleResultSummary;
+
+    // Sembunyikan antarmuka pertempuran utama
+    const battleInterface = document.getElementById('battle-interface');
+    if (battleInterface) battleInterface.classList.add('is-hidden');
+
+    // 2. Isi konten statis (judul, total EXP, dll.)
+    titleEl.textContent = bState.battleState === 'Win' ? "VICTORY" : "DEFEAT";
+    titleEl.className = bState.battleState === 'Win' ? "" : "defeat-title";
+
+    expGainedEl.textContent = `+${summary.totalExpGained}`;
+    if (summary.winBonusMultiplier > 1) {
+        winBonusEl.textContent = `(Base: ${summary.baseExpGained} x${summary.winBonusMultiplier} Win Bonus)`;
+        winBonusEl.classList.remove('is-hidden');
+    } else {
+        winBonusEl.classList.add('is-hidden');
+    }
+
+    // Kosongkan container dari hasil pertempuran sebelumnya
+    heroContainer.innerHTML = '';
+    enemiesListContainer.innerHTML = '';
+    rewardsContainer.innerHTML = '';
+
+    // Render rincian EXP musuh
+    const enemiesListUl = document.createElement('ul');
+    if (summary.defeatedEnemiesWithExp && summary.defeatedEnemiesWithExp.length > 0) {
+        summary.defeatedEnemiesWithExp.forEach(enemy => {
+            const li = document.createElement('li');
+            // Ambil nama dari data utama jika ada, jika tidak pakai dari summary
+            const enemyData = bState.units.find(u => u.id === enemy.id) || enemy;
+            li.textContent = `${enemyData.name || 'Unknown Enemy'} -> ${enemy.expGained} EXP`;
+            enemiesListUl.appendChild(li);
+        });
+    } else {
+        enemiesListUl.innerHTML = '<li>None</li>';
+    }
+    enemiesListContainer.appendChild(enemiesListUl);
+
+    // Render hadiah item
+    if (summary.rewards && summary.rewards.length > 0) {
+        summary.rewards.forEach(reward => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'reward-item';
+            itemDiv.innerHTML = `
+                <img class="reward-item-img" src="${window.gcpcDataPath}${reward.imageFilename}" onerror="this.style.display='none'">
+                <p class="reward-item-name">${reward.name} x${reward.quantity}</p>
+            `;
+            rewardsContainer.appendChild(itemDiv);
+        });
+    } else {
+        rewardsContainer.innerHTML = '<p style="font-size: 0.8em; color: var(--color-text-secondary);">No items gained.</p>';
+    }
+
+    // 3. Persiapkan kartu hero di belakang layar (saat layar masih tersembunyi)
+    summary.heroesProgression.forEach(heroSummary => {
+        const heroUnitData = bState.units.find(u => u.id === heroSummary.id);
+        if (!heroUnitData) return;
+
+        const didLevelUp = heroSummary.levelAfter > heroSummary.levelBefore;
+        const startPercent = (heroSummary.expBefore / heroSummary.expToLevelUpBefore) * 100;
+
+        const card = document.createElement('div');
+        card.className = 'hero-result-card';
+        card.innerHTML = `
+            <img src="${getImagePathForUnit(heroUnitData.portraitFilename, 'Ally', 'portraitHead')}" class="hero-result-portrait" onerror="this.src='${getImagePathForUnit(null, 'Ally', 'portraitHead', true)}'">
+            <div class="hero-result-details">
+                <div class="hero-result-info">
+                    <span class="hero-result-name">${heroUnitData.name}</span>
+                    <span class="hero-result-level" data-hero-id="${heroSummary.id}">
+                        Lv. <span class="level-value">${heroSummary.levelBefore}</span>
+                        <div class="level-up-indicator" style="display: ${didLevelUp ? 'block' : 'none'};">LEVEL UP!</div>
+                    </span>
+                </div>
+                <div class="exp-bar-container">
+                    <div class="exp-bar-fill" data-hero-id="${heroSummary.id}"></div>
+                </div>
+            </div>`;
+        
+        // Atur posisi awal bar tanpa animasi
+        const expBarFill = card.querySelector('.exp-bar-fill');
+        expBarFill.style.transition = 'none';
+        expBarFill.style.width = `${startPercent}%`;
+
+        heroContainer.appendChild(card);
+    });
+
+    // Atur notifikasi level up musuh
+    if (summary.enemyLeveledUp) {
+        enemyLvlUpEl.innerHTML = `<p>A new threat emerges...</p><p><strong>GLOBAL ENEMY LEVEL: ${summary.enemyLevelBefore} &rarr; ${summary.enemyLevelAfter}</strong></p>`;
+        enemyLvlUpEl.classList.remove('is-hidden');
+    } else {
+        enemyLvlUpEl.classList.add('is-hidden');
+    }
+
+    // 4. Tampilkan layar yang sudah siap dan jalankan animasi
+    screen.classList.remove('is-hidden');
+    screen.classList.add('is-visible');
+
+    setTimeout(() => {
+        summary.heroesProgression.forEach(heroSummary => {
+            const levelInfoEl = document.querySelector(`.hero-result-level[data-hero-id="${heroSummary.id}"]`);
+            if (!levelInfoEl) return;
+
+            const expBarFill = levelInfoEl.closest('.hero-result-card').querySelector('.exp-bar-fill');
+            const levelValueEl = levelInfoEl.querySelector('.level-value');
+            const didLevelUp = heroSummary.levelAfter > heroSummary.levelBefore;
+            const finalPercent = (heroSummary.expAfter / heroSummary.expToLevelUpAfter) * 100;
+
+            // Aktifkan kembali animasi dan set target akhirnya
+            expBarFill.style.transition = 'width 2.5s cubic-bezier(0.25, 1, 0.5, 1)';
+
+            if (didLevelUp) {
+                expBarFill.style.width = '100%';
+                setTimeout(() => {
+                    levelValueEl.textContent = heroSummary.levelAfter;
+                    expBarFill.style.transition = 'none';
+                    expBarFill.style.width = '0%';
+                    setTimeout(() => {
+                        expBarFill.style.transition = 'width 1.5s cubic-bezier(0.25, 1, 0.5, 1)';
+                        expBarFill.style.width = `${finalPercent}%`;
+                    }, 100);
+                }, 2600);
+            } else {
+                expBarFill.style.width = `${finalPercent}%`;
+            }
+        });
+    }, 100);
+}
+
+/**
+ * FUNGSI BARU: Menganimasikan EXP bar dan level up.
+ * Versi ini memulai animasi dari posisi EXP terakhir.
+ * @param {object} heroSummary - Data progresi untuk satu hero.
+ * @param {boolean} didLevelUp - Apakah hero ini naik level.
+ */
+function animateExpBar(heroSummary, didLevelUp) {
+    const heroCard = document.querySelector(`.hero-result-level[data-hero-id="${heroSummary.id}"]`);
+    if (!heroCard) return;
+    const expBarFill = heroCard.closest('.hero-result-card').querySelector('.exp-bar-fill');
+    const levelValueEl = heroCard.querySelector('.level-value');
+
+    // 1. Hitung persentase awal dan akhir
+    const startPercent = (heroSummary.expBefore / heroSummary.expToLevelUpBefore) * 100;
+    const finalPercent = (heroSummary.expAfter / heroSummary.expToLevelUpAfter) * 100;
+
+    // 2. Atur posisi awal bar TANPA animasi
+    expBarFill.style.transition = 'none'; // Matikan animasi untuk sementara
+    expBarFill.style.width = `${startPercent}%`; // Langsung set ke posisi awal
+
+    // 3. Gunakan trik timing untuk memastikan browser sudah 'menggambar' posisi awal
+    // sebelum kita memulai animasi utama.
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            // 4. Sekarang, aktifkan kembali animasi dan set target akhirnya
+            // Ganti durasi '2.5s' ini sesuai keinginan Anda (misal: '1.5s' atau '3s')
+            expBarFill.style.transition = 'width 2.5s cubic-bezier(0.25, 1, 0.5, 1)';
+
+            if (didLevelUp) {
+                // Jika naik level, animasikan bar hingga 100% terlebih dahulu
+                expBarFill.style.width = '100%';
+
+                // Atur timeout untuk reset bar setelah animasi 100% selesai
+                // Sesuaikan angka 2600 ini agar sedikit lebih lama dari durasi transisi Anda (2.5s -> 2600ms)
+                setTimeout(() => {
+                    levelValueEl.textContent = heroSummary.levelAfter; // Update angka level
+                    expBarFill.style.transition = 'none'; // Matikan lagi animasi untuk reset
+                    expBarFill.style.width = '0%'; // Reset bar ke 0
+
+                    // Beri jeda sesaat agar browser memproses reset
+                    setTimeout(() => {
+                        // Nyalakan lagi animasi dan isi bar dengan sisa EXP
+                        expBarFill.style.transition = 'width 1.5s cubic-bezier(0.25, 1, 0.5, 1)'; // Transisi kedua bisa lebih cepat
+                        expBarFill.style.width = `${finalPercent}%`;
+                    }, 100);
+
+                }, 2600); // Sesuaikan timing ini
+            } else {
+                // Jika tidak naik level, langsung animasikan ke persentase akhir
+                expBarFill.style.width = `${finalPercent}%`;
+            }
+        }, 50); // Jeda 50ms untuk memastikan posisi awal sudah ter-render
+    });
+}

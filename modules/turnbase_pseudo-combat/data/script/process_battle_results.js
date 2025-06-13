@@ -1,112 +1,113 @@
-// --- process_battle_results.js (Tasker - Versi Formula) ---
-// Deskripsi: Menghitung dan menyimpan progresi EXP/Level menggunakan formula matematika.
-//
-// Variabel Input dari Tasker:
-// - progression_data: String JSON dari gamicraft_progression_data.json
-// - battle_outcome: String "Win" atau "Lose"
-// - defeated_enemies_json: String JSON array dari musuh yang dikalahkan.
-//
-// Variabel Output untuk Tasker:
-// - new_progression_data: String JSON dari data progresi yang sudah diupdate.
-// - js_script_log: Log eksekusi untuk debugging.
-
 let taskerLogOutput = "";
-function scriptLogger(message) { taskerLogOutput += message + "\\n"; }
-
-scriptLogger("BATTLE_RESULTS_PROC (Formula): Script dimulai.");
-
-let progressionData;
-try {
-    // 1. Parsing Input
-    if (typeof progression_data !== 'string' || !progression_data.trim()) throw new Error("Input 'progression_data' kosong.");
-    if (typeof battle_outcome !== 'string' || !battle_outcome.trim()) throw new Error("Input 'battle_outcome' kosong.");
-    if (typeof defeated_enemies_json !== 'string' || !defeated_enemies_json.trim()) throw new Error("Input 'defeated_enemies_json' kosong.");
-
-    progressionData = JSON.parse(progression_data);
-    const defeatedEnemies = JSON.parse(defeated_enemies_json);
-    const isWin = battle_outcome === "Win";
-
-    scriptLogger(`Hasil: ${battle_outcome}. Musuh dikalahkan: ${defeatedEnemies.length}`);
-
-    // 2. Kalkulasi EXP untuk Hero
-    const enemyGlobalLevel = progressionData.enemyProgression.globalLevel;
-    let totalBaseExpGained = 0;
-    defeatedEnemies.forEach(enemy => {
-        // Ambil base EXP dari musuh, kalikan dengan level global musuh
-        totalBaseExpGained += (enemy.expValue || 0) * enemyGlobalLevel;
-    });
-
-    const finalHeroExpGained = isWin ? totalBaseExpGained * 2 : totalBaseExpGained;
-    scriptLogger(`Total EXP didapat untuk Hero: ${finalHeroExpGained}`);
-
-    progressionData.heroes.forEach(hero => {
-        // Tambahkan EXP ke hero. Ini juga akan berfungsi untuk item seperti EXP Potion.
-        hero.exp += finalHeroExpGained;
-        scriptLogger(`Hero ${hero.id}: EXP baru ${hero.exp}`);
-
-        // Cek Kenaikan Level Hero dengan Formula Triangular
-        let canLevelUp = true;
-        while (canLevelUp) {
-            // Hitung kebutuhan EXP dengan formula final (Triangular Number)
-            const currentLevel = hero.level;
-            const expForNextLevel = 50 * (currentLevel * (currentLevel + 1) / 2);
-            
-            if (hero.exp >= expForNextLevel) {
-                hero.level++;
-                hero.exp -= expForNextLevel;
-                scriptLogger(`LEVEL UP! Hero ${hero.id} sekarang Level ${hero.level}! Sisa EXP: ${hero.exp}`);
-            } else {
-                canLevelUp = false; // Berhenti jika EXP tidak cukup
-            }
-        }
-    });
-
-    // 3. Kalkulasi EXP untuk Musuh Global
-    const enemyProg = progressionData.enemyProgression;
-    const enemyExpChange = isWin ? 25 : -50; // <-- Perubahan poin EXP
-    enemyProg.exp += enemyExpChange;
-    scriptLogger(`EXP Musuh Global berubah ${enemyExpChange}. EXP sekarang: ${enemyProg.exp}`);
-
-    // --- LOGIKA BARU: Penurunan Level Musuh ---
-    // Loop ini berjalan jika EXP menjadi negatif dan level masih di atas 1
-    while (enemyProg.exp < 0 && enemyProg.globalLevel > 1) {
-        // Ambil total EXP dari level sebelumnya untuk "dikembalikan"
-        const expOfPreviousLevel = 50 * (enemyProg.globalLevel - 1);
-        
-        // Turunkan level musuh
-        enemyProg.globalLevel--;
-        
-        // Tambahkan sisa EXP dengan basis EXP level yang baru
-        enemyProg.exp += expOfPreviousLevel;
-        
-        scriptLogger(`LEVEL DOWN! Musuh global sekarang turun ke Level ${enemyProg.globalLevel}! Sisa EXP: ${enemyProg.exp}`);
-    }
-
-    // Jika setelah de-leveling EXP masih negatif (misal dari Lv 2 ke 1), reset ke 0.
-    if (enemyProg.exp < 0) {
-        enemyProg.exp = 0;
-    }
-    // --- AKHIR LOGIKA BARU ---
-
-
-    // Cek Kenaikan Level Musuh Global (Logika ini tetap sama)
-    let enemyCanLevelUp = true;
-    while(enemyCanLevelUp) {
-        const expForNextEnemyLevel = 50 * enemyProg.globalLevel; // Formula: 50 * Level Saat Ini
-
-        if (enemyProg.exp >= expForNextEnemyLevel) {
-            enemyProg.globalLevel++;
-            enemyProg.exp -= expForNextEnemyLevel;
-            scriptLogger(`ENEMY LEVEL UP! Musuh global sekarang naik ke Level ${enemyProg.globalLevel}! Sisa EXP: ${enemyProg.exp}`);
-        } else {
-            enemyCanLevelUp = false; // Berhenti jika EXP tidak cukup
-        }
-    }
-
-} catch (e) {
-    scriptLogger("BATTLE_RESULTS_PROC_ERROR: " + e.message + " | Stack: " + e.stack);
-    if (!progressionData) progressionData = { "error": e.message };
+function scriptLogger(message) {
+    const now = new Date();
+    const timestamp = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}.${now.getMilliseconds()}`;
+    taskerLogOutput += `[${timestamp}] ${message}\n`;
 }
 
-var new_progression_data = JSON.stringify(progressionData);
+scriptLogger("BATTLE_RESULTS_FINALIZER_V2.2: Script dimulai.");
+
+let bState;
+let progressionData;
+try {
+    // 1. Parsing Input & Validasi
+    if (typeof battle_state !== 'string' || !battle_state.trim()) throw new Error("Input 'battle_state' kosong.");
+    if (typeof progression_data !== 'string' || !progression_data.trim()) throw new Error("Input 'progression_data' kosong.");
+
+    bState = JSON.parse(battle_state);
+    progressionData = JSON.parse(progression_data);
+
+    // 2. Tentukan Kondisi Menang & Ambil Data Penting
+    const isWin = bState.battleState === "Win";
+    const defeatedEnemiesData = Array.isArray(bState._defeatedEnemiesThisBattle) ? bState._defeatedEnemiesThisBattle : [];
+    const enemyGlobalLevel = progressionData.enemyProgression.globalLevel;
+
+    // 3. Inisialisasi Objek Summary
+    let battleResultSummary = {
+        totalExpGained: 0,
+        baseExpGained: 0,
+        winBonusMultiplier: isWin ? 1.5 : 1,
+        defeatedEnemiesWithExp: [],
+        rewards: [], // Pastikan properti rewards diinisialisasi
+        heroesProgression: [],
+        enemyLeveledUp: false,
+        enemyLevelBefore: 0,
+        enemyLevelAfter: 0
+    };
+
+    // 4. Kalkulasi EXP
+    let totalBaseExpGained = 0;
+    if (defeatedEnemiesData.length > 0) {
+        defeatedEnemiesData.forEach(enemy => {
+            const expFromThisEnemy = Math.round(enemyGlobalLevel * 1.5 * (enemy.expValue || 0));
+            totalBaseExpGained += expFromThisEnemy;
+
+            const enemyDataFromBstate = bState.units.find(u => u.id === enemy.id) || enemy;
+            battleResultSummary.defeatedEnemiesWithExp.push({
+                id: enemy.id,
+                name: enemyDataFromBstate.name || `Enemy (${enemy.tier || 'N/A'})`,
+                expGained: expFromThisEnemy
+            });
+        });
+    }
+    battleResultSummary.baseExpGained = totalBaseExpGained;
+    const finalHeroExpGained = Math.round(totalBaseExpGained * battleResultSummary.winBonusMultiplier);
+    battleResultSummary.totalExpGained = finalHeroExpGained;
+    
+    // 5. Logika Penambahan Hadiah
+    if (isWin) {
+        try {
+            battleResultSummary.rewards.push({
+                name: "Magic Candy",
+                imageFilename: "items/candy.png",
+                quantity: 1 
+            });
+        } catch (rewardError) {
+            scriptLogger(`REWARD_ERROR: Gagal memproses logika hadiah. Error: ${rewardError.message}`);
+        }
+    }
+    
+    // 6. Proses Progresi (Hero & Musuh)
+    progressionData.heroes.forEach(hero => {
+        const expNeededBefore = 50 * (hero.level * (hero.level + 1) / 2);
+        battleResultSummary.heroesProgression.push({ id: hero.id, levelBefore: hero.level, expBefore: hero.exp, expToLevelUpBefore: expNeededBefore });
+    });
+    progressionData.heroes.forEach(hero => {
+        hero.exp += finalHeroExpGained;
+        let canLevelUp = true;
+        while (canLevelUp) {
+            const expForNextLevel = 50 * (hero.level * (hero.level + 1) / 2);
+            if (hero.exp >= expForNextLevel) { hero.level++; hero.exp -= expForNextLevel; } else { canLevelUp = false; }
+        }
+    });
+    const enemyProg = progressionData.enemyProgression;
+    const enemyLevelBefore = enemyProg.globalLevel;
+    battleResultSummary.enemyLevelBefore = enemyLevelBefore;
+    const enemyExpChange = isWin ? 25 : -50;
+    enemyProg.exp += enemyExpChange;
+    while (enemyProg.exp < 0 && enemyProg.globalLevel > 1) { const expOfPreviousLevel = 50 * (enemyProg.globalLevel - 1); enemyProg.globalLevel--; enemyProg.exp += expOfPreviousLevel; }
+    if (enemyProg.exp < 0) enemyProg.exp = 0;
+    let enemyCanLevelUp = true;
+    while(enemyCanLevelUp) { const expForNextEnemyLevel = 50 * enemyProg.globalLevel; if (enemyProg.exp >= expForNextEnemyLevel) { enemyProg.globalLevel++; enemyProg.exp -= expForNextEnemyLevel; } else { enemyCanLevelUp = false; } }
+    battleResultSummary.enemyLevelAfter = enemyProg.globalLevel;
+    if (battleResultSummary.enemyLevelAfter > enemyLevelBefore) battleResultSummary.enemyLeveledUp = true;
+    battleResultSummary.heroesProgression.forEach((heroSummary, index) => {
+        const heroAfter = progressionData.heroes[index];
+        const expNeededAfter = 50 * (heroAfter.level * (heroAfter.level + 1) / 2);
+        heroSummary.levelAfter = heroAfter.level; heroSummary.expAfter = heroAfter.exp; heroSummary.expToLevelUpAfter = expNeededAfter;
+    });
+
+    // 7. Injeksi Summary ke bState
+    bState.battleResultSummary = battleResultSummary;
+    delete bState._defeatedEnemiesThisBattle;
+
+} catch (e) {
+    scriptLogger("BATTLE_RESULTS_FATAL_ERROR: " + e.message + " | Stack: " + e.stack);
+    if (!bState) bState = {};
+    bState.battleResultSummary = { error: `Script crash: ${e.message}` };
+}
+
+// 8. Siapkan Variabel Output untuk Tasker
+var battle_state = JSON.stringify(bState);
+var new_progression_data_to_save = JSON.stringify(progressionData);
 var js_script_log = taskerLogOutput;

@@ -26,42 +26,56 @@ let elCopyWsLogBtn, elClearWsLogBtn;
 let elWsLoggerScreen, elCloseWsLoggerBtn;
 
 /**
- * --- FUNGSI KUNCI YANG DIPERBAIKI ---
- * Menangani data battle state yang baru dari Tasker.
- * Memastikan `previousBState` tersimpan dengan benar sebelum memperbarui `bState`.
- * @param {object} newBStateData - Objek battle state yang baru.
+ * Menangani data battle state yang baru dari Tasker dan memutuskan UI mana yang akan dirender.
+ * Versi ini tidak mengirim perintah apa pun kembali ke Tasker.
+ * @param {object} dataFromTasker - Objek battle state yang baru.
  */
-var handleNewBattleState = function(newBStateData) {
-    wsLogger("MAIN_JS: handleNewBattleState called.");
-    wsLogger("MAIN_JS_DEBUG: newBStateData received.");
+var handleNewBattleState = function(dataFromTasker) {
+    wsLogger("MAIN_JS: New data received from Tasker.");
 
-    // BUGFIX: Simpan bState saat ini sebagai previousBState SEBELUM di-update.
-    // Ini adalah langkah paling krusial untuk mencegah animasi berulang.
-    if (typeof bState === 'object' && bState !== null && Object.keys(bState).length > 0) {
-        try {
-            // DEEP COPY sangat penting di sini agar tidak hanya menjadi referensi.
-            previousBState = JSON.parse(JSON.stringify(bState));
-            wsLogger("MAIN_JS: previousBState has been successfully deep-copied from the current bState.");
-        } catch (e) {
-            wsLogger("MAIN_JS_ERROR: Could not deep-copy bState to previousBState. Error: " + e);
-            previousBState = null; // Reset jika terjadi error.
-        }
-    } else {
-        // Jika bState awal kosong, tidak ada state sebelumnya.
-        previousBState = null;
-        wsLogger("MAIN_JS_INFO: Current bState is empty, so previousBState is set to null.");
+    // Pengecekan keamanan dasar untuk data yang masuk
+    if (typeof dataFromTasker !== 'object' || dataFromTasker === null) {
+        wsLogger("MAIN_JS_ERROR: Data yang diterima dari Tasker tidak valid.");
+        return;
     }
 
-    // Update bState global dengan data BARU
-    bState = newBStateData;
-    wsMode = "idle"; // Selalu reset wsMode ke idle setelah menerima state baru.
+    // --- DI SINI LOGIKA UTAMANYA ---
+    // Cek jika data yang diterima adalah state AKHIR pertempuran (memiliki summary)
+    if (dataFromTasker.battleResultSummary) {
+        
+        wsLogger("MAIN_JS: End-of-battle summary detected. Rendering end screen.");
+        if (typeof renderBattleEndScreen === "function") {
+            // Panggil fungsi untuk merender layar hasil akhir
+            renderBattleEndScreen(dataFromTasker);
+        } else {
+            wsLogger("MAIN_JS_ERROR: renderBattleEndScreen function not defined!");
+        }
+        // Setelah merender end screen, tugas fungsi ini selesai.
+        return; 
+    }
 
-    wsLogger("MAIN_JS: Global bState updated. Calling refreshAllUIElements.");
-    wsLogger("MAIN_JS_DEBUG: The previousBState being passed is " + (previousBState ? "DEFINED" : "NULL"));
+    // Jika BUKAN state akhir, maka ini adalah update pertempuran biasa yang sedang berjalan.
+    wsLogger("MAIN_JS: Ongoing battle state update received. Refreshing main UI.");
 
+    // Simpan state sebelumnya untuk perbandingan animasi (damage pop-up, dll.)
+    if (typeof bState === 'object' && bState !== null && Object.keys(bState).length > 0) {
+        try {
+            previousBState = JSON.parse(JSON.stringify(bState));
+        } catch (e) {
+            wsLogger("MAIN_JS_ERROR: Gagal deep-copy previousBState. Error: " + e);
+            previousBState = null;
+        }
+    } else {
+        previousBState = null;
+    }
+
+    // Update state global dengan data baru
+    bState = dataFromTasker;
+    wsMode = "idle"; // Selalu reset mode ke idle saat menerima state baru
+
+    // Panggil fungsi render utama untuk UI pertempuran
     if (typeof refreshAllUIElements === "function") {
-        // Kirim state sebelumnya untuk perbandingan di UI renderer
-        refreshAllUIElements(previousBState); 
+        refreshAllUIElements(previousBState);
     } else {
         wsLogger("MAIN_JS_ERROR: refreshAllUIElements function is not defined!");
     }

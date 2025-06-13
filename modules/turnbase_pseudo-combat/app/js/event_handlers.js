@@ -78,6 +78,24 @@ function initializeEventListeners() {
     document.querySelectorAll('.styled-button, .action-buttons-group button').forEach(button => {
         button.addEventListener('mousedown', (e) => createRipple(e, button));
     });
+
+    const closeEndScreenBtn = document.getElementById('close-end-screen-btn');
+    if (closeEndScreenBtn) {
+        closeEndScreenBtn.addEventListener('click', () => {
+            // Perintah ini bisa Anda tangkap di Tasker untuk menutup WebScreen
+            // atau memuat state "hub/menu" utama Anda.
+            sendCommandToTasker("BATTLE_ENDED_CONTINUE");
+            
+            // Sembunyikan layar secara manual di client
+            const screen = document.getElementById('battle-end-screen');
+            if(screen) screen.classList.remove('is-visible');
+            
+            // Tampilkan kembali interface utama jika perlu (opsional)
+             const battleInterface = document.getElementById('battle-interface');
+             if(battleInterface) battleInterface.classList.remove('is-fully-hidden');
+        });
+    }
+    
     wsLogger("EVENT_HANDLER: Event listeners initialization complete.");
 }
 
