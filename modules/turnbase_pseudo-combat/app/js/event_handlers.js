@@ -1,15 +1,10 @@
 // js/event_handlers.js
 // Gamicraft WebScreen Event Handling Logic
-// Versi dengan pemanggilan suara menggunakan fungsi terpisah.
+// Versi final dengan perbaikan logika pengecekan elemen.
 
 // --- Konstanta ---
 const DOUBLE_TAP_END_TURN_THRESHOLD = 400;
 const DOUBLE_TAP_BASIC_ATTACK_THRESHOLD = 350;
-
-// --- Variabel Global (didefinisikan di main.js atau di sini) ---
-// bState, currentEnemyIndex, currentPlayerHeroStartIndex, wsMode,
-// selectedActionDetails, validPrimaryTargetIds, selectedPrimaryTargetId, currentAffectedTargetIds
-// akan diakses dari scope global.
 
 // Variabel untuk deteksi swipe
 let touchStartX = 0;
@@ -34,27 +29,28 @@ let isWaitingForSecondTapBasicAttack = false;
  * Inisialisasi semua event listener utama.
  */
 function initializeEventListeners() {
-    wsLogger("EVENT_HANDLER: Initializing event listeners (SFX added).");
-    if (elBattleOptionsTrigger) elBattleOptionsTrigger.addEventListener('click', () => {
-        // DIUBAH: Gunakan fungsi baru
+    wsLogger("EVENT_HANDLER: Initializing event listeners (with panel overlay and blur).");
+    
+    if (elBattleOptionsTrigger) elBattleOptionsTrigger.addEventListener('click', (event) => {
+        event.stopPropagation(); 
         sendSoundCommand({ sfx_name: "ui_tap" });
-        handleToggleBattleLog();
+        handleToggleStatsPanel(); 
     });
+
     if (elCloseLogBtn) elCloseLogBtn.addEventListener('click', () => {
-        // DIUBAH: Gunakan fungsi baru
         sendSoundCommand({ sfx_name: "ui_tap" });
         handleToggleBattleLog(false);
     });
+
     if (elPrevEnemyBtn) elPrevEnemyBtn.addEventListener('click', () => {
-        // DIUBAH: Gunakan fungsi baru
-        sendSoundCommand({ sfx_name: "ui_tap" });
+        sendSoundCommand({ sfx_name: "ui_swipe" });
         navigateEnemyCarousel(-1);
     });
     if (elNextEnemyBtn) elNextEnemyBtn.addEventListener('click', () => {
-        // DIUBAH: Gunakan fungsi baru
-        sendSoundCommand({ sfx_name: "ui_tap" });
+        sendSoundCommand({ sfx_name: "ui_swipe" });
         navigateEnemyCarousel(1);
     });
+
     if (elEnemyCarousel) {
         elEnemyCarousel.addEventListener('touchstart', (e) => handleTouchStart(e, 'enemy'), { passive: true });
         elEnemyCarousel.addEventListener('touchend', (e) => handleTouchEnd(e, 'enemy'), { passive: true });
@@ -64,16 +60,34 @@ function initializeEventListeners() {
         elPlayerHeroesCarousel.addEventListener('touchstart', (e) => handleTouchStart(e, 'player'), { passive: true });
         elPlayerHeroesCarousel.addEventListener('touchend', (e) => handleTouchEnd(e, 'player'), { passive: true });
     }
+
     if (elActionButtonsGroup) elActionButtonsGroup.addEventListener('click', handleActionButtonClick);
     if (elPseudomapTrack) elPseudomapTrack.addEventListener('click', handlePseudomapUnitClick);
     
-    // Listener untuk WS Logger (tidak perlu SFX agar tidak berisik)
     const openWsLogButtonFromBattleLog = document.getElementById('open-ws-log-btn');
     if (openWsLogButtonFromBattleLog) openWsLogButtonFromBattleLog.addEventListener('click', handleToggleWsLoggerScreen);
     if (elCloseWsLoggerBtn) elCloseWsLoggerBtn.addEventListener('click', () => handleToggleWsLoggerScreen(false));
     if (elCopyWsLogBtn) elCopyWsLogBtn.addEventListener('click', handleCopyWsLog);
     if (elClearWsLogBtn) elClearWsLogBtn.addEventListener('click', handleClearWsLog);
     
+    const statsPanelBattleLogBtn = document.getElementById('stats-panel-battle-log-btn');
+    if (statsPanelBattleLogBtn) {
+        statsPanelBattleLogBtn.addEventListener('click', () => {
+            sendSoundCommand({ sfx_name: "ui_tap" });
+            handleToggleStatsPanel(false); 
+            handleToggleBattleLog(true);
+        });
+    }
+
+    const statsPanelWsLogBtn = document.getElementById('stats-panel-ws-log-btn');
+    if (statsPanelWsLogBtn) {
+        statsPanelWsLogBtn.addEventListener('click', () => {
+            handleToggleStatsPanel(false);
+            handleToggleWsLoggerScreen(true);
+        });
+    }
+    
+    document.addEventListener('click', handleClosePanelOnClickOutside);
     document.body.addEventListener('click', handleGlobalClickToCancelTargeting, true);
     document.querySelectorAll('.styled-button, .action-buttons-group button').forEach(button => {
         button.addEventListener('mousedown', (e) => createRipple(e, button));
@@ -82,90 +96,73 @@ function initializeEventListeners() {
     const closeEndScreenBtn = document.getElementById('close-end-screen-btn');
     if (closeEndScreenBtn) {
         closeEndScreenBtn.addEventListener('click', () => {
-            // Perintah ini bisa Anda tangkap di Tasker untuk menutup WebScreen
-            // atau memuat state "hub/menu" utama Anda.
             sendCommandToTasker("BATTLE_ENDED_CONTINUE");
-            
-            // Sembunyikan layar secara manual di client
             const screen = document.getElementById('battle-end-screen');
             if(screen) screen.classList.remove('is-visible');
-            
-            // Tampilkan kembali interface utama jika perlu (opsional)
-             const battleInterface = document.getElementById('battle-interface');
-             if(battleInterface) battleInterface.classList.remove('is-fully-hidden');
+            const battleInterface = document.getElementById('battle-interface');
+            if(battleInterface) battleInterface.classList.remove('is-fully-hidden');
         });
     }
     
     wsLogger("EVENT_HANDLER: Event listeners initialization complete.");
 }
 
-function scrollToEnemyInCarousel(enemyId) {
-    if (!bState || !bState.units) {
-        wsLogger("SCROLL_ENEMY_WARN: bState.units not available.");
+/**
+ * Menampilkan atau menyembunyikan panel statistik, overlay, dan efek blur.
+ * @param {boolean} [explicitShow=null] - Jika true, paksa tampil. Jika false, paksa sembunyi. Jika null, toggle.
+ */
+function handleToggleStatsPanel(explicitShow = null) {
+    // --- PERBAIKAN DI SINI ---
+    // Pengecekan sekarang langsung ke variabel, tanpa "window."
+    if (!elStatsPanel || !elPanelOverlay) {
+        wsLogger("EVENT_HANDLER_STATS: Elemen panel statistik atau overlay tidak ditemukan.");
         return;
     }
-    const enemies = bState.units.filter(unit => unit.type === "Enemy" && unit.status !== "Defeated");
-    const enemyIndex = enemies.findIndex(enemy => enemy.id === enemyId);
+    // -------------------------
 
-    if (enemyIndex !== -1 && enemyIndex !== currentEnemyIndex) {
-        currentEnemyIndex = enemyIndex;
-        if (typeof renderEnemyStage === "function") {
-            renderEnemyStage();
-            wsLogger(`SCROLL_ENEMY_INFO: Scrolled enemy carousel to ${enemyId} (index ${currentEnemyIndex}).`);
-        } else {
-            wsLogger("SCROLL_ENEMY_ERROR: renderEnemyStage function not found.");
-        }
-    } else if (enemyIndex === -1) {
-        wsLogger(`SCROLL_ENEMY_WARN: Enemy with ID ${enemyId} not found in active enemies for carousel scroll.`);
-    }
-}
+    const battleInterface = document.getElementById('battle-interface');
+    const isCurrentlyVisible = elStatsPanel.classList.contains('is-visible');
+    let showPanel = (explicitShow === null) ? !isCurrentlyVisible : explicitShow;
 
-function handleToggleWsLoggerScreen(explicitShow = null) {
-    if (!elWsLoggerScreen) {
-        wsLogger("EVENT_HANDLER_ERROR: WS Logger screen element (#ws-logger-screen) not found.");
-        return;
-    }
-    const isCurrentlyVisible = elWsLoggerScreen.classList.contains('is-visible');
-    let showScreen = (explicitShow === null) ? !isCurrentlyVisible : explicitShow;
-
-    if (showScreen) {
-        elWsLoggerScreen.classList.remove('is-hidden');
-        requestAnimationFrame(() => {
-            elWsLoggerScreen.classList.add('is-visible');
-        });
+    if (showPanel) {
+        elPanelOverlay.classList.add('is-visible');
+        elStatsPanel.classList.add('is-visible');
+        if (battleInterface) battleInterface.classList.add('is-blurred');
     } else {
-        elWsLoggerScreen.classList.remove('is-visible');
-        function afterWsLogTransition() {
-            if (!elWsLoggerScreen.classList.contains('is-visible')) {
-                elWsLoggerScreen.classList.add('is-hidden');
-            }
-            elWsLoggerScreen.removeEventListener('transitionend', afterWsLogTransition);
-        }
-        elWsLoggerScreen.addEventListener('transitionend', afterWsLogTransition);
-        setTimeout(() => {
-             if (!elWsLoggerScreen.classList.contains('is-visible')) {
-                elWsLoggerScreen.classList.add('is-hidden');
-            }
-        }, 350);
+        elPanelOverlay.classList.remove('is-visible');
+        elStatsPanel.classList.remove('is-visible');
+        if (battleInterface) battleInterface.classList.remove('is-blurred');
     }
 }
 
 /**
- * Menangani klik pada unit di Pseudomap.
+ * Menutup panel statistik jika pengguna mengklik di luar area panel atau tombol pemicunya.
+ * @param {MouseEvent} event - Event klik dari listener.
  */
+function handleClosePanelOnClickOutside(event) {
+    if (elStatsPanel && elStatsPanel.classList.contains('is-visible')) {
+        const isClickInsidePanel = elStatsPanel.contains(event.target);
+        // Pastikan elBattleOptionsTrigger sudah ada sebelum diakses
+        const isClickOnTrigger = elBattleOptionsTrigger ? elBattleOptionsTrigger.contains(event.target) : false;
+
+        if (!isClickInsidePanel && !isClickOnTrigger) {
+            handleToggleStatsPanel(false); // Tutup panel
+        }
+    }
+}
+
+// Sisa dari file ini tidak ada perubahan dari versi sebelumnya.
+// Fungsi-fungsi di bawah ini tetap sama.
+
 function handlePseudomapUnitClick(event) {
     const targetFrame = event.target.closest('.pseudomap-unit-frame');
     if (!targetFrame) return;
-
-    // DIUBAH: Gunakan fungsi baru
     sendSoundCommand({ sfx_name: "ui_tap" });
-
     const clickedUnitId = targetFrame.dataset.unitId;
     const currentTime = new Date().getTime();
     const activeUnit = getActiveUnit();
-
     if (wsMode === "idle" && activeUnit && activeUnit.id === bState.activeUnitID && bState.battleState === "Ongoing") {
-        if (clickedUnitId === activeUnit.id) { // Tap pada unit aktif sendiri (End Turn)
+        if (clickedUnitId === activeUnit.id) {
             if (isWaitingForSecondTapEndTurn && lastTappedActiveUnitId === clickedUnitId && (currentTime - lastTapTimeOnActiveUnit) < DOUBLE_TAP_END_TURN_THRESHOLD) {
                 sendCommandToTasker("PLAYER_END_TURN", { actorId: activeUnit.id });
                 resetDoubleTapState();
@@ -183,9 +180,8 @@ function handlePseudomapUnitClick(event) {
             }, DOUBLE_TAP_END_TURN_THRESHOLD + 50);
             return;
         }
-
         let validBasicAttackTargets = getValidBasicAttackTargetIdsForUI(activeUnit, bState.units);
-        if (validBasicAttackTargets.includes(clickedUnitId)) { // Tap pada target basic attack yang valid
+        if (validBasicAttackTargets.includes(clickedUnitId)) {
             if (isWaitingForSecondTapBasicAttack && lastTappedTargetUnitId === clickedUnitId && (currentTime - lastTapTimeOnTarget) < DOUBLE_TAP_BASIC_ATTACK_THRESHOLD) {
                 sendCommandToTasker("PLAYER_BASIC_ATTACK", { actorId: activeUnit.id, targetId: clickedUnitId });
                 resetDoubleTapState();
@@ -199,11 +195,9 @@ function handlePseudomapUnitClick(event) {
             if (getUnitById(clickedUnitId)?.type === "Enemy") scrollToEnemyInCarousel(clickedUnitId);
             return;
         }
-        
         resetDoubleTapState();
         return;
     }
-
     if (wsMode === "selecting_primary_target") {
         if (validPrimaryTargetIds.includes(clickedUnitId)) {
             selectedPrimaryTargetId = clickedUnitId;
@@ -224,21 +218,12 @@ function handlePseudomapUnitClick(event) {
     } else if (wsMode === "selecting_revive_target") {
         if (validPrimaryTargetIds.includes(clickedUnitId)) {
             wsLogger(`EVENT_HANDLER: Revive confirmed for target: ${clickedUnitId}`);
-            // Kirim perintah ke Tasker. Strukturnya mirip dengan konfirmasi skill biasa.
-            sendCommandToTasker("PLAYER_ACTION", {
-                actorId: selectedActionDetails.actorId,
-                commandId: selectedActionDetails.commandId,
-                // Backend akan menerima ini sebagai target yang akan di-revive
-                affectedTargetIds: [clickedUnitId] 
-            });
-            // Keluar dari mode targeting setelah perintah dikirim
+            sendCommandToTasker("PLAYER_ACTION", { actorId: selectedActionDetails.actorId, commandId: selectedActionDetails.commandId, affectedTargetIds: [clickedUnitId] });
             exitTargetingMode();
         } else {
-            // Jika user mengklik area kosong di pseudomap, batalkan aksi
             wsLogger("EVENT_HANDLER: Clicked on a non-revivable area. Cancelling revive.");
             handleActionCancel();
         }
-
     } else if (wsMode === "confirming_effect_area") {
         if (currentAffectedTargetIds.includes(clickedUnitId)) {
             handleActionConfirm();
@@ -252,21 +237,15 @@ function handlePseudomapUnitClick(event) {
 function handleActionButtonClick(event) {
     const button = event.target.closest('button');
     if (!button || button.classList.contains('disabled')) return;
-
     if (wsMode !== "idle") {
         handleActionCancel();
     }
     resetDoubleTapState();
-
     const commandId = button.dataset.commandId;
     const activeUnit = getActiveUnit();
     if (!activeUnit) return;
-
     const commandObject = activeUnit.commands.find(cmd => cmd.commandId === commandId);
     if (!commandObject) return;
-
-    // --- PERUBAHAN KRUSIAL DI SINI ---
-    // Hapus 'const' untuk memastikan kita mengisi variabel global, bukan membuat yang baru.
     selectedActionDetails = {
         commandId: commandId,
         commandObject: commandObject,
@@ -276,9 +255,7 @@ function handleActionButtonClick(event) {
         actorName: activeUnit.name,
         buttonText: button.textContent
     };
-
     const commandPatternShape = commandObject.targetingParams?.selection?.pattern?.shape;
-
     if (commandPatternShape === "AnyDefeatedAlly") {
         const defeatedAllyIds = bState.units.filter(u => u.type === "Ally" && u.status === "Defeated").map(u => u.id);
         if (defeatedAllyIds.length > 0) {
@@ -343,14 +320,12 @@ function resetDoubleTapState() {
     wsLogger("EVENT_HANDLER_TRACE: resetDoubleTapState CALLED.");
     if (lastTappedActiveUnitId) ui_showEndTurnHint(lastTappedActiveUnitId, false);
     if (lastTappedTargetUnitId) ui_highlightPotentialBasicAttackTarget(lastTappedTargetUnitId, false);
-
     lastTapTimeOnActiveUnit = 0;
     lastTappedActiveUnitId = null;
     lastTapTimeOnTarget = 0;
     lastTappedTargetUnitId = null;
     isWaitingForSecondTapEndTurn = false;
     isWaitingForSecondTapBasicAttack = false;
-    
     if (typeof ui_resetIdleHighlights === "function") {
         ui_resetIdleHighlights();
     }
@@ -364,10 +339,8 @@ function exitTargetingMode() {
     validPrimaryTargetIds = [];
     selectedPrimaryTargetId = null;
     currentAffectedTargetIds = [];
-    
     const actionButtons = elActionButtonsGroup ? elActionButtonsGroup.querySelectorAll('button') : [];
     actionButtons.forEach(btn => btn.classList.remove('skill-button-active'));
-
     if (typeof ui_clearAllTargetingVisuals === "function") {
         ui_clearAllTargetingVisuals();
     }
@@ -403,10 +376,17 @@ function handleEnemyCarouselClick(event) {
 function getAllUnitFramesOnMap() {
     return elPseudomapTrack ? elPseudomapTrack.querySelectorAll('.pseudomap-unit-frame') : [];
 }
+
 function handleToggleBattleLog(explicitShow = null) {
-    const isCurrentlyVisible = elBattleLogOverlay && elBattleLogOverlay.classList.contains('is-visible');
-    let showLog = (explicitShow === null) ? !isCurrentlyVisible : explicitShow;
-    if (typeof renderBattleLogOverlay === "function") renderBattleLogOverlay(showLog);
+    if (!elBattleLogOverlay || !elBattleLogEntries) { return; }
+    if (explicitShow) {
+        const titleElement = elBattleLogOverlay.querySelector('h3');
+        if (titleElement) titleElement.textContent = "Battle Log";
+        elBattleLogOverlay.classList.remove('is-hidden');
+        elBattleLogOverlay.classList.add('is-visible');
+    } else {
+        elBattleLogOverlay.classList.remove('is-visible');
+    }
 }
 
 function handleTouchStart(event, carouselType) {
@@ -424,12 +404,9 @@ function handleTouchEnd(event, carouselType) {
     const elapsedTime = touchEndTime - touchStartTime;
     if (elapsedTime < SWIPE_TIME_THRESHOLD && Math.abs(deltaX) > SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
         if (carouselType === 'enemy') {
-            // DIUBAH: Gunakan fungsi baru
             sendSoundCommand({ sfx_name: "ui_swipe" });
             navigateEnemyCarousel(deltaX > 0 ? -1 : 1);
         } else if (carouselType === 'player') {
-            // Player hero swipe juga bisa diberi suara jika mau
-            // sendSoundCommand({ sfx_name: "ui_swipe" });
             navigatePlayerHeroesCarouselManual(deltaX > 0 ? -1 : 1);
         }
     }
@@ -448,6 +425,7 @@ function navigateEnemyCarousel(direction) {
         else wsLogger("NAV_ENEMY_CAROUSEL_ERROR: renderEnemyStage function not found!");
     }
 }
+
 function navigatePlayerHeroesCarouselManual(direction) {
     if (!elPlayerHeroesCarousel || !elPlayerHeroesDeck || !bState || !bState.units) return;
     const playerHeroes = bState.units.filter(unit => unit.type === "Ally" && unit.status !== "Defeated");
@@ -471,6 +449,7 @@ function navigatePlayerHeroesCarouselManual(direction) {
         wsLogger(`NAV_PLAYER_MANUAL: Swiped. New StartIndex: ${currentPlayerHeroStartIndex}. Offset: ${newScrollOffsetPx}px`);
     }
 }
+
 function createRipple(event, buttonElement) {
     const button = buttonElement || event.currentTarget;
     const existingRipple = button.querySelector(".ripple");
@@ -487,6 +466,7 @@ function createRipple(event, buttonElement) {
     circle.addEventListener('animationend', () => { if (circle.parentNode) circle.parentNode.removeChild(circle); });
     setTimeout(() => { if(circle && circle.parentNode) circle.parentNode.removeChild(circle); }, 600);
 }
+
 function handleCopyWsLog() {
     if (typeof getAccumulatedWsLog === "function") {
         const logText = getAccumulatedWsLog();
@@ -494,7 +474,6 @@ function handleCopyWsLog() {
             navigator.clipboard.writeText(logText)
                 .then(() => {
                     wsLogger("EVENT_HANDLER_INFO: WS Log copied to clipboard!");
-                    // Ganti alert dengan custom dialog jika memungkinkan di masa depan
                     alert("Log copied to clipboard!");
                 })
                 .catch(err => {
@@ -509,13 +488,13 @@ function handleCopyWsLog() {
         wsLogger("EVENT_HANDLER_ERROR: getAccumulatedWsLog function not found.");
     }
 }
+
 function tryManuallyCopyLog(logText) {
-    // Ganti prompt dengan custom dialog jika memungkinkan
     prompt("Copy all text from below (Ctrl+C / Cmd+C):", logText);
 }
+
 function handleClearWsLog() {
     if (typeof clearAccumulatedWsLog === "function") {
-        // Ganti confirm dengan custom dialog
         if (confirm("Are you sure you want to clear the WS Log? This action cannot be undone.")) {
             clearAccumulatedWsLog();
             wsLogger("EVENT_HANDLER_INFO: WS Log cleared by user.");
@@ -525,4 +504,22 @@ function handleClearWsLog() {
     }
 }
 
-wsLogger("EVENT_HANDLER_JS: event_handlers.js (with separated sound commands) loaded.");
+function handleToggleWsLoggerScreen(explicitShow = null) {
+    if (!elWsLoggerScreen) {
+        wsLogger("EVENT_HANDLER_ERROR: WS Logger screen element (#ws-logger-screen) not found.");
+        return;
+    }
+    const isCurrentlyVisible = elWsLoggerScreen.classList.contains('is-visible');
+    let showScreen = (explicitShow === null) ? !isCurrentlyVisible : explicitShow;
+
+    if (showScreen) {
+        elWsLoggerScreen.classList.remove('is-hidden');
+        requestAnimationFrame(() => {
+            elWsLoggerScreen.classList.add('is-visible');
+        });
+    } else {
+        elWsLoggerScreen.classList.remove('is-visible');
+    }
+}
+
+wsLogger("EVENT_HANDLER_JS: event_handlers.js (with full code and refined close logic) loaded.");

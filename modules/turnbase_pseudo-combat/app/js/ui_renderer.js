@@ -129,6 +129,8 @@ function refreshAllUIElements(passedPreviousBState = null) {
         return;
     }
 
+    renderStatsPanel();
+
     const activeUnit = getActiveUnit();
     if (activeUnit && activeUnit.type === 'Enemy') {
         if (!passedPreviousBState || activeUnit.id !== passedPreviousBState.activeUnitID) {
@@ -754,7 +756,7 @@ function ui_renderReviveTargetingMode(defeatedAllyIds) {
 }
 
 
-wsLogger("UI_RENDERER_JS: ui_renderer.js (with popup fixes) loaded.");
+
 
 
 /**
@@ -970,3 +972,85 @@ function animateExpBar(heroSummary, didLevelUp) {
         }, 50); // Jeda 50ms untuk memastikan posisi awal sudah ter-render
     });
 }
+
+function renderStatsPanel() {
+    if (!elStatsPanelContent || !bState || !bState.units) {
+        wsLogger("UI_RENDERER_STATS: Gagal merender panel statistik, elemen atau data tidak ditemukan.");
+        return;
+    }
+
+    // Kosongkan konten sebelumnya
+    elStatsPanelContent.innerHTML = '';
+
+    const allUnits = [...bState.units];
+
+    // Urutkan unit: Ally dulu, baru Enemy
+    allUnits.sort((a, b) => {
+        if (a.type === 'Ally' && b.type === 'Enemy') return -1;
+        if (a.type === 'Enemy' && b.type === 'Ally') return 1;
+        return 0;
+    });
+
+    allUnits.forEach(unit => {
+        const card = document.createElement('div');
+        card.className = `stats-unit-card ${unit.type.toLowerCase()}`;
+
+        // Header Kartu (Potret & Nama)
+        const header = document.createElement('div');
+        header.className = 'stats-unit-header';
+        header.innerHTML = `
+            <img src="${getImagePathForUnit(unit.portraitFilename, unit.type, 'portraitHead')}" class="stats-unit-portrait" onerror="this.src='${getImagePathForUnit(null, unit.type, "portraitHead", true)}'">
+            <div class="stats-unit-info">
+                <h3>${unit.name || 'Unknown Unit'}</h3>
+                <p>Level ${unit.level || 1} ${unit.role || ''} ${unit.tier || ''}</p>
+            </div>
+        `;
+
+        // Daftar Statistik Utama
+        const statsList = document.createElement('ul');
+        statsList.className = 'stats-list';
+        const stats = unit.stats || {};
+        statsList.innerHTML = `
+            <li><span class="stat-name">HP</span> <span class="stat-value">${stats.hp || 0} / ${stats.maxHp || 0}</span></li>
+            <li><span class="stat-name">ATK</span> <span class="stat-value">${stats.atk || 0}</span></li>
+            <li><span class="stat-name">Shield</span> <span class="stat-value">${stats.shieldHP || 0}</span></li>
+            <li><span class="stat-name">DEF</span> <span class="stat-value">${stats.def || 0}</span></li>
+            <li><span class="stat-name">Gauge</span> <span class="stat-value">${stats.gauge || 0}%</span></li>
+            <li><span class="stat-name">Position</span> <span class="stat-value">${unit.pseudoPos}</span></li>
+        `;
+
+        card.appendChild(header);
+        card.appendChild(statsList);
+
+        // --- TAMBAHAN KHUSUS: Bagian Progresi Olahraga ---
+        // Hanya tampilkan jika ini adalah unit pemain (Kyuris) dan datanya ada
+        if (unit.id.includes('kyuris') && bState.progression_snapshot && bState.progression_snapshot.exerciseStatsProgression) {
+            const progSection = document.createElement('div');
+            progSection.className = 'exercise-progression-section';
+            
+            const progHeader = document.createElement('h4');
+            progHeader.textContent = 'Exercise Progression';
+            
+            const progList = document.createElement('ul');
+            progList.className = 'stats-list exercise-stats-list';
+
+            bState.progression_snapshot.exerciseStatsProgression.forEach(prog => {
+                const progItem = document.createElement('li');
+                progItem.innerHTML = `
+                    <span class="stat-name">${prog.id.replace('_', ' ')} (${prog.stats})</span>
+                    <span class="stat-value">Lv. ${prog.level || 1}</span>
+                `;
+                progList.appendChild(progItem);
+            });
+
+            progSection.appendChild(progHeader);
+            progSection.appendChild(progList);
+            card.appendChild(progSection);
+        }
+
+        elStatsPanelContent.appendChild(card);
+    });
+}
+
+
+wsLogger("UI_RENDERER_JS: ui_renderer.js (with stats panel logic) loaded.");

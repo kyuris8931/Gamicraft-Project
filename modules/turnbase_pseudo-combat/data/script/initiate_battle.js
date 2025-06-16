@@ -161,9 +161,9 @@ try {
                 if (finalLevel > 1) {
                      const levelBonus = finalLevel - 1;
                      let statGrowth = { hp: 0, atk: 0 };
-                     if(unit.tier === "Minion") statGrowth = { hp: 3, atk: 1 };
-                     if(unit.tier === "Elite") statGrowth = { hp: 6, atk: 2 };
-                     if(unit.tier === "Boss") statGrowth = { hp: 9, atk: 3 };
+                     if(unit.tier === "Minion") statGrowth = { hp: 2, atk: 1 };
+                     if(unit.tier === "Elite") statGrowth = { hp: 4, atk: 2 };
+                     if(unit.tier === "Boss") statGrowth = { hp: 6, atk: 3 };
 
                      unit.stats.maxHp += levelBonus * statGrowth.hp;
                      unit.stats.hp = unit.stats.maxHp;

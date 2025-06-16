@@ -57,7 +57,7 @@
                     "effects": [
                         {
                             "type": "heal",
-                            "multiplier": 1.5,
+                            "multiplier": 2,
                             "basedOn": "caster_atk",
                             "target": "selected"
                         }
@@ -178,10 +178,10 @@
                 },
                 {
                     "commandId": "ar_shield_blast",
-                    "name": "Shield Blast (5)",
-                    "description": "Deals AoE damage (2x ATK), grants self shield (1x ATK).",
+                    "name": "Shield Blast (4)",
+                    "description": "Deals AoE damage (1x ATK), grants self shield (2.5x ATK).",
                     "type": "Skill",
-                    "spCost": 5,
+                    "spCost": 4,
                     "sfxFilename": "sfx_shield_blast.mp3",
                     "targetingParams": {
                         "selection": {
@@ -194,12 +194,12 @@
                     "effects": [
                         {
                             "type": "damage_aoe_adjacent",
-                            "multiplier": 2,
+                            "multiplier": 1,
                             "target": "caster_adjacent_enemies"
                         },
                         {
                             "type": "shield",
-                            "multiplier": 1,
+                            "multiplier": 2.5,
                             "basedOn": "caster_atk",
                             "target": "caster"
                         }
@@ -290,25 +290,26 @@
                     "effects": [
                         {
                             "type": "damage",
-                            "multiplier": 0.75,
+                            "multiplier": 0.8,
                             "target": "area"
                         }
                     ]
                 },
                 {
-                    "commandId": "rh_piercing_shot",
-                    "name": "Piercing Shot (4)",
-                    "description": "Deals damage (2x ATK), heals lowest HP ally (1x ATK).",
+                    "commandId": "rh_charity_shot",
+                    "name": "Charity Shot (4)",
+                    "description": "Deals damage (2x ATK), heals lowest HP ally (2x ATK).",
                     "type": "Skill",
-                    "spCost": 5,
-                    "sfxFilename": "sfx_piercing_shot.mp3",
+                    "spCost": 4,
+                    "sfxFilename": "sfx_charity_shot.mp3",
                     "targetingParams": {
                         "selection": {
                             "targetableTypes": ["Enemy"],
                             "pattern": {
-                                "shape": "WithinDistance",
-                                "distance": 3,
-                                "direction": "Both"
+                                "shape": "SpecificPositions",
+                                "positions": [3],
+                                "direction": "Forward",
+                                "circular": true
                             }
                         },
                         "area": {
@@ -325,7 +326,7 @@
                         },
                         {
                             "type": "heal_lowest_hp_ally",
-                            "multiplier": 1.0,
+                            "multiplier": 2.0,
                             "basedOn": "caster_atk"
                         }
                     ]

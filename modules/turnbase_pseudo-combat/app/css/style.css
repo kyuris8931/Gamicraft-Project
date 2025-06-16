@@ -1208,3 +1208,178 @@ html, body {
 .is-fully-hidden {
     display: none !important;
 }
+
+.panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(44, 62, 80, 0.6); /* Warna gelap semi-transparan */
+    z-index: 1099; /* Di bawah panel statistik (1100) */
+    
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    /* backdrop-filter dihapus dari sini untuk diganti dengan metode yang lebih andal */
+}
+
+/* Kelas BARU untuk mem-blur konten di belakang panel */
+#battle-interface.is-blurred {
+    filter: blur(4px) brightness(0.7);
+    transform: scale(0.98); /* Efek opsional agar terlihat sedikit mengecil */
+    pointer-events: none; /* Mencegah interaksi dengan konten yang di-blur */
+    user-select: none;
+}
+
+.panel-overlay.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.stats-panel {
+    position: fixed;
+    top: 0;
+    right: -320px; /* Mulai dari posisi tersembunyi di kanan */
+    width: 100%;
+    max-width: 320px; /* Lebar maksimum panel */
+    height: 100vh;
+    z-index: 1100; /* Di atas antarmuka utama, tapi di bawah log overlay */
+    
+    display: flex;
+    flex-direction: column;
+
+    background-color: var(--color-surface-glass-alt);
+    border-left: 1px solid var(--color-border-glass);
+    box-shadow: -5px 0 25px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+
+    transition: right 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.stats-panel.is-visible {
+    right: 0; /* Geser ke dalam layar */
+}
+
+/* Header Panel */
+.stats-panel-header {
+    flex-shrink: 0;
+    padding: calc(var(--spacing-unit) * 1.5);
+    border-bottom: 1px solid var(--color-border-strong);
+    text-align: center;
+}
+
+.stats-panel-header h2 {
+    font-family: var(--font-display);
+    font-size: 1em;
+    color: var(--color-text-primary);
+    letter-spacing: 0.5px;
+}
+
+/* Konten Panel (Scrollable) */
+.stats-panel-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: var(--spacing-unit);
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing-unit) * 1.5);
+}
+
+/* Kartu Statistik untuk setiap Unit */
+.stats-unit-card {
+    background-color: var(--color-surface-solid);
+    border-radius: var(--border-radius-elements);
+    border: 1px solid var(--color-border-strong);
+    padding: var(--spacing-unit);
+    box-shadow: var(--shadow-elements);
+}
+
+.stats-unit-card.ally {
+    border-left: 4px solid var(--color-accent-tertiary);
+}
+.stats-unit-card.enemy {
+    border-left: 4px solid var(--color-accent-secondary);
+}
+
+.stats-unit-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-unit);
+    margin-bottom: var(--spacing-unit);
+}
+
+.stats-unit-portrait {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--color-border-strong);
+}
+
+.stats-unit-info h3 {
+    font-size: 0.9em;
+    font-weight: 700;
+}
+.stats-unit-info p {
+    font-size: 0.75em;
+    color: var(--color-text-secondary);
+}
+
+/* Daftar Statistik */
+.stats-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.8em;
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 2 kolom */
+    gap: calc(var(--spacing-unit) * 0.5);
+}
+
+.stats-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px;
+    background-color: rgba(0,0,0,0.02);
+    border-radius: var(--border-radius-small);
+}
+
+.stats-list .stat-name {
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.stats-list .stat-value {
+    font-weight: 700;
+}
+
+/* Khusus untuk Progresi Olahraga */
+.exercise-progression-section {
+    margin-top: calc(var(--spacing-unit) * 1.5);
+    border-top: 1px dashed var(--color-border-strong);
+    padding-top: var(--spacing-unit);
+}
+.exercise-progression-section h4 {
+    font-size: 0.7em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    margin-bottom: calc(var(--spacing-unit)*0.5);
+}
+.exercise-stats-list {
+    grid-template-columns: 1fr; /* Hanya 1 kolom untuk progresi */
+}
+
+/* Footer Panel */
+.stats-panel-footer {
+    flex-shrink: 0;
+    padding: var(--spacing-unit);
+    border-top: 1px solid var(--color-border-strong);
+    display: flex;
+    gap: var(--spacing-unit);
+}
+
+.stats-panel-footer .styled-button {
+    flex-grow: 1; /* Agar tombol memenuhi ruang */
+}

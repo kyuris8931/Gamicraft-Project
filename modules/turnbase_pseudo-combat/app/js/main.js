@@ -199,6 +199,7 @@ function initializeDOMReferences() {
     elCopyWsLogBtn = document.getElementById('copy-ws-log-btn');
     elClearWsLogBtn = document.getElementById('clear-ws-log-btn');
     elStatsPanel = document.getElementById('stats-panel');
+    elPanelOverlay = document.getElementById('panel-overlay');
     elStatsPanelContent = document.getElementById('stats-panel-content');
     // --------------------
     wsLogger("MAIN_JS: DOM elements referenced.");
