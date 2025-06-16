@@ -1,14 +1,14 @@
 // --- process_item_heal_all.js (Tasker) ---
-// Deskripsi: Script sederhana untuk memproses efek item 'Heal All 25%'.
-// Ini adalah implementasi hard-code untuk satu item spesifik.
+// Description: Simple script to process the effect of the item 'Heal All 25%'.
+// This is a hard-coded implementation for one specific item.
 //
-// Input dari Tasker:
-// - %battle_state: String JSON dari battle_state saat ini.
-// - %item_name: (Opsional) Nama item untuk logging, e.g., "Potion of Valor".
+// Input from Tasker:
+// - %battle_state: JSON string of the current battle_state.
+// - %item_name: (Optional) Name of the item for logging, e.g., "Potion of Valor".
 //
-// Output untuk Tasker:
-// - %battle_state: String JSON dari battle_state yang telah diupdate.
-// - %js_script_log: Log eksekusi untuk debugging.
+// Output for Tasker:
+// - %battle_state: JSON string of the updated battle_state.
+// - %js_script_log: Execution log for debugging.
 
 let taskerLogOutput = "";
 function scriptLogger(message) {
@@ -17,63 +17,63 @@ function scriptLogger(message) {
 
 let bState;
 try {
-    scriptLogger("ITEM_PROC_HEAL_ALL: Script dimulai.");
+    scriptLogger("ITEM_PROC_HEAL_ALL: Script started.");
 
-    // 1. Validasi dan Parsing Input
+    // 1. Validate and Parse Input
     if (typeof battle_state !== 'string' || !battle_state.trim()) {
-        throw new Error("Input 'battle_state' kosong atau tidak valid.");
+        throw new Error("Input 'battle_state' is empty or invalid.");
     }
     bState = JSON.parse(battle_state);
 
     if (!bState.units || !Array.isArray(bState.units)) {
-        throw new Error("Struktur battle_state tidak valid, 'units' tidak ditemukan.");
+        throw new Error("Invalid battle_state structure, 'units' not found.");
     }
 
-    // Mengambil nama item dari input atau menggunakan nama default
+    // Retrieve item name from input or use default name
     const itemName = typeof item_name === 'string' && item_name.trim() ? item_name : "Healing Item";
     const healedUnitsLog = [];
 
-    // 2. Iterasi dan Terapkan Efek Heal ke semua Ally yang hidup
+    // 2. Iterate and Apply Heal Effect to all living Allies
     bState.units.forEach(unit => {
-        // Efek hanya berlaku untuk 'Ally' yang statusnya BUKAN 'Defeated'
+        // Effect only applies to 'Ally' whose status is NOT 'Defeated'
         if (unit.type === "Ally" && unit.status !== "Defeated") {
             const healAmount = Math.round(unit.stats.maxHp * 0.25);
             const oldHp = unit.stats.hp;
             
-            // Jangan menyembuhkan jika HP sudah penuh
+            // Skip healing if HP is already full
             if (oldHp >= unit.stats.maxHp) {
-                scriptLogger(`SKIP_HEAL: ${unit.name} sudah memiliki HP penuh.`);
-                return; // Lanjut ke unit berikutnya dalam loop
+                scriptLogger(`SKIP_HEAL: ${unit.name} already has full HP.`);
+                return; // Continue to the next unit in the loop
             }
 
-            // Terapkan penyembuhan, pastikan tidak melebihi maxHp
+            // Apply healing, ensure it does not exceed maxHp
             unit.stats.hp = Math.min(unit.stats.maxHp, oldHp + healAmount);
             
-            // Hitung jumlah penyembuhan aktual yang diterima
+            // Calculate the actual amount of healing received
             const actualHealReceived = unit.stats.hp - oldHp; 
 
-            scriptLogger(`HEAL_APPLIED: ${unit.name} disembuhkan sebesar ${actualHealReceived} HP (dari ${oldHp} menjadi ${unit.stats.hp}).`);
+            scriptLogger(`HEAL_APPLIED: ${unit.name} healed by ${actualHealReceived} HP (from ${oldHp} to ${unit.stats.hp}).`);
             healedUnitsLog.push(`${unit.name} (+${actualHealReceived} HP)`);
         }
     });
 
-    // 3. Update Battle Message dan Detail Aksi Terakhir
+    // 3. Update Battle Message and Last Action Details
     if (healedUnitsLog.length > 0) {
         bState.battleMessage = `${itemName} was used! ${healedUnitsLog.join('. ')}.`;
     } else {
         bState.battleMessage = `${itemName} was used, but all allies' HP were already full.`;
     }
 
-    // Memberi detail pada lastActionDetails agar bisa di-render oleh UI jika perlu
+    // Provide details in lastActionDetails for UI rendering if needed
     bState.lastActionDetails = {
         actorId: "SYSTEM_ITEM",
         commandId: "__ITEM_HEAL_ALL__",
         commandName: itemName,
-        targets: [], // Targetnya global, jadi bisa dikosongkan
+        targets: [], // Targets are global, so can be left empty
         effectsSummary: healedUnitsLog
     };
 
-    scriptLogger("ITEM_PROC_HEAL_ALL: Proses selesai.");
+    scriptLogger("ITEM_PROC_HEAL_ALL: Process completed.");
 
 } catch (e) {
     scriptLogger("ITEM_PROC_HEAL_ALL_ERROR: " + e.message);
@@ -85,6 +85,6 @@ try {
     }
 }
 
-// 4. Siapkan Variabel Output untuk Tasker
+// 4. Prepare Output Variables for Tasker
 var battle_state = JSON.stringify(bState);
 var js_script_log = taskerLogOutput;

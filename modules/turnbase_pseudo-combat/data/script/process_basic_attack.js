@@ -1,17 +1,17 @@
-// --- script_tasker/process_basic_attack.js (Versi Lengkap & Diperbaiki) ---
-// Deskripsi: Memproses aksi Basic Attack dari pemain.
-// Termasuk: kalkulasi damage, penerapan damage, generasi SP secara acak,
-// dan pelacakan musuh yang kalah untuk sistem progresi.
+// --- script_tasker/process_basic_attack.js (Complete & Fixed Version) ---
+// Description: Processes the Basic Attack action from the player.
+// Includes: damage calculation, damage application, random SP generation,
+// and tracking defeated enemies for progression system.
 //
-// Variabel Input dari Tasker:
-// - battle_state: String JSON dari battle_state saat ini.
-// - actor_id: ID unit yang melakukan Basic Attack.
-// - target_id: ID unit yang menjadi target Basic Attack.
+// Input Variables from Tasker:
+// - battle_state: JSON string of the current battle_state.
+// - actor_id: ID of the unit performing the Basic Attack.
+// - target_id: ID of the unit targeted by the Basic Attack.
 //
-// Variabel Output untuk Tasker:
-// - battle_state: String JSON dari battle_state yang telah diupdate.
-// - js_script_log: Log eksekusi untuk debugging.
-// - was_target_eliminated: Boolean, true jika target berhasil dikalahkan.
+// Output Variables for Tasker:
+// - battle_state: JSON string of the updated battle_state.
+// - js_script_log: Execution log for debugging.
+// - was_target_eliminated: Boolean, true if the target was successfully defeated.
 
 let taskerLogOutput = "";
 let wasTargetEliminated = false;
@@ -22,7 +22,7 @@ function scriptLogger(message) {
     taskerLogOutput += `[${timestamp}] ${message}\n`;
 }
 
-// --- FUNGSI HELPER ---
+// --- HELPER FUNCTIONS ---
 
 function getUnitById(unitId, unitsArray) {
     if (!unitId || !Array.isArray(unitsArray)) return null;
@@ -30,10 +30,10 @@ function getUnitById(unitId, unitsArray) {
 }
 
 /**
- * Menerapkan damage ke target, dengan memperhitungkan shield dan melacak progresi.
- * @param {object} targetUnit - Objek unit target.
- * @param {number} damageAmount - Jumlah damage.
- * @param {object} bStateRef - Referensi ke battle_state untuk melacak progresi.
+ * Applies damage to the target, accounting for shield and tracking progression.
+ * @param {object} targetUnit - Target unit object.
+ * @param {number} damageAmount - Amount of damage.
+ * @param {object} bStateRef - Reference to battle_state for progression tracking.
  * @returns {{totalDamage: number, shieldDamage: number, hpDamage: number}}
  */
 function applyDamage(targetUnit, damageAmount, bStateRef) {
@@ -57,7 +57,7 @@ function applyDamage(targetUnit, damageAmount, bStateRef) {
         targetUnit.status = "Defeated";
         wasTargetEliminated = true;
 
-        // Lacak musuh yang kalah untuk progresi
+        // Track defeated enemies for progression
         if (targetUnit.type === "Enemy" && bStateRef._defeatedEnemiesThisBattle && !bStateRef._defeatedEnemiesThisBattle.some(e => e.id === targetUnit.id)) {
             const baseExp = bStateRef.units.find(u => u.id === targetUnit.id)?.expValue || 1;
             bStateRef._defeatedEnemiesThisBattle.push({
@@ -65,51 +65,51 @@ function applyDamage(targetUnit, damageAmount, bStateRef) {
                 tier: targetUnit.tier,
                 expValue: baseExp
             });
-            scriptLogger(`TRACKING: ${targetUnit.name} (Tier: ${targetUnit.tier}) ditambahkan ke daftar progresi.`);
+            scriptLogger(`TRACKING: ${targetUnit.name} (Tier: ${targetUnit.tier}) added to progression list.`);
         }
     }
     return { totalDamage: shieldDamageDealt + hpDamageDealt, shieldDamage: shieldDamageDealt, hpDamage: hpDamageDealt };
 }
 
 /**
- * Menghasilkan SP secara acak dan menambahkannya ke bState.
- * @param {object} bState - Objek battle_state yang akan dimodifikasi.
- * @returns {number} Jumlah SP yang dihasilkan.
+ * Generates random SP and adds it to bState.
+ * @param {object} bState - battle_state object to be modified.
+ * @returns {number} Amount of SP generated.
  */
 function generateSPForBasicAttack(bState) {
     let spGain = 0;
     const rand = Math.random();
         
-    if (rand < 0.02) spGain = 5;      // 2% untuk 5 SP
-    else if (rand < 0.10) spGain = 4; // 8% untuk 4 SP
-    else if (rand < 0.27) spGain = 3; // 17% untuk 3 SP
-    else if (rand < 0.55) spGain = 2; // 28% untuk 2 SP
-    else spGain = 1;                  // 45% untuk 1 SP
+    if (rand < 0.02) spGain = 5;      // 2% chance for 5 SP
+    else if (rand < 0.10) spGain = 4; // 8% chance for 4 SP
+    else if (rand < 0.27) spGain = 3; // 17% chance for 3 SP
+    else if (rand < 0.55) spGain = 2; // 28% chance for 2 SP
+    else spGain = 1;                  // 45% chance for 1 SP
     
-    // Pastikan teamSP dan maxTeamSP ada sebelum diubah
+    // Ensure teamSP and maxTeamSP exist before modifying
     if (typeof bState.teamSP === 'number' && typeof bState.maxTeamSP === 'number') {
         bState.teamSP = Math.min(bState.teamSP + spGain, bState.maxTeamSP);
         return spGain;
     }
     
-    scriptLogger("SP_GEN_WARN: bState.teamSP atau bState.maxTeamSP tidak terdefinisi. Gagal menambah SP.");
-    return 0; // Gagal menghasilkan SP jika state tidak valid
+    scriptLogger("SP_GEN_WARN: bState.teamSP or bState.maxTeamSP is undefined. Failed to add SP.");
+    return 0; // Failed to generate SP if state is invalid
 }
 
 
-// --- LOGIKA UTAMA SKRIP ---
+// --- MAIN SCRIPT LOGIC ---
 let bState;
 try {
     taskerLogOutput = "";
-    scriptLogger("BASIC_ATTACK_PROC: Script dimulai.");
+    scriptLogger("BASIC_ATTACK_PROC: Script started.");
 
-    // 1. Validasi dan Parsing Input
-    if (typeof battle_state !== 'string' || !battle_state.trim()) throw new Error("Input 'battle_state' kosong.");
-    if (typeof actor_id !== 'string' || !actor_id.trim()) throw new Error("Input 'actor_id' kosong.");
-    if (typeof target_id !== 'string' || !target_id.trim()) throw new Error("Input 'target_id' kosong.");
+    // 1. Validate and Parse Input
+    if (typeof battle_state !== 'string' || !battle_state.trim()) throw new Error("Input 'battle_state' is empty.");
+    if (typeof actor_id !== 'string' || !actor_id.trim()) throw new Error("Input 'actor_id' is empty.");
+    if (typeof target_id !== 'string' || !target_id.trim()) throw new Error("Input 'target_id' is empty.");
 
     bState = JSON.parse(battle_state);
-    // Inisialisasi array pelacak progresi jika belum ada
+    // Initialize progression tracking array if not present
     if (!bState._defeatedEnemiesThisBattle) {
         bState._defeatedEnemiesThisBattle = [];
     }
@@ -117,28 +117,28 @@ try {
     const attacker = getUnitById(actor_id, bState.units);
     const defender = getUnitById(target_id, bState.units);
 
-    if (!attacker) throw new Error(`Aktor dengan ID ${actor_id} tidak ditemukan.`);
-    if (!defender) throw new Error(`Target dengan ID ${target_id} tidak ditemukan.`);
-    if (attacker.status === "Defeated") throw new Error(`Aktor ${attacker.name} sudah kalah.`);
-    if (defender.status === "Defeated") throw new Error(`Target ${defender.name} sudah kalah.`);
+    if (!attacker) throw new Error(`Actor with ID ${actor_id} not found.`);
+    if (!defender) throw new Error(`Target with ID ${target_id} not found.`);
+    if (attacker.status === "Defeated") throw new Error(`Actor ${attacker.name} is already defeated.`);
+    if (defender.status === "Defeated") throw new Error(`Target ${defender.name} is already defeated.`);
 
-    scriptLogger(`Aktor: ${attacker.name}, Target: ${defender.name}`);
+    scriptLogger(`Actor: ${attacker.name}, Target: ${defender.name}`);
 
-    // 2. Kalkulasi dan Terapkan Damage
+    // 2. Calculate and Apply Damage
     const damageDealt = attacker.stats.atk;
     const damageResult = applyDamage(defender, damageDealt, bState);
-    scriptLogger(`DAMAGE: ${attacker.name} memberikan ${damageResult.totalDamage} total damage.`);
+    scriptLogger(`DAMAGE: ${attacker.name} dealt ${damageResult.totalDamage} total damage.`);
 
     if (wasTargetEliminated) {
-        scriptLogger(`KILL: ${defender.name} telah dikalahkan!`);
+        scriptLogger(`KILL: ${defender.name} has been defeated!`);
     }
     
     // 3. Generate SP
     const spGained = generateSPForBasicAttack(bState);
-    scriptLogger(`SP_GEN: Mendapatkan ${spGained} SP. SP Tim sekarang: ${bState.teamSP}/${bState.maxTeamSP}.`);
+    scriptLogger(`SP_GEN: Gained ${spGained} SP. Team SP now: ${bState.teamSP}/${bState.maxTeamSP}.`);
     
-    // 4. Update Battle Message dan Detail Aksi Terakhir
-    bState.battleMessage = `${attacker.name} menyerang ${defender.name}, memberikan ${damageResult.totalDamage} damage. (+${spGained} SP)`;
+    // 4. Update Battle Message and Last Action Details
+    bState.battleMessage = `${attacker.name} attacked ${defender.name}, dealing ${damageResult.totalDamage} damage. (+${spGained} SP)`;
     bState.lastActionDetails = {
         actorId: actor_id,
         commandId: "__BASIC_ATTACK__",
@@ -147,9 +147,9 @@ try {
         effectsSummary: [`${defender.name} (-${damageResult.totalDamage} HP)`]
     };
     
-    // 5. Set status aktor menjadi 'EndTurn'
+    // 5. Set actor status to 'EndTurn'
     attacker.status = "EndTurn";
-    scriptLogger(`STATUS: Status ${attacker.name} diubah menjadi EndTurn.`);
+    scriptLogger(`STATUS: ${attacker.name}'s status changed to EndTurn.`);
 
 } catch (e) {
     scriptLogger("BASIC_ATTACK_PROC_ERROR: " + e.message + " | Stack: " + e.stack);
@@ -158,7 +158,7 @@ try {
     bState.battleMessage = "Basic Attack Error: " + e.message;
 }
 
-// --- Output untuk Tasker ---
+// --- Output for Tasker ---
 var battle_state = JSON.stringify(bState);
 var js_script_log = taskerLogOutput;
 var was_target_eliminated = wasTargetEliminated;

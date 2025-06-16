@@ -1,6 +1,6 @@
 // --- script_tasker/enemy_action_processor.js ---
-// Deskripsi: Skrip ini HANYA memproses giliran musuh.
-// Versi ini menambahkan pengecekan Stun di awal sebagai gerbang utama.
+// Description: This script ONLY processes enemy turns.
+// This version adds a Stun check at the beginning as the main gate.
 
 let taskerLogOutput = "";
 let wasTargetEliminated = false;
@@ -31,28 +31,28 @@ function applyDamage(targetUnit, damageAmount) {
     return { totalDamage: shieldDamageDealt + hpDamageDealt, shieldDamage: shieldDamageDealt, hpDamage: hpDamageDealt }; 
 }
 
-// --- LOGIKA UTAMA SKRIP ---
+// --- MAIN SCRIPT LOGIC ---
 let bState;
 try {
     taskerLogOutput = "";
-    scriptLogger("ENEMY_AI: Script dimulai.");
+    scriptLogger("ENEMY_AI: Script started.");
 
-    if (typeof battle_state !== 'string' || !battle_state.trim()) throw new Error("Input 'battle_state' kosong.");
+    if (typeof battle_state !== 'string' || !battle_state.trim()) throw new Error("Input 'battle_state' is empty.");
     bState = JSON.parse(battle_state);
     const activeEnemyId = bState.activeUnitID;
-    if (!activeEnemyId) throw new Error("bState.activeUnitID tidak ditemukan.");
+    if (!activeEnemyId) throw new Error("bState.activeUnitID not found.");
     const attacker = getUnitById(activeEnemyId, bState.units);
-    if (!attacker) throw new Error(`Musuh dengan ID ${activeEnemyId} tidak ditemukan.`);
+    if (!attacker) throw new Error(`Enemy with ID ${activeEnemyId} not found.`);
 
-    // --- PERUBAHAN UTAMA: GERBANG PEMERIKSAAN STUN ---
-    // Cek apakah ada debuff "Stun" dengan durasi lebih dari 0.
-    // Durasi sudah dikurangi oleh turn_manager sebelumnya.
+    // --- MAIN CHANGE: STUN CHECK GATE ---
+    // Check if there is a "Stun" debuff with a duration greater than 0.
+    // Duration has already been reduced by turn_manager previously.
     const isStunned = attacker.statusEffects?.debuffs?.some(e => e.name === "Stun" && e.duration > 0);
 
     if (isStunned) {
-        scriptLogger(`ENEMY_AI: ${attacker.name} terkena Stun. Melewatkan aksi.`);
+        scriptLogger(`ENEMY_AI: ${attacker.name} is Stunned. Skipping action.`);
         
-        // Buat pesan dan flag khusus untuk UI/Tasker
+        // Create special message and flag for UI/Tasker
         bState.battleMessage = `${attacker.name} is Stunned!`;
         bState.lastActionDetails = {
             actorId: activeEnemyId,
@@ -60,12 +60,12 @@ try {
             commandName: "Stunned",
             targets: [],
             effectsSummary: [],
-            actionOutcome: "STUNNED" // Flag baru untuk dibaca UI
+            actionOutcome: "STUNNED" // New flag for UI to read
         };
         
     } else {
-        // --- JIKA TIDAK STUN, LANJUTKAN LOGIKA AI SEPERTI BIASA ---
-        scriptLogger(`ENEMY_AI: Giliran untuk ${attacker.name} (Role: ${attacker.role})`);
+        // --- IF NOT STUNNED, CONTINUE AI LOGIC AS USUAL ---
+        scriptLogger(`ENEMY_AI: Turn for ${attacker.name} (Role: ${attacker.role})`);
         let validTargetPseudoPositions = (attacker.role.toLowerCase() === 'ranged') ? [-2, 2] : [-1, 1];
         const potentialTargets = bState.units.filter(unit =>
             unit.type === "Ally" &&
@@ -94,7 +94,7 @@ try {
     bState.battleMessage = "Enemy AI Error: " + e.message;
 }
 
-// --- Output untuk Tasker ---
+// --- Output for Tasker ---
 var battle_state = JSON.stringify(bState);
 var js_script_log = taskerLogOutput;
 var was_target_eliminated = wasTargetEliminated;

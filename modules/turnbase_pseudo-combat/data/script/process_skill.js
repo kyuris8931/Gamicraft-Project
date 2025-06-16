@@ -1,23 +1,23 @@
-// --- script_tasker/process_skill.js (Versi Lengkap & Diperbaiki) ---
-// Deskripsi: Memproses semua aksi SKILL dari pemain.
-// Termasuk: kalkulasi damage/heal/shield, penerapan status efek, pengurangan SP,
-// pelacakan musuh yang kalah untuk sistem progresi, dan penentuan SFX.
+// --- script_tasker/process_skill.js (Complete & Fixed Version) ---
+// Description: Processes all SKILL actions from players.
+// Includes: damage/heal/shield calculation, status effect application, SP reduction,
+// tracking defeated enemies for progression system, and determining SFX.
 //
-// Variabel Input dari Tasker:
-// - battle_state: String JSON dari battle_state saat ini.
-// - actor_id: ID unit yang melakukan aksi.
-// - command_id: ID dari skill yang digunakan.
-// - affected_target_ids: String JSON array berisi ID unit yang terkena efek AoE dari UI.
+// Input Variables from Tasker:
+// - battle_state: JSON string of the current battle_state.
+// - actor_id: ID of the unit performing the action.
+// - command_id: ID of the skill being used.
+// - affected_target_ids: JSON string array containing IDs of units affected by AoE effects from the UI.
 //
-// Variabel Output untuk Tasker:
-// - battle_state: String JSON dari battle_state yang telah diupdate.
-// - js_script_log: Log eksekusi untuk debugging.
-// - was_target_eliminated: Boolean, true jika ada target yang berhasil dikalahkan.
-// - skills_sfx: Nama file sound effect yang akan dimainkan.
+// Output Variables for Tasker:
+// - battle_state: JSON string of the updated battle_state.
+// - js_script_log: Execution log for debugging.
+// - was_target_eliminated: Boolean, true if any target was successfully defeated.
+// - skills_sfx: Name of the sound effect file to be played.
 
 let taskerLogOutput = "";
 let wasTargetEliminated = false;
-let skill_sfx = ""; // Variabel untuk menyimpan nama file SFX
+let skill_sfx = ""; // Variable to store the SFX filename
 
 function scriptLogger(message) {
     const now = new Date();
@@ -26,7 +26,7 @@ function scriptLogger(message) {
 }
 
 
-// --- KUMPULAN FUNGSI HELPER ---
+// --- HELPER FUNCTIONS COLLECTION ---
 
 function getUnitById(unitId, unitsArray) {
     if (!unitId || !Array.isArray(unitsArray)) return null;
@@ -53,7 +53,7 @@ function getAdjacentEnemies(caster, allUnits) {
 }
 
 function calculateDamage(attackerStats, effectMultiplier = 1.0) {
-    // Untuk saat ini, damage = ATK * multiplier. Bisa dibuat lebih kompleks nantinya.
+    // For now, damage = ATK * multiplier. Can be made more complex later.
     return Math.round(attackerStats.atk * effectMultiplier);
 }
 
@@ -78,7 +78,7 @@ function applyDamage(targetUnit, damageAmount, bStateRef) {
         targetUnit.status = "Defeated";
         wasTargetEliminated = true;
 
-        // Lacak musuh yang kalah untuk progresi
+        // Track defeated enemies for progression
         if (targetUnit.type === "Enemy" && bStateRef._defeatedEnemiesThisBattle && !bStateRef._defeatedEnemiesThisBattle.some(e => e.id === targetUnit.id)) {
             const baseExp = bStateRef.units.find(u => u.id === targetUnit.id)?.expValue || 1;
             bStateRef._defeatedEnemiesThisBattle.push({
@@ -86,7 +86,7 @@ function applyDamage(targetUnit, damageAmount, bStateRef) {
                 tier: targetUnit.tier,
                 expValue: baseExp
             });
-            scriptLogger(`TRACKING: ${targetUnit.name} (Tier: ${targetUnit.tier}) ditambahkan ke daftar progresi.`);
+            scriptLogger(`TRACKING: ${targetUnit.name} (Tier: ${targetUnit.tier}) added to progression list.`);
         }
     }
     return { totalDamage: shieldDamageDealt + hpDamageDealt, shieldDamage: shieldDamageDealt, hpDamage: hpDamageDealt };
@@ -124,13 +124,13 @@ function applyRevive(targetUnit, hpPercentage) {
 function applyStatus(targetUnit, statusName, chance, duration, sourceUnitId) {
     if (targetUnit.status === "Defeated") return false;
     if (Math.random() >= chance) {
-        scriptLogger(`APPLY_STATUS: Gagal menerapkan ${statusName} pada ${targetUnit.name} (chance: ${chance * 100}%).`);
+        scriptLogger(`APPLY_STATUS: Failed to apply ${statusName} to ${targetUnit.name} (chance: ${chance * 100}%).`);
         return false;
     }
     if (!targetUnit.statusEffects) {
         targetUnit.statusEffects = { buffs: [], debuffs: [] };
     }
-    // Asumsi semua status dari skill pemain saat ini adalah debuff. Bisa dikembangkan lagi.
+    // Assume all statuses from player skills are debuffs for now. Can be expanded later.
     const statusArray = targetUnit.statusEffects.debuffs;
     const existingStatus = statusArray.find(s => s.name === statusName);
 
@@ -143,24 +143,24 @@ function applyStatus(targetUnit, statusName, chance, duration, sourceUnitId) {
             sourceUnitId: sourceUnitId,
         });
     }
-    scriptLogger(`APPLY_STATUS: ${statusName} diterapkan pada ${targetUnit.name} selama ${duration} giliran.`);
+    scriptLogger(`APPLY_STATUS: ${statusName} applied to ${targetUnit.name} for ${duration} turns.`);
     return true;
 }
 
 
-// --- LOGIKA UTAMA SKRIP ---
+// --- MAIN SCRIPT LOGIC ---
 let bState;
 try {
-    scriptLogger("SKILL_PROC: Script dimulai.");
+    scriptLogger("SKILL_PROC: Script started.");
 
-    // 1. Validasi dan Parsing Input
-    if (typeof battle_state !== 'string' || !battle_state.trim()) throw new Error("Input 'battle_state' kosong.");
-    if (typeof actor_id !== 'string' || !actor_id.trim()) throw new Error("Input 'actor_id' kosong.");
-    if (typeof command_id !== 'string' || !command_id.trim()) throw new Error("Input 'command_id' kosong.");
-    if (typeof affected_target_ids !== 'string') throw new Error("Input 'affected_target_ids' harus berupa string JSON array.");
+    // 1. Validate and Parse Input
+    if (typeof battle_state !== 'string' || !battle_state.trim()) throw new Error("Input 'battle_state' is empty.");
+    if (typeof actor_id !== 'string' || !actor_id.trim()) throw new Error("Input 'actor_id' is empty.");
+    if (typeof command_id !== 'string' || !command_id.trim()) throw new Error("Input 'command_id' is empty.");
+    if (typeof affected_target_ids !== 'string') throw new Error("Input 'affected_target_ids' must be a JSON string array.");
 
     bState = JSON.parse(battle_state);
-    // Inisialisasi array pelacak progresi jika belum ada
+    // Initialize progression tracking array if not present
     if (!bState._defeatedEnemiesThisBattle) {
         bState._defeatedEnemiesThisBattle = [];
     }
@@ -169,26 +169,26 @@ try {
     const actor = getUnitById(actor_id, bState.units);
     const commandObject = getCommandById(actor, command_id);
 
-    if (!actor) throw new Error(`Aktor dengan ID ${actor_id} tidak ditemukan.`);
-    if (!commandObject) throw new Error(`Command dengan ID ${command_id} tidak ditemukan untuk Aktor ${actor.name}.`);
+    if (!actor) throw new Error(`Actor with ID ${actor_id} not found.`);
+    if (!commandObject) throw new Error(`Command with ID ${command_id} not found for Actor ${actor.name}.`);
 
-    scriptLogger(`Aktor: ${actor.name} | Skill: ${commandObject.name}`);
+    scriptLogger(`Actor: ${actor.name} | Skill: ${commandObject.name}`);
 
-    // 2. Ambil SFX & Kurangi SP
+    // 2. Retrieve SFX & Reduce SP
     if (commandObject.sfxFilename) {
         skill_sfx = commandObject.sfxFilename;
-        scriptLogger(`SKILL_PROC: SFX ditemukan: ${skill_sfx}`);
+        scriptLogger(`SKILL_PROC: SFX found: ${skill_sfx}`);
     }
 
     if (typeof commandObject.spCost === 'number' && commandObject.spCost > 0) {
         if (bState.teamSP >= commandObject.spCost) {
             bState.teamSP -= commandObject.spCost;
         } else {
-            throw new Error(`SP tidak cukup untuk ${commandObject.name}. Butuh: ${commandObject.spCost}, Tersedia: ${bState.teamSP}.`);
+            throw new Error(`Not enough SP for ${commandObject.name}. Required: ${commandObject.spCost}, Available: ${bState.teamSP}.`);
         }
     }
 
-    // 3. Proses Setiap Efek dari Skill (Struktur Loop Baru)
+    // 3. Process Each Skill Effect (New Loop Structure)
     let targetsHitSummary = [];
     let actorActsAgain = false;
 
@@ -196,21 +196,21 @@ try {
         commandObject.effects.forEach(effect => {
             
             // ==========================================================
-            // ===          STRUKTUR PENANGANAN EFEK BARU             ===
+            // ===          NEW EFFECT HANDLING STRUCTURE             ===
             // ==========================================================
 
-            // A. Cek dulu apakah ini efek "global" yang tidak butuh target dari UI
+            // A. First check if this is a "global" effect that doesn't require UI targets
             if (effect.type === "act_again") {
                 actorActsAgain = true;
-                scriptLogger(`EFEK: Aktor ${actor.name} akan mendapatkan giliran lagi.`);
-                return; // Lanjut ke efek berikutnya di dalam forEach
+                scriptLogger(`EFFECT: Actor ${actor.name} will act again.`);
+                return; // Continue to the next effect in the forEach
             }
             
             if (effect.type === "heal_lowest_hp_ally") {
-                scriptLogger("EFEK: Mencari ally dengan HP terendah.");
+                scriptLogger("EFFECT: Searching for ally with lowest HP.");
                 const aliveAllies = bState.units.filter(u => u.type === 'Ally' && u.status !== 'Defeated');
                 if (aliveAllies.length > 0) {
-                    // Safety check untuk sort, jika maxHp 0, anggap persentasenya 1 (penuh)
+                    // Safety check for sort, if maxHp is 0, assume percentage is 1 (full)
                     const sortedAllies = aliveAllies.sort((a, b) => {
                         const percentA = a.stats.maxHp > 0 ? (a.stats.hp / a.stats.maxHp) : 1;
                         const percentB = b.stats.maxHp > 0 ? (b.stats.hp / b.stats.maxHp) : 1;
@@ -222,14 +222,14 @@ try {
                     const healAmount = calculateHeal(actor.stats, effect.multiplier, healBaseStat);
                     applyHeal(lowestHpAlly, healAmount);
                     targetsHitSummary.push(`${lowestHpAlly.name} (+${healAmount} HP)`);
-                    scriptLogger(`EFEK: ${lowestHpAlly.name} di-heal sebesar ${healAmount}.`);
+                    scriptLogger(`EFFECT: ${lowestHpAlly.name} healed by ${healAmount}.`);
                 } else {
-                    scriptLogger("EFEK: Tidak ada ally yang hidup untuk di-heal.");
+                    scriptLogger("EFFECT: No living allies to heal.");
                 }
-                return; // Lanjut ke efek berikutnya di dalam forEach
+                return; // Continue to the next effect in the forEach
             }
 
-            // B. Jika bukan efek global, berarti ini efek yang butuh target
+            // B. If not a global effect, it requires UI targets
             let actualEffectTargets = [];
             switch(effect.target) {
                 case "caster": 
@@ -246,17 +246,17 @@ try {
                     actualEffectTargets.push(...getAdjacentEnemies(actor, bState.units));
                     break;
                 default:
-                    scriptLogger(`EFEK_WARN: Tipe target tidak dikenal: '${effect.target}'`);
-                    return; // Lewati efek ini
+                    scriptLogger(`EFFECT_WARN: Unknown target type: '${effect.target}'`);
+                    return; // Skip this effect
             }
             
             if(actualEffectTargets.length === 0) {
-                 scriptLogger(`EFEK_WARN: Tidak ada target valid ditemukan untuk efek '${effect.type}'`);
-                 return; // Lewati jika tidak ada target sama sekali
+                 scriptLogger(`EFFECT_WARN: No valid targets found for effect '${effect.type}'`);
+                 return; // Skip if no valid targets
             }
-            scriptLogger(`EFEK: Menerapkan '${effect.type}' ke: ${actualEffectTargets.map(u => u.name).join(', ')}`);
+            scriptLogger(`EFFECT: Applying '${effect.type}' to: ${actualEffectTargets.map(u => u.name).join(', ')}`);
 
-            // Terapkan efek ke setiap target yang valid
+            // Apply effect to each valid target
             actualEffectTargets.forEach(targetUnit => {
                 if (!targetUnit || (targetUnit.status === "Defeated" && effect.type !== "revive")) return;
                 
@@ -294,14 +294,14 @@ try {
         });
     }
 
-    // 4. Finalisasi Aksi
-    let finalActionSummary = `${actor.name} menggunakan ${commandObject.name}!`;
+    // 4. Finalize Action
+    let finalActionSummary = `${actor.name} used ${commandObject.name}!`;
     if (targetsHitSummary.length > 0) {
         bState.battleMessage = `${finalActionSummary} ${[...new Set(targetsHitSummary)].join('. ')}.`;
     } else if (actorActsAgain) {
         bState.battleMessage = `${finalActionSummary}`;
     } else {
-        bState.battleMessage = `${finalActionSummary} ...tapi tidak ada target yang valid.`;
+        bState.battleMessage = `${finalActionSummary} ...but no valid targets were found.`;
     }
 
     bState.lastActionDetails = { 
@@ -325,7 +325,7 @@ try {
     bState.battleMessage = "Skill Error: " + e.message;
 }
 
-// --- Output untuk Tasker ---
+// --- Output for Tasker ---
 var battle_state = JSON.stringify(bState);
 var js_script_log = taskerLogOutput;
 var was_target_eliminated = wasTargetEliminated;

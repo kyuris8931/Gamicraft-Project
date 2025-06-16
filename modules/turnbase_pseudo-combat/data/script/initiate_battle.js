@@ -9,7 +9,7 @@ let taskerLogOutput = "";
 function scriptLogger(message) { taskerLogOutput += message + "\\n"; }
 
 // 1. Helper: Fisher-Yates Shuffle
-function shuffleArray(array) { /* ... (sama seperti sebelumnya) ... */
+function shuffleArray(array) { /* ... (same as before) ... */
     try {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -21,7 +21,7 @@ function shuffleArray(array) { /* ... (sama seperti sebelumnya) ... */
 }
 
 // 2. Helper: Update Pseudo Positions (Bipolar Linear, Active is 0)
-function updateAllPseudoPositions(bState, orderedAliveUnitIdsThisRound) { /* ... (fungsi ini sudah benar dari revisi sebelumnya, pastikan menggunakannya) ... */
+function updateAllPseudoPositions(bState, orderedAliveUnitIdsThisRound) { /* ... (this function is correct from previous revisions, ensure to use it) ... */
     try {
         if (!bState || !bState.units || !bState.activeUnitID || !orderedAliveUnitIdsThisRound || orderedAliveUnitIdsThisRound.length === 0) {
             scriptLogger("PSEUDO_POS_UPDATE_ERROR: Missing data or empty order list for pseudoPos update.");
@@ -71,7 +71,7 @@ try {
     }
 
     if (typeof progression_data !== 'string' || !progression_data.trim()) {
-        throw new Error("Input 'progression_data' kosong.");
+        throw new Error("Input 'progression_data' is empty.");
     }
     const progressionData = JSON.parse(progression_data);
     scriptLogger("INIT_BATTLE_INFO: Parsed progression_data.");
@@ -96,7 +96,7 @@ try {
         throw new Error("bState.units is missing or not an array.");
     }
     
-    // Terapkan progresi stats ke unit
+    // Apply progression stats to units
     if (bState.units && Array.isArray(bState.units)) {
         const enemyGlobalLevel = progressionData.enemyProgression.globalLevel;
 
@@ -112,18 +112,18 @@ try {
                     const levelBonus = finalLevel - 1;
                     const statGrowth = (unit.id.includes("kyuris")) ? { hp: 1, atk: 1 } : { hp: 3, atk: 2 }; // Default growth for non-kyuris allies
                     unit.stats.maxHp += levelBonus * statGrowth.hp;
-                    unit.stats.hp = unit.stats.maxHp; // Heal penuh di awal battle
+                    unit.stats.hp = unit.stats.maxHp; // Full heal at the start of battle
                     unit.stats.atk += levelBonus * statGrowth.atk;
                 }
 
-                // --- PENAMBAHAN BARU: Terapkan bonus stats dari progresi olahraga HANYA untuk Kyuris ---
+                // --- NEW ADDITION: Apply bonus stats from exercise progression ONLY for Kyuris ---
                 if (unit.id.includes("kyuris") && progressionData.exerciseStatsProgression) {
                     scriptLogger(`INIT_BATTLE_INFO: Applying exercise progression for ${unit.name}.`);
                     
                     progressionData.exerciseStatsProgression.forEach(exercise => {
                         const exerciseLevel = exercise.level || 1;
                         if (exerciseLevel > 1) {
-                            const statBonus = exerciseLevel - 1; // Bonus adalah (level - 1)
+                            const statBonus = exerciseLevel - 1; // Bonus is (level - 1)
                             const statToBoost = exercise.stats;
 
                             switch (statToBoost) {
@@ -133,7 +133,7 @@ try {
                                     break;
                                 case "HP":
                                     unit.stats.maxHp += statBonus;
-                                    // HP saat ini juga harus diupdate ke maxHp yang baru
+                                    // Current HP also needs to be updated to the new maxHp
                                     unit.stats.hp = unit.stats.maxHp;
                                     scriptLogger(`INIT_BATTLE_INFO: -> ${unit.name} gains +${statBonus} MaxHP from ${exercise.id} (Level ${exerciseLevel}). New MaxHP: ${unit.stats.maxHp}`);
                                     break;
@@ -151,21 +151,21 @@ try {
                 if (finalLevel > 1) {
                      const levelBonus = finalLevel - 1;
                      let statGrowth = { hp: 0, atk: 0 };
-                     if(unit.tier === "Minion") statGrowth = { hp: 2, atk: 1 };
-                     if(unit.tier === "Elite") statGrowth = { hp: 4, atk: 2 };
-                     if(unit.tier === "Boss") statGrowth = { hp: 6, atk: 3 };
+                     if(unit.tier === "Minion") statGrowth = { hp: 3, atk: 1 };
+                     if(unit.tier === "Elite") statGrowth = { hp: 6, atk: 2 };
+                     if(unit.tier === "Boss") statGrowth = { hp: 9, atk: 3 };
 
                      unit.stats.maxHp += levelBonus * statGrowth.hp;
                      unit.stats.hp = unit.stats.maxHp;
                      unit.stats.atk += levelBonus * statGrowth.atk;
                 }
-                // Update expValue musuh berdasarkan level global
+                // Update enemy expValue based on global level
                 unit.expValue = (unit.expValue || 1) * finalLevel;
             }
-             // Simpan level final untuk referensi di UI jika perlu
+             // Save final level for reference in UI if needed
             unit.level = finalLevel;
         });
-        scriptLogger("INIT_BATTLE_INFO: Progresi stats berdasarkan level telah diterapkan.");
+        scriptLogger("INIT_BATTLE_INFO: Stats progression based on level has been applied.");
     }
     
     if (aliveUnitIdsForFirstRound.length > 0) {
