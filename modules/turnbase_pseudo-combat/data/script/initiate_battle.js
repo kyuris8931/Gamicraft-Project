@@ -1,9 +1,16 @@
-// --- initiate_battle.js (Tasker) ---
-// Initializes the battle state for Round 1, Turn 1.
-// Sets non-active alive units to "Idle", active unit to "Active",
-// shuffles for initial turn order, sets active unit, and calculates pseudo positions.
-// **MODIFIED: Includes exercise progression for Kyuris.**
-// Assumes 'battle_state' (string) is available from Tasker global variable.
+// --- script_tasker/initiate_battle.js  ---
+// Date Modified: 16-06-2025
+// Description: Initializes the battle state for a new encounter.
+// Includes: Stat application from progression data, initial turn order shuffling,
+// and setting the first active unit and pseudo positions.
+//
+// Input Variables from Tasker:
+// - battle_state: JSON string of the base battle template.
+// - progression_data: JSON string of the user's overall progression.
+//
+// Output Variables for Tasker:
+// - battle_state: JSON string of the fully initialized battle_state for Round 1.
+// - js_script_log: Execution log for debugging.
 
 let taskerLogOutput = "";
 function scriptLogger(message) { taskerLogOutput += message + "\\n"; }
@@ -95,6 +102,9 @@ try {
     } else {
         throw new Error("bState.units is missing or not an array.");
     }
+    
+    bState.progression_snapshot = progressionData;
+    scriptLogger("INIT_BATTLE_INFO: Progression data snapshot injected into battle_state.");
     
     // Apply progression stats to units
     if (bState.units && Array.isArray(bState.units)) {

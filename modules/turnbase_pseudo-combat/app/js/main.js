@@ -24,6 +24,8 @@ let elTeamResourcesDisplay, elActionButtonsGroup;
 let elBattleLogOverlay, elBattleLogEntries, elCloseLogBtn;
 let elCopyWsLogBtn, elClearWsLogBtn;
 let elWsLoggerScreen, elCloseWsLoggerBtn;
+let elStatsPanel, elStatsPanelContent;
+
 
 /**
  * Menangani data battle state yang baru dari Tasker dan memutuskan UI mana yang akan dirender.
@@ -42,7 +44,7 @@ var handleNewBattleState = function(dataFromTasker) {
     // --- DI SINI LOGIKA UTAMANYA ---
     // Cek jika data yang diterima adalah state AKHIR pertempuran (memiliki summary)
     if (dataFromTasker.battleResultSummary) {
-        
+
         wsLogger("MAIN_JS: End-of-battle summary detected. Rendering end screen.");
         if (typeof renderBattleEndScreen === "function") {
             // Panggil fungsi untuk merender layar hasil akhir
@@ -51,7 +53,7 @@ var handleNewBattleState = function(dataFromTasker) {
             wsLogger("MAIN_JS_ERROR: renderBattleEndScreen function not defined!");
         }
         // Setelah merender end screen, tugas fungsi ini selesai.
-        return; 
+        return;
     }
 
     // Jika BUKAN state akhir, maka ini adalah update pertempuran biasa yang sedang berjalan.
@@ -154,9 +156,9 @@ async function initializeApp() {
             bState = { battleState: "Error", battleMessage: "Failed to load any battle data.", units: [] };
         }
     }
-    
+
     // Pada render pertama, tidak ada state sebelumnya.
-    previousBState = null; 
+    previousBState = null;
 
     if (typeof refreshAllUIElements === "function") {
         refreshAllUIElements(null); // Kirim null karena ini load pertama
@@ -196,6 +198,9 @@ function initializeDOMReferences() {
     elCloseLogBtn = document.getElementById('close-log-btn');
     elCopyWsLogBtn = document.getElementById('copy-ws-log-btn');
     elClearWsLogBtn = document.getElementById('clear-ws-log-btn');
+    elStatsPanel = document.getElementById('stats-panel');
+    elStatsPanelContent = document.getElementById('stats-panel-content');
+    // --------------------
     wsLogger("MAIN_JS: DOM elements referenced.");
 }
 
