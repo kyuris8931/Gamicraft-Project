@@ -150,7 +150,44 @@ function refreshAllUIElements(passedPreviousBState = null) {
         stunnedUnitId = bState.lastActionDetails.actorId;
     }
 
-    if (passedPreviousBState) {
+    // Pengecekan flag dari item/aksi eksternal
+    if (bState.lastActionDetails && bState.lastActionDetails.actorId && bState.lastActionDetails.actorId.startsWith("SYSTEM_ITEM")) {
+        
+        switch (bState.lastActionDetails.actorId) {
+            case "SYSTEM_ITEM_SP":
+                // Logika untuk item penambah SP
+                const summary = bState.lastActionDetails.effectsSummary[0] || "";
+                if (summary.startsWith('+') && summary.endsWith('SP')) {
+                    const spAmount = parseInt(summary.replace('+', '').replace(' SP', ''), 10);
+                    if (!isNaN(spAmount) && spAmount > 0) {
+                        spGained = spAmount;
+                    }
+                }
+                break;
+
+            case "SYSTEM_ITEM_HEAL":
+                // Logika untuk item penyembuh
+                if (bState.lastActionDetails.effects && Array.isArray(bState.lastActionDetails.effects)) {
+                    bState.lastActionDetails.effects.forEach(effect => {
+                        healedUnitData.push({ 
+                            unitId: effect.unitId, 
+                            amount: effect.amount,
+                            type: 'Ally'
+                        });
+                    });
+                }
+                break;
+            
+            // Anda bisa menambahkan case lain di sini untuk item di masa depan
+            // case "SYSTEM_ITEM_GAUGE":
+            //     // ... logika untuk item gauge ...
+            //     break;
+        }
+
+        // Hapus flag setelah dibaca agar tidak muncul lagi saat refresh berikutnya
+        bState.lastActionDetails = null;
+
+    } else if (passedPreviousBState) {
         if (typeof bState.teamSP === 'number' && typeof passedPreviousBState.teamSP === 'number') {
             const spChange = bState.teamSP - passedPreviousBState.teamSP;
             if (spChange > 0) spGained = spChange;

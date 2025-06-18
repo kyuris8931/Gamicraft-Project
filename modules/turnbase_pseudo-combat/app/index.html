@@ -49,14 +49,22 @@
                     </div>
             </footer>
         </div>
-    </div>
-
-    <div id="panel-overlay" class="panel-overlay"></div>
-
-        <!-- Panel Statistik yang sudah ada -->
+        <div id="panel-overlay" class="panel-overlay"></div>
         <aside id="stats-panel" class="stats-panel">
-            <!-- ... stats panel content ... -->
+            <div class="stats-panel-header">
+                <h2>Battle Overview</h2>
+                <!-- Tombol close bisa ditambahkan di sini jika perlu, atau panel ditutup dengan klik tombol yg sama -->
+            </div>
+            <div id="stats-panel-content" class="stats-panel-content">
+                <!-- Konten statistik unit akan dirender oleh JavaScript di sini -->
+            </div>
+            <div class="stats-panel-footer">
+                <button id="stats-panel-battle-log-btn" class="styled-button">Open Battle Log</button>
+                <button id="stats-panel-ws-log-btn" class="styled-button ws-log-toggle-btn">Open WS Log</button>
+            </div>
         </aside>
+
+    </div>
 
 
     <div id="battle-log-overlay" class="battle-log-overlay is-hidden">

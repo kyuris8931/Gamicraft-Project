@@ -95,6 +95,7 @@ html, body {
     display: flex; flex-direction: column;
     overflow: hidden; position: relative;
     padding: var(--spacing-unit);
+    transition: filter 0.4s ease, transform 0.4s ease;
 }
 
 .glass-panel {
@@ -985,12 +986,15 @@ html, body {
 .battle-end-content {
     width: 95%;
     max-width: 450px;
-    max-height: 90vh;
     padding: calc(var(--spacing-unit) * 2.5);
     display: flex;
     flex-direction: column;
     gap: calc(var(--spacing-unit) * 2);
+    max-height: 90vh; /* */
+    overflow-y: auto; /* Tambahkan ini agar panel bisa di-scroll jika kontennya terlalu panjang */
+    scrollbar-color: var(--color-accent-primary) var(--color-surface-glass-alt);
 }
+
 
 .battle-end-content h2 {
     font-family: var(--font-display);
@@ -1019,8 +1023,6 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: calc(var(--spacing-unit) * 1.5);
-    max-height: 30vh;
-    overflow-y: auto;
     padding: 5px;
 }
 

@@ -80,11 +80,11 @@ function generateSPForBasicAttack(bState) {
     let spGain = 0;
     const rand = Math.random();
         
-    if (rand < 0.02) spGain = 5;      // 2% chance for 5 SP
-    else if (rand < 0.10) spGain = 4; // 8% chance for 4 SP
-    else if (rand < 0.27) spGain = 3; // 17% chance for 3 SP
-    else if (rand < 0.55) spGain = 2; // 28% chance for 2 SP
-    else spGain = 1;                  // 45% chance for 1 SP
+    if (rand < 0.0546) spGain = 5;      // 2% -> 5.46% chance for 5 SP
+    else if (rand < 0.1818) spGain = 4; // 8% ->  12.72% chance for 4 SP
+    else if (rand < 0.3454) spGain = 3; // 17% -> 16.36% chance for 3 SP
+    else if (rand < 0.6182) spGain = 2; // 28% -> 27.28% chance for 2 SP
+    else spGain = 1;                  // 45% -> 34.54% chance for 1 SP
     
     // Ensure teamSP and maxTeamSP exist before modifying
     if (typeof bState.teamSP === 'number' && typeof bState.maxTeamSP === 'number') {

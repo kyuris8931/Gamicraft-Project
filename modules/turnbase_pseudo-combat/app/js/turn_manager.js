@@ -1,4 +1,5 @@
 // --- turn_manager.js (Tasker - Corrected Linear Turn & EndTurn Logic) ---
+// ... (fungsi helper shuffleArray, updateAllPseudoPositions, checkBattleEnd, getCurrentLinearOrder tetap sama seperti di Canvas sebelumnya) ...
 
 let taskerLogOutput = "";
 function scriptLogger(message) { taskerLogOutput += message + "\\n"; }
@@ -75,50 +76,50 @@ function checkBattleEnd(bState) {
 }
 
 // 4. Helper: Get Linear Order of Alive Units based on current PseudoPos
-    function getCurrentLinearOrder(bState) {
-        const aliveUnits = bState.units.filter(u => u.status !== "Defeated");
-        return aliveUnits.sort((a, b) => {
-            const pa = a.pseudoPos;
-            const pb = b.pseudoPos;
-            if (pa === 0) return -1;
-            if (pb === 0) return 1;
-            if (pa > 0 && pb > 0) return pa - pb;
-            if (pa < 0 && pb < 0) return pa - pb;
-            if (pa > 0 && pb < 0) return -1;
-            if (pa < 0 && pb > 0) return 1;
-            return 0;
-        });
-    }
+function getCurrentLinearOrder(bState) {
+    const aliveUnits = bState.units.filter(u => u.status !== "Defeated");
+    return aliveUnits.sort((a, b) => {
+        const pa = a.pseudoPos;
+        const pb = b.pseudoPos;
+        if (pa === 0) return -1;
+        if (pb === 0) return 1;
+        if (pa > 0 && pb > 0) return pa - pb;
+        if (pa < 0 && pb < 0) return pa - pb;
+        if (pa > 0 && pb < 0) return -1;
+        if (pa < 0 && pb > 0) return 1;
+        return 0;
+    });
+}
 
 /**
- * NEW HELPER FUNCTION: Process status effects at the start of a unit's turn.
- * Reduces duration and checks statuses like Stun.
- * @param {object} unit - Unit object to process.
- * @param {object} bStateRef - Reference to battle_state for modifying battleMessage.
- * @returns {boolean} True if the unit can act, false if not (e.g., due to Stun).
+ * FUNGSI HELPER BARU: Memproses status efek di awal giliran unit.
+ * Mengurangi durasi dan memeriksa status seperti Stun.
+ * @param {object} unit - Objek unit yang akan diproses.
+ * @param {object} bStateRef - Referensi ke battle_state untuk mengubah battleMessage.
+ * @returns {boolean} True jika unit bisa beraksi, false jika tidak (misal, karena Stun).
  */
 function processStatusEffectsOnTurnStart(unit, bStateRef) {
-    if (!unit.statusEffects) return true; // Can act if no status effects.
+    if (!unit.statusEffects) return true; // Bisa beraksi jika tidak punya status efek.
 
     let canAct = true;
     const allEffects = [...(unit.statusEffects.buffs || []), ...(unit.statusEffects.debuffs || [])];
 
     allEffects.forEach(effect => {
-        // Check Stun
+        // Cek Stun
         if (effect.name === "Stun" && effect.duration > 0) {
             canAct = false;
             bStateRef.battleMessage = `${unit.name} is Stunned and cannot act!`;
-            scriptLogger(`TURN_MANAGER: ${unit.name} is Stunned and skips the turn.`);
+            scriptLogger(`TURN_MANAGER: ${unit.name} terkena Stun, melewatkan giliran.`);
         }
 
-        // Reduce duration
+        // Kurangi durasi
         if (typeof effect.duration === 'number' && effect.duration > 0) {
             effect.duration--;
-            scriptLogger(`TURN_MANAGER: Duration of '${effect.name}' on ${unit.name} reduced to ${effect.duration}.`);
+            scriptLogger(`TURN_MANAGER: Durasi status '${effect.name}' pada ${unit.name} dikurangi menjadi ${effect.duration}.`);
         }
     });
 
-    // Remove effects with expired duration
+    // Hapus efek yang durasinya habis
     if (unit.statusEffects.buffs) {
         unit.statusEffects.buffs = unit.statusEffects.buffs.filter(e => e.duration > 0);
     }
@@ -130,58 +131,51 @@ function processStatusEffectsOnTurnStart(unit, bStateRef) {
 }
 
 
-// --- MAIN SCRIPT LOGIC ---
+// --- LOGIKA UTAMA SKRIP ---
 let bState = null;
 taskerLogOutput = "";
-scriptLogger("TURN_MANAGER_INFO: Script started.");
+scriptLogger("TURN_MANAGER_INFO: Script dimulai.");
 
 try {
-    if (typeof battle_state !== 'string' || !battle_state.trim()) { throw new Error("Input 'battle_state' is empty."); }
+    if (typeof battle_state !== 'string' || !battle_state.trim()) { throw new Error("Input 'battle_state' kosong."); }
     bState = JSON.parse(battle_state);
     
-    // Reset flags from the previous turn
+    // Reset flag dari giliran sebelumnya
     if (bState.lastActionDetails) {
         bState.lastActionDetails = null;
     }
 
-    const unitThatJustActed = bState.units.find(u => u.id === bState.activeUnitID);
-
-    // --- STEP 1: UPKEEP - Manage all status effects for ALL units ---
-    if (unitThatJustActed) {
-        // 1. Clear temporary flags from this unit (if any)
-        if (unitThatJustActed.flags) {
-            delete unitThatJustActed.flags;
-            scriptLogger(`TURN_MANAGER: Flags on ${unitThatJustActed.name} cleared.`);
-        }
-        
-        // 2. Perform "Upkeep" ONLY for this unit
-        if (unitThatJustActed.statusEffects) {
-            scriptLogger(`TURN_MANAGER: Processing status effects for ${unitThatJustActed.name}.`);
-            const allEffects = [...(unitThatJustActed.statusEffects.buffs || []), ...(unitThatJustActed.statusEffects.debuffs || [])];
+    // --- TAHAP 1: UPKEEP - Kelola semua status efek untuk SEMUA unit ---
+    scriptLogger("TURN_MANAGER: Memulai fase Upkeep (pengurangan durasi status).");
+    bState.units.forEach(unit => {
+        if (unit.statusEffects) {
+            const allEffects = [...(unit.statusEffects.buffs || []), ...(unit.statusEffects.debuffs || [])];
             allEffects.forEach(effect => {
                 if (typeof effect.duration === 'number' && effect.duration > 0) {
                     effect.duration--;
-                    scriptLogger(`TURN_MANAGER: Duration of '${effect.name}' -> ${effect.duration}.`);
+                    scriptLogger(`TURN_MANAGER: Durasi '${effect.name}' pada ${unit.name} -> ${effect.duration}.`);
                 }
             });
-            // Remove effects with duration 0
-            if (unitThatJustActed.statusEffects.buffs) unitThatJustActed.statusEffects.buffs = unitThatJustActed.statusEffects.buffs.filter(e => e.duration > 0);
-            if (unitThatJustActed.statusEffects.debuffs) unitThatJustActed.statusEffects.debuffs = unitThatJustActed.statusEffects.debuffs.filter(e => e.duration > 0);
+            // Hapus efek yang durasinya habis
+            if (unit.statusEffects.buffs) unit.statusEffects.buffs = unit.statusEffects.buffs.filter(e => e.duration > 0);
+            if (unit.statusEffects.debuffs) unit.statusEffects.debuffs = unit.statusEffects.debuffs.filter(e => e.duration > 0);
         }
+    });
 
-        // 3. Mark turn as finished
-        if (unitThatJustActed.status !== "Defeated") {
-            unitThatJustActed.status = "EndTurn";
-        }
+
+    // --- TAHAP 2: Tandai giliran yang baru saja selesai ---
+    const unitThatJustActed = bState.units.find(u => u.id === bState.activeUnitID);
+    if (unitThatJustActed && unitThatJustActed.status !== "Defeated") {
+        unitThatJustActed.status = "EndTurn";
     }
 
     if (checkBattleEnd(bState)) {
-        scriptLogger("TURN_MANAGER: Battle ended.");
+        scriptLogger("TURN_MANAGER: Pertarungan berakhir.");
     } else {
-        // --- STEP 2: Determine the next active unit ---
+        // --- TAHAP 3: Tentukan unit aktif berikutnya ---
         let nextUnitFound = false;
 
-        // Check 'act again'
+        // Cek 'act again'
         if (bState._actorShouldActAgain) {
             const actorId = bState._actorShouldActAgain;
             const actor = bState.units.find(u => u.id === actorId);
@@ -195,7 +189,7 @@ try {
             delete bState._actorShouldActAgain;
         }
 
-        // If not 'act again', find the next unit
+        // Jika tidak 'act again', cari unit berikutnya
         if (!nextUnitFound) {
             const aliveIdsInOrder = bState._currentRoundInitialOrderIds.filter(id => bState.units.find(u => u.id === id && u.status !== 'Defeated'));
             const lastActiveIndex = aliveIdsInOrder.indexOf(bState.activeUnitID);
@@ -204,7 +198,7 @@ try {
             for (let i = 0; i < aliveIdsInOrder.length; i++) {
                 const checkIndex = (lastActiveIndex + 1 + i) % aliveIdsInOrder.length;
                 const unit = bState.units.find(u => u.id === aliveIdsInOrder[checkIndex]);
-                // ONLY LOOK FOR UNITS THAT ARE 'IDLE', IGNORE STUN
+                // PERUBAHAN DI SINI: Tidak ada lagi pengecekan Stun.
                 if (unit && unit.status === "Idle") {
                     nextUnitInRound = unit;
                     break;
@@ -216,7 +210,7 @@ try {
                 bState.battleMessage = `${nextUnitInRound.name}'s turn.`;
                 bState.turnInRound++;
             } else {
-                // New Round
+                // Ronde Baru
                 bState.round++;
                 bState.turnInRound = 1; // Reset turn counter
                 const aliveIdsNewRound = bState.units.filter(u => u.status !== "Defeated").map(u => u.id);
@@ -235,7 +229,7 @@ try {
         updateAllPseudoPositions(bState, bState._currentRoundInitialOrderIds.filter(id => bState.units.find(u => u.id === id && u.status !== 'Defeated')));
     }
 
-    // Finalize state
+    // Finalisasi state
     const finalActiveUnit = bState.units.find(u => u.id === bState.activeUnitID);
     if (finalActiveUnit) {
         bState.activeUnitType = finalActiveUnit.type;
