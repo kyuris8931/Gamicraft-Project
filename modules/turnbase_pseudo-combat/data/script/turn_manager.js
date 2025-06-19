@@ -1,9 +1,11 @@
-// --- turn_manager.js (Tasker - Corrected Linear Turn & EndTurn Logic) ---
+// --- turn_manager.js (Tasker - Final Correct Logic) ---
+// TUGAS: Melakukan upkeep di AKHIR giliran untuk unit yang baru saja beraksi,
+// lalu menentukan giliran berikutnya.
 
 let taskerLogOutput = "";
 function scriptLogger(message) { taskerLogOutput += message + "\\n"; }
 
-// 1. Helper: Fisher-Yates Shuffle
+// Helper: Fisher-Yates Shuffle (Tidak ada perubahan)
 function shuffleArray(array) {
     try {
         for (let i = array.length - 1; i > 0; i--) {
@@ -15,43 +17,21 @@ function shuffleArray(array) {
     }
 }
 
-// 2. Helper: Update Pseudo Positions (Bipolar Linear, Active is 0)
-function updateAllPseudoPositions(bState, orderedAliveUnitIdsThisRound) {
+// Helper: Synchronize pseudoPos (Tidak ada perubahan)
+function updateOrdinalPositions(bState) {
     try {
-        if (!bState || !bState.units || !bState.activeUnitID || !orderedAliveUnitIdsThisRound || orderedAliveUnitIdsThisRound.length === 0) {
-            scriptLogger("PSEUDO_POS_UPDATE_ERROR: Missing data or empty order list for pseudoPos update in Turn Manager.");
-            return;
-        }
-        const activeUnitInRoundOrderIndex = orderedAliveUnitIdsThisRound.indexOf(bState.activeUnitID);
-        if (activeUnitInRoundOrderIndex === -1) {
-            scriptLogger(`PSEUDO_POS_UPDATE_ERROR: Active unit ${bState.activeUnitID} not in orderedAliveUnitIdsThisRound.`);
-            bState.units.forEach(u => { if (u.status !== "Defeated") u.pseudoPos = 999; });
-            return;
-        }
-        const numAliveInOrder = orderedAliveUnitIdsThisRound.length;
-        for (let i = 0; i < numAliveInOrder; i++) {
-            const unitIdInOrder = orderedAliveUnitIdsThisRound[i];
-            const unitToUpdate = bState.units.find(u => u.id === unitIdInOrder);
-            if (unitToUpdate) {
-                let relativeIndex = (i - activeUnitInRoundOrderIndex + numAliveInOrder) % numAliveInOrder;
-                let pseudoPosValue;
-                if (relativeIndex === 0) {
-                    pseudoPosValue = 0;
-                } else if (relativeIndex <= numAliveInOrder / 2) {
-                    pseudoPosValue = relativeIndex;
-                } else {
-                    pseudoPosValue = relativeIndex - numAliveInOrder;
-                }
-                unitToUpdate.pseudoPos = pseudoPosValue;
-            }
-        }
-        scriptLogger("PSEUDO_POS_UPDATE: Pseudo positions updated (bipolar linear) by Turn Manager.");
+        if (!bState || !bState._turnOrder || !bState.units) { return; }
+        bState._turnOrder.forEach((unitId, index) => {
+            const unit = bState.units.find(u => u.id === unitId);
+            if (unit) unit.pseudoPos = index;
+        });
+        scriptLogger("ORDINAL_POS_UPDATE: All pseudoPos values synchronized.");
     } catch (e) {
-        scriptLogger("UPDATE_PSEUDO_POS_CRITICAL_ERROR (Turn Manager): " + e.message + " Stack: " + e.stack);
+        scriptLogger("UPDATE_ORDINAL_POS_CRITICAL_ERROR: " + e.message);
     }
 }
 
-// 3. Helper: Check Battle End Condition
+// Helper: Check Battle End Condition (Tidak ada perubahan)
 function checkBattleEnd(bState) {
     try {
         const aliveAllies = bState.units.filter(u => u.type === "Ally" && u.status !== "Defeated").length;
@@ -60,10 +40,8 @@ function checkBattleEnd(bState) {
             bState.battleState = "Win"; bState.battleMessage = "Victory!"; return true;
         } else if (aliveAllies === 0) {
             bState.battleState = "Lose"; bState.battleMessage = "Defeat..."; return true;
-        } else if (aliveEnemies === 0 && aliveAllies === 0) {
-            bState.battleState = "Draw"; bState.battleMessage = "Draw!"; return true;
         }
-        if (bState.battleState !== "Win" && bState.battleState !== "Lose" && bState.battleState !== "Draw") {
+        if (bState.battleState !== "Win" && bState.battleState !== "Lose") {
             bState.battleState = "Ongoing";
         }
         return false;
@@ -74,178 +52,119 @@ function checkBattleEnd(bState) {
     }
 }
 
-// 4. Helper: Get Linear Order of Alive Units based on current PseudoPos
-    function getCurrentLinearOrder(bState) {
-        const aliveUnits = bState.units.filter(u => u.status !== "Defeated");
-        return aliveUnits.sort((a, b) => {
-            const pa = a.pseudoPos;
-            const pb = b.pseudoPos;
-            if (pa === 0) return -1;
-            if (pb === 0) return 1;
-            if (pa > 0 && pb > 0) return pa - pb;
-            if (pa < 0 && pb < 0) return pa - pb;
-            if (pa > 0 && pb < 0) return -1;
-            if (pa < 0 && pb > 0) return 1;
-            return 0;
-        });
-    }
-
 /**
- * NEW HELPER FUNCTION: Process status effects at the start of a unit's turn.
- * Reduces duration and checks statuses like Stun.
- * @param {object} unit - Unit object to process.
- * @param {object} bStateRef - Reference to battle_state for modifying battleMessage.
- * @returns {boolean} True if the unit can act, false if not (e.g., due to Stun).
+ * FUNGSI UPKEEP AKHIR GILIRAN (END-OF-TURN)
+ * Memproses status efek HANYA untuk unit yang baru saja menyelesaikan gilirannya.
+ * @param {object} unit - Objek unit yang gilirannya baru saja selesai.
  */
-function processStatusEffectsOnTurnStart(unit, bStateRef) {
-    if (!unit.statusEffects) return true; // Can act if no status effects.
+function processUpkeepAtEndOfTurn(unit) {
+    if (!unit || !unit.statusEffects) return;
 
-    let canAct = true;
-    const allEffects = [...(unit.statusEffects.buffs || []), ...(unit.statusEffects.debuffs || [])];
+    scriptLogger(`UPKEEP (End-of-Turn): Memproses status efek untuk ${unit.name}.`);
 
-    allEffects.forEach(effect => {
-        // Check Stun
-        if (effect.name === "Stun" && effect.duration > 0) {
-            canAct = false;
-            bStateRef.battleMessage = `${unit.name} is Stunned and cannot act!`;
-            scriptLogger(`TURN_MANAGER: ${unit.name} is Stunned and skips the turn.`);
-        }
-
-        // Reduce duration
-        if (typeof effect.duration === 'number' && effect.duration > 0) {
-            effect.duration--;
-            scriptLogger(`TURN_MANAGER: Duration of '${effect.name}' on ${unit.name} reduced to ${effect.duration}.`);
-        }
-    });
-
-    // Remove effects with expired duration
-    if (unit.statusEffects.buffs) {
-        unit.statusEffects.buffs = unit.statusEffects.buffs.filter(e => e.duration > 0);
-    }
+    // Proses semua debuff (kurangi durasi)
     if (unit.statusEffects.debuffs) {
+        unit.statusEffects.debuffs.forEach(effect => {
+            if (typeof effect.duration === 'number') {
+                effect.duration--;
+            }
+        });
+        // Hapus debuff yang durasinya sudah habis
         unit.statusEffects.debuffs = unit.statusEffects.debuffs.filter(e => e.duration > 0);
     }
-
-    return canAct;
+    
+    // Proses semua buff (jika ada di masa depan)
+    if (unit.statusEffects.buffs) {
+        unit.statusEffects.buffs.forEach(effect => {
+            if (typeof effect.duration === 'number') {
+                effect.duration--;
+            }
+        });
+        // Hapus buff yang durasinya sudah habis
+        unit.statusEffects.buffs = unit.statusEffects.buffs.filter(e => e.duration > 0);
+    }
 }
 
 
-// --- MAIN SCRIPT LOGIC ---
+// --- MAIN SCRIPT LOGIC (dengan alur yang benar) ---
 let bState = null;
-taskerLogOutput = "";
-scriptLogger("TURN_MANAGER_INFO: Script started.");
-
 try {
-    if (typeof battle_state !== 'string' || !battle_state.trim()) { throw new Error("Input 'battle_state' is empty."); }
+    scriptLogger("TURN_MANAGER_INFO: Script started (Correct End-of-Turn Upkeep Logic).");
     bState = JSON.parse(battle_state);
     
-    // Reset flags from the previous turn
-    if (bState.lastActionDetails) {
-        bState.lastActionDetails = null;
+    bState.lastActionDetails = null;
+    const actorThatJustActedId = bState.activeUnitID;
+    const unitThatJustActed = bState.units.find(u => u.id === actorThatJustActedId);
+
+    // ====================================================================
+    // LANGKAH 1: Lakukan upkeep pada unit yang BARU SAJA selesai beraksi.
+    // ====================================================================
+    if (unitThatJustActed) {
+        processUpkeepAtEndOfTurn(unitThatJustActed);
     }
 
-    const unitThatJustActed = bState.units.find(u => u.id === bState.activeUnitID);
+    // ====================================================================
+    // LANGKAH 2: Lanjutkan dengan logika untuk menentukan giliran berikutnya.
+    // ====================================================================
+    bState._turnOrder = bState._turnOrder.filter(id => bState.units.find(u => u.id === id && u.status !== "Defeated"));
 
-    // --- STEP 1: UPKEEP - Manage all status effects for ALL units ---
-    if (unitThatJustActed) {
-        // 1. Clear temporary flags from this unit (if any)
-        if (unitThatJustActed.flags) {
-            delete unitThatJustActed.flags;
-            scriptLogger(`TURN_MANAGER: Flags on ${unitThatJustActed.name} cleared.`);
-        }
-        
-        // 2. Perform "Upkeep" ONLY for this unit
-        if (unitThatJustActed.statusEffects) {
-            scriptLogger(`TURN_MANAGER: Processing status effects for ${unitThatJustActed.name}.`);
-            const allEffects = [...(unitThatJustActed.statusEffects.buffs || []), ...(unitThatJustActed.statusEffects.debuffs || [])];
-            allEffects.forEach(effect => {
-                if (typeof effect.duration === 'number' && effect.duration > 0) {
-                    effect.duration--;
-                    scriptLogger(`TURN_MANAGER: Duration of '${effect.name}' -> ${effect.duration}.`);
-                }
-            });
-            // Remove effects with duration 0
-            if (unitThatJustActed.statusEffects.buffs) unitThatJustActed.statusEffects.buffs = unitThatJustActed.statusEffects.buffs.filter(e => e.duration > 0);
-            if (unitThatJustActed.statusEffects.debuffs) unitThatJustActed.statusEffects.debuffs = unitThatJustActed.statusEffects.debuffs.filter(e => e.duration > 0);
-        }
+    if (checkBattleEnd(bState) || bState._turnOrder.length === 0) {
+        scriptLogger("TURN_MANAGER: Pertempuran telah berakhir.");
+        bState.activeUnitID = null;
+    } else {
+        const actorShouldActAgain = bState._actorShouldActAgain === actorThatJustActedId;
+        delete bState._actorShouldActAgain;
 
-        // 3. Mark turn as finished
-        if (unitThatJustActed.status !== "Defeated") {
+        if (unitThatJustActed && !actorShouldActAgain) {
             unitThatJustActed.status = "EndTurn";
         }
-    }
+        
+        let nextActiveUnitId = null;
 
-    if (checkBattleEnd(bState)) {
-        scriptLogger("TURN_MANAGER: Battle ended.");
-    } else {
-        // --- STEP 2: Determine the next active unit ---
-        let nextUnitFound = false;
-
-        // Check 'act again'
-        if (bState._actorShouldActAgain) {
-            const actorId = bState._actorShouldActAgain;
-            const actor = bState.units.find(u => u.id === actorId);
-            if (actor) {
-                actor.status = "Idle";
-                bState.activeUnitID = actor.id;
-                bState.battleMessage = `${actor.name} gets another turn!`;
-                bState.turnInRound++;
-                nextUnitFound = true;
-            }
-            delete bState._actorShouldActAgain;
-        }
-
-        // If not 'act again', find the next unit
-        if (!nextUnitFound) {
-            const aliveIdsInOrder = bState._currentRoundInitialOrderIds.filter(id => bState.units.find(u => u.id === id && u.status !== 'Defeated'));
-            const lastActiveIndex = aliveIdsInOrder.indexOf(bState.activeUnitID);
+        if (actorShouldActAgain) {
+            nextActiveUnitId = actorThatJustActedId;
+            scriptLogger(`TURN_MANAGER: ${unitThatJustActed.name} akan beraksi lagi.`);
+        } else {
+            const nextUnitInOrder = bState._turnOrder.map(id => bState.units.find(u => u.id === id)).find(u => u.status === "Idle");
             
-            let nextUnitInRound = null;
-            for (let i = 0; i < aliveIdsInOrder.length; i++) {
-                const checkIndex = (lastActiveIndex + 1 + i) % aliveIdsInOrder.length;
-                const unit = bState.units.find(u => u.id === aliveIdsInOrder[checkIndex]);
-                // ONLY LOOK FOR UNITS THAT ARE 'IDLE', IGNORE STUN
-                if (unit && unit.status === "Idle") {
-                    nextUnitInRound = unit;
-                    break;
-                }
-            }
-
-            if (nextUnitInRound) {
-                bState.activeUnitID = nextUnitInRound.id;
-                bState.battleMessage = `${nextUnitInRound.name}'s turn.`;
-                bState.turnInRound++;
+            if (nextUnitInOrder) {
+                nextActiveUnitId = nextUnitInOrder.id;
             } else {
-                // New Round
+                scriptLogger("TURN_MANAGER: Semua unit telah beraksi. Memulai ronde baru.");
                 bState.round++;
-                bState.turnInRound = 1; // Reset turn counter
-                const aliveIdsNewRound = bState.units.filter(u => u.status !== "Defeated").map(u => u.id);
-                if (aliveIdsNewRound.length > 0) {
-                    bState.units.forEach(u => { if (u.status !== "Defeated") u.status = "Idle"; });
-                    shuffleArray(aliveIdsNewRound);
-                    bState._currentRoundInitialOrderIds = aliveIdsNewRound;
-                    const firstUnit = bState.units.find(u => u.id === aliveIdsNewRound[0]);
-                    bState.activeUnitID = firstUnit.id;
-                    bState.battleMessage = `${firstUnit.name}'s turn.`;
-                } else {
-                    checkBattleEnd(bState);
-                }
+                bState.turnInRound = 0;
+                
+                bState.units.forEach(u => {
+                    if (u.status !== "Defeated") u.status = "Idle";
+                });
+                
+                let newRoundOrder = bState.units.filter(u => u.status !== "Defeated").map(u => u.id);
+                shuffleArray(newRoundOrder);
+                bState._turnOrder = newRoundOrder;
+                scriptLogger(`TURN_MANAGER: Urutan ronde baru: [${bState._turnOrder.join(', ')}]`);
+                
+                nextActiveUnitId = bState._turnOrder[0];
             }
         }
-        updateAllPseudoPositions(bState, bState._currentRoundInitialOrderIds.filter(id => bState.units.find(u => u.id === id && u.status !== 'Defeated')));
-    }
 
-    // Finalize state
-    const finalActiveUnit = bState.units.find(u => u.id === bState.activeUnitID);
-    if (finalActiveUnit) {
-        bState.activeUnitType = finalActiveUnit.type;
-        const activeUnitIndexInArray = bState.units.findIndex(u => u.id === bState.activeUnitID);
-        bState.activeUnitIndex = (activeUnitIndexInArray !== -1) ? activeUnitIndexInArray + 1 : 0;
-    } else {
-        bState.activeUnitType = "None";
-        bState.activeUnitIndex = 0;
+        const newActiveIndex = bState._turnOrder.indexOf(nextActiveUnitId);
+        if (newActiveIndex > 0) {
+            const unitsToMove = bState._turnOrder.splice(0, newActiveIndex);
+            bState._turnOrder.push(...unitsToMove);
+        }
+        
+        bState.activeUnitID = bState._turnOrder[0];
+        
+        const newActiveUnit = bState.units.find(u => u.id === bState.activeUnitID);
+        if (newActiveUnit) {
+            newActiveUnit.status = "Active";
+            bState.activeUnitType = newActiveUnit.type;
+            bState.turnInRound++;
+            bState.battleMessage = `Giliran ${newActiveUnit.name}.`;
+        }
+        
+        updateOrdinalPositions(bState);
     }
-
 } catch (e) {
     scriptLogger("TURN_MANAGER_ERROR: " + e.message + " | Stack: " + e.stack);
     if (!bState) bState = {};

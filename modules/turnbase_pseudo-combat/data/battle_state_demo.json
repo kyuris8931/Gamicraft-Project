@@ -129,7 +129,7 @@
             "type": "Ally",
             "role": "Melee",
             "status": "Idle",
-            "pseudoPos": -1,
+            "pseudoPos": 1,
             "portraitFilename": "heroes/Arthur_Portrait.png",
             "fullBodyFilename": "heroes/Arthur_Full.png",
             "stats": {
@@ -250,7 +250,7 @@
             "type": "Ally",
             "role": "Ranged",
             "status": "Idle",
-            "pseudoPos": 1,
+            "pseudoPos": 2,
             "portraitFilename": "heroes/Robin_Portrait.png",
             "fullBodyFilename": "heroes/Robin_Full.png",
             "stats": {
@@ -372,7 +372,7 @@
             "tier": "Minion",
             "expValue": 1,
             "status": "Idle",
-            "pseudoPos": 2,
+            "pseudoPos": 3,
             "portraitFilename": "enemies/Goblin_Grunt_Portrait.png",
             "fullBodyFilename": "enemies/Goblin_Grunt_Full.png",
             "stats": {
@@ -392,7 +392,7 @@
             "tier": "Minion",
             "expValue": 1,
             "status": "Idle",
-            "pseudoPos": 3,
+            "pseudoPos": 4,
             "portraitFilename": "enemies/Kobold_Scout_Portrait.png",
             "fullBodyFilename": "enemies/Kobold_Scout_Full.png",
             "stats": {
@@ -412,7 +412,7 @@
             "tier": "Minion",
             "expValue": 1,
             "status": "Idle",
-            "pseudoPos": -3,
+            "pseudoPos": 5,
             "portraitFilename": "enemies/Forest_Sprite_Portrait.png",
             "fullBodyFilename": "enemies/Forest_Sprite_Full.png",
             "stats": {
@@ -432,7 +432,7 @@
             "tier": "Elite",
             "expValue": 3,
             "status": "Idle",
-            "pseudoPos": -2,
+            "pseudoPos": 6,
             "portraitFilename": "enemies/Orc_Pillager_Portrait.png",
             "fullBodyFilename": "enemies/Orc_Pillager_Full.png",
             "stats": {
@@ -452,7 +452,7 @@
             "tier": "Elite",
             "expValue": 3,
             "status": "Idle",
-            "pseudoPos": 4,
+            "pseudoPos": 7,
             "portraitFilename": "enemies/Dark_Elf_Hunter_Portrait.png",
             "fullBodyFilename": "enemies/Dark_Elf_Hunter_Full.png",
             "stats": {
@@ -472,7 +472,7 @@
             "tier": "Boss",
             "expValue": 5,
             "status": "Idle",
-            "pseudoPos": -4,
+            "pseudoPos": 8,
             "portraitFilename": "enemies/Troll_Chieftain_Portrait.png",
             "fullBodyFilename": "enemies/Troll_Chieftain_Full.png",
             "stats": {

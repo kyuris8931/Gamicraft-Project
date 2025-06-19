@@ -84,24 +84,47 @@ function getGeneralAssetPath(filenameFromState, assetCategory) {
     return window.gcpcDataPath + filenameFromState;
 }
 
+
 /**
- * Helper function to get valid basic attack target IDs for UI highlighting.
- * @param {object} actorUnit
- * @param {Array<object>} allAliveUnits
- * @returns {Array<string>}
+ * Helper untuk mendapatkan ID target serangan dasar yang valid untuk disorot di UI.
+ * Versi ini menerapkan aturan jarak spesifik untuk Melee dan Ranged.
+ * @param {object} actorUnit - Objek unit yang sedang aktif.
+ * @param {Array<object>} allAliveUnits - Array semua objek unit yang masih hidup.
+ * @returns {Array<string>} Array berisi ID unit yang valid sebagai target serangan dasar.
  */
 function getValidBasicAttackTargetIdsForUI(actorUnit, allAliveUnits) {
-    if (!actorUnit || actorUnit.type !== "Ally" || !allAliveUnits) return [];
+    if (!actorUnit || actorUnit.type !== "Ally" || !allAliveUnits || !bState?._turnOrder) return [];
+
+    const numAlive = bState._turnOrder.length;
+    if (numAlive <= 1) return [];
 
     const aliveEnemies = allAliveUnits.filter(u => u.type === "Enemy");
     if (aliveEnemies.length === 0) return [];
 
     const actorRole = actorUnit.role || "Melee";
-    const attackRange = (actorRole === "Ranged") ? [2, -2] : [1, -1];
-    
-    const validTargets = aliveEnemies.filter(enemy => attackRange.includes(enemy.pseudoPos));
+    let validTargetPseudoPositions = [];
+
+    // Logika targeting dipisah berdasarkan Role
+    if (actorRole === "Ranged") {
+        // Ranged HANYA bisa menyerang pada Jarak 2
+        wsLogger(`UI_RENDERER_TARGETING: ${actorUnit.name} adalah Ranged. Menargetkan jarak 2.`);
+        if (numAlive > 2) validTargetPseudoPositions.push(2); // Jarak 2 ke depan
+        if (numAlive > 3) validTargetPseudoPositions.push(numAlive - 2); // Jarak 2 ke belakang (sirkular)
+    } else {
+        // Melee (atau role lain) HANYA bisa menyerang pada Jarak 1
+        wsLogger(`UI_RENDERER_TARGETING: ${actorUnit.name} adalah Melee. Menargetkan jarak 1.`);
+        if (numAlive > 1) validTargetPseudoPositions.push(1); // Jarak 1 ke depan
+        if (numAlive > 2) validTargetPseudoPositions.push(numAlive - 1); // Jarak 1 ke belakang (sirkular)
+    }
+
+    // Pastikan posisi unik, penting jika jumlah unit sedikit
+    validTargetPseudoPositions = [...new Set(validTargetPseudoPositions)];
+
+    const validTargets = aliveEnemies.filter(enemy => validTargetPseudoPositions.includes(enemy.pseudoPos));
+
     return validTargets.map(u => u.id);
 }
+
 
 /**
  * Finds the best anchor element for a pop-up with a specific priority.
@@ -528,41 +551,90 @@ function addLogEntry(message, type = "system", forceShow = false) {
     }
 }
 
+/**
+ * Renders the pseudomap with the active unit centered visually.
+ * This is the core visual refactoring to maintain the original game design.
+ */
 function renderPseudomap() {
-    if (!elPseudomapTrack) { wsLogger("UI_RENDERER_PSEUDOMAP_ERROR: Pseudomap track element not found."); return; }
-    elPseudomapTrack.innerHTML = '';
-    const allUnitsForMap = bState.units ? bState.units.filter(u => u.status !== "Defeated") : [];
-    if (allUnitsForMap.length === 0) { return; }
-    allUnitsForMap.sort((a, b) => (a.pseudoPos || 0) - (b.pseudoPos || 0));
-    let validBasicTargets = [];
-    const activeUnit = getActiveUnit();
-    if (wsMode === "idle" && activeUnit && activeUnit.type === "Ally" && bState.battleState === "Ongoing") {
-        validBasicTargets = getValidBasicAttackTargetIdsForUI(activeUnit, allUnitsForMap);
+    if (!elPseudomapTrack) {
+        wsLogger("UI_RENDERER_PSEUDOMAP_ERROR: Pseudomap track element not found.");
+        return;
     }
-    allUnitsForMap.forEach(unit => {
+    elPseudomapTrack.innerHTML = '';
+
+    const allUnitsForMap = bState.units ? bState.units.filter(u => u.status !== "Defeated") : [];
+    if (allUnitsForMap.length === 0) {
+        return;
+    }
+
+    // --- REFACTORED: Simplified and Corrected Sorting Logic ---
+    const activeUnit = allUnitsForMap.find(u => u.pseudoPos === 0);
+    const numAlive = allUnitsForMap.length;
+
+    // Tentukan jumlah unit di sisi kanan untuk menyeimbangkan
+    const numOnRight = Math.floor(numAlive / 2);
+
+    const rightSideUnits = [];
+    // Bangun array sisi kanan (pseudoPos: 1, 2, ..., numOnRight)
+    for (let i = 1; i <= numOnRight; i++) {
+        const unit = allUnitsForMap.find(u => u.pseudoPos === i);
+        if (unit) rightSideUnits.push(unit);
+    }
+
+    const leftSideUnits = [];
+    // Bangun array sisi kiri (pseudoPos: numOnRight + 1, ..., numAlive - 1)
+    for (let i = numOnRight + 1; i < numAlive; i++) {
+        const unit = allUnitsForMap.find(u => u.pseudoPos === i);
+        if (unit) leftSideUnits.push(unit);
+    }
+    // Karena dibangun dengan loop, array sudah terurut secara ascending.
+
+    // Gabungkan dalam urutan visual yang benar: [...kiri, tengah, ...kanan]
+    const finalRenderOrder = [...leftSideUnits, activeUnit, ...rightSideUnits].filter(Boolean);
+
+
+    // Get basic attack target IDs before the loop for efficiency
+    let validBasicTargets = [];
+    const currentActiveUnit = getActiveUnit();
+    if (wsMode === "idle" && currentActiveUnit && currentActiveUnit.type === "Ally" && bState.battleState === "Ongoing") {
+        validBasicTargets = getValidBasicAttackTargetIdsForUI(currentActiveUnit, allUnitsForMap);
+    }
+
+    // --- Render loop now uses the correctly ordered 'finalRenderOrder' array ---
+    finalRenderOrder.forEach(unit => {
+        if (!unit) return; // Safety check
+
         const frame = document.createElement('div');
         frame.classList.add('pseudomap-unit-frame', unit.type.toLowerCase());
         frame.dataset.unitId = unit.id;
+
+        // Apply style based on the unit's actual status from bState
         if (unit.id === bState.activeUnitID) {
             frame.classList.add('active');
             if (wsMode === "idle") frame.classList.add('active-turn-idle');
+        } else if (unit.status === "EndTurn") {
+            frame.classList.add('end-turn');
         }
-        if (unit.status === "EndTurn") frame.classList.add('end-turn');
+
+        // Highlight if it's a valid target for a basic attack
         if (wsMode === "idle" && validBasicTargets.includes(unit.id)) {
             frame.classList.add('valid-basic-attack-target');
         }
-        // untuk saat ini penanda unit yg kena effect stun akan dirender lebih gelap di pseudoMap, tapi nanti segala status effect ada dibawah HP bar masing masing
-        // ini nanti dihapus jika ada update statusBar
-        // Periksa apakah unit memiliki debuff "Stun"
+
+        // Check for stun status
         const isStunned = unit.statusEffects?.debuffs?.some(e => e.name === "Stun");
         if (isStunned) {
             frame.classList.add('is-stunned');
         }
+
         const portrait = document.createElement('img');
         portrait.src = getImagePathForUnit(unit.portraitFilename, unit.type, "portraitHead");
         portrait.alt = (unit.name || "Unit") + " Portrait";
         portrait.classList.add('pseudomap-portrait');
-        portrait.onerror = function() { this.src = getImagePathForUnit(null, unit.type, "portraitHead", true); };
+        portrait.onerror = function() {
+            this.src = getImagePathForUnit(null, unit.type, "portraitHead", true);
+        };
+
         frame.appendChild(portrait);
         elPseudomapTrack.appendChild(frame);
     });

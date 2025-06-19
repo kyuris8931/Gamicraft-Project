@@ -1,46 +1,57 @@
-// js/targeting_handler.js
-// Logika untuk menentukan target yang valid berdasarkan targetingParams.
-// Versi dengan AoE Radius Melingkar dan Circular SpecificPositions
+// js/targeting_handler.js (Final Refactor)
+// This version includes a definitive fix for SpecificPosition targeting
+// and robust handling of the turn order array.
 
 /**
- * Mendapatkan semua unit yang masih aktif (belum kalah) dari state.
- * @param {Array<object>} allUnitsFromState - Array unit dari bState.units.
- * @returns {Array<object>} Array unit yang aktif.
+ * Helper: Mengambil semua unit yang masih hidup, diurutkan berdasarkan _turnOrder.
+ * Fungsi ini krusial dan sekarang memiliki fallback untuk testing.
+ * @param {object} bState - Objek battle state lengkap.
+ * @returns {Array<object>} Array objek unit yang sudah diurutkan.
  */
-function getAliveUnits(allUnitsFromState) {
-    if (!allUnitsFromState || !Array.isArray(allUnitsFromState)) {
-        wsLogger("TARGETING_HANDLER_ERROR: allUnitsFromState is invalid in getAliveUnits.");
+function getOrderedAliveUnits(bState) {
+    if (!bState || !bState.units) {
+        wsLogger("TARGETING_HANDLER_ERROR: bState atau bState.units tidak valid.");
         return [];
     }
-    return allUnitsFromState.filter(unit => unit.status !== "Defeated");
+
+    // Metode utama: Gunakan _turnOrder jika ada (untuk battle sesungguhnya)
+    if (bState._turnOrder && Array.isArray(bState._turnOrder) && bState._turnOrder.length > 0) {
+        wsLogger("TARGETING_HANDLER_TRACE: Menggunakan bState._turnOrder untuk mengurutkan unit.");
+        return bState._turnOrder
+            .map(id => bState.units.find(u => u.id === id && u.status !== 'Defeated'))
+            .filter(Boolean); // Menghapus unit null jika ada yg tidak ditemukan
+    }
+
+    // Metode darurat (fallback): Jika _turnOrder tidak ada (untuk testing di PC)
+    wsLogger("TARGETING_HANDLER_WARN: bState._turnOrder tidak ditemukan. Membuat urutan darurat dari pseudoPos.");
+    const aliveUnits = bState.units.filter(u => u.status !== 'Defeated');
+    return aliveUnits.sort((a, b) => a.pseudoPos - b.pseudoPos);
 }
 
 /**
- * Fungsi utama untuk mendapatkan daftar ID unit yang valid sebagai target utama (Tahap 1).
- * @param {object} actorUnit - Objek unit yang melakukan aksi.
- * @param {object} command - Objek command yang berisi targetingParams.
- * @param {Array<object>} allUnitsFromState - Array semua unit dari bState.units.
- * @returns {Array<string>} Array berisi ID unit yang valid sebagai target utama.
+ * Helper: Menghitung jarak sirkular terpendek antara dua posisi.
+ * @param {number} pos1 - Posisi pertama (pseudoPos).
+ * @param {number} pos2 - Posisi kedua (pseudoPos).
+ * @param {number} arrayLength - Jumlah total item dalam lingkaran.
+ * @returns {number} Jarak terpendek.
  */
-function getValidPrimaryTargets(actorUnit, command, allUnitsFromState) {
-    if (!actorUnit || !command || !command.targetingParams || !command.targetingParams.selection) {
-        wsLogger("TARGETING_HANDLER_ERROR: Missing actorUnit or command targetingParams in getValidPrimaryTargets.");
-        return [];
-    }
+function getCircularDistance(pos1, pos2, arrayLength) {
+    const diff = Math.abs(pos1 - pos2);
+    return Math.min(diff, arrayLength - diff);
+}
 
-    const aliveUnits = getAliveUnits(allUnitsFromState);
-    if (aliveUnits.length === 0) {
-        wsLogger("TARGETING_HANDLER: No alive units found.");
-        return [];
-    }
 
-    // Urutkan unit berdasarkan pseudoPos untuk logika melingkar yang konsisten jika diperlukan nanti
-    // Ini penting untuk kalkulasi melingkar yang benar.
-    const sortedAliveUnits = [...aliveUnits].sort((a, b) => a.pseudoPos - b.pseudoPos);
-    const actorIndexInSorted = sortedAliveUnits.findIndex(u => u.id === actorUnit.id);
-
-    if (actorIndexInSorted === -1 && command.targetingParams.selection.pattern.shape !== "AnyDefeatedAlly") { // Jangan error jika memang tidak perlu aktor di sorted list (misal Revive)
-        wsLogger(`TARGETING_HANDLER_ERROR: Actor unit ${actorUnit.name} not found in sorted alive units for a skill that requires it.`);
+/**
+ * Fungsi Utama: Mendapatkan daftar ID target utama yang valid (Tahap 1).
+ * VERSI FINAL DENGAN LOGIKA YANG DIPERBAIKI.
+ * @param {object} actorUnit - Unit yang melakukan aksi.
+ * @param {object} command - Objek command yang berisi targetingParams.
+ * @param {object} bState - Objek battle state LENGKAP.
+ * @returns {Array<string>} Array berisi ID target utama yang valid.
+ */
+function getValidPrimaryTargets(actorUnit, command, bState) {
+    if (!actorUnit || !command?.targetingParams?.selection) {
+        wsLogger("TARGETING_HANDLER_ERROR: Aktor atau parameter command tidak ada.");
         return [];
     }
 
@@ -48,282 +59,143 @@ function getValidPrimaryTargets(actorUnit, command, allUnitsFromState) {
     const pattern = selectionParams.pattern;
     const targetableTypes = selectionParams.targetableTypes || ["Enemy"];
 
-    let potentialTargetIds = [];
+    // Kasus khusus untuk revive (sudah benar)
+    if (pattern.shape === "AnyDefeatedAlly") {
+        const defeatedAllies = bState.units.filter(u => u.type === "Ally" && u.status === "Defeated");
+        wsLogger(`TARGETING_HANDLER [AnyDefeatedAlly]: Ditemukan ${defeatedAllies.length} teman yang kalah.`);
+        return defeatedAllies.map(ally => ally.id);
+    }
 
-    wsLogger(`TARGETING_HANDLER: Actor: ${actorUnit.name} (psPos: ${actorUnit.pseudoPos}, index in sorted: ${actorIndexInSorted}), Skill: ${command.name}, Shape: ${pattern.shape}, TargetTypes: ${targetableTypes.join(', ')}`);
+    const orderedUnits = getOrderedAliveUnits(bState);
+    if (orderedUnits.length === 0) return [];
+
+    const numAlive = orderedUnits.length;
+    const actorPseudoPos = actorUnit.pseudoPos;
+
+    let potentialTargetIds = [];
+    wsLogger(`TARGETING_HANDLER: Aktor: ${actorUnit.name} (psPos: ${actorPseudoPos}), Skill: ${command.name}, Shape: ${pattern.shape}`);
 
     switch (pattern.shape) {
         case "Adjacent":
         case "WithinDistance":
-            const maxDistance = pattern.distance;
-            // const numUnitsSorted = sortedAliveUnits.length; // Tidak terpakai
-
-            for (let i = 0; i < sortedAliveUnits.length; i++) {
-                if (i === actorIndexInSorted && pattern.shape !== "Self") continue; // Jangan target diri sendiri kecuali skill Self
-
-                const targetUnit = sortedAliveUnits[i];
-                let dist = Math.abs(targetUnit.pseudoPos - actorUnit.pseudoPos); // Jarak linear sederhana
-
-                if (pattern.shape === "Adjacent" && maxDistance === 1) {
-                    const linearDist = targetUnit.pseudoPos - actorUnit.pseudoPos;
-                    if (Math.abs(linearDist) === 1) {
-                         if (targetableTypes.includes(targetUnit.type)) {
-                            potentialTargetIds.push(targetUnit.id);
-                            wsLogger(`TARGETING_HANDLER [Adjacent Linear]: Found ${targetUnit.name} at psPos ${targetUnit.pseudoPos}`);
-                        }
-                    }
-                }
-                else if (dist <= maxDistance) { // Untuk WithinDistance
-                     if (targetableTypes.includes(targetUnit.type)) {
-                        let isValidDirection = false;
-                        if (!pattern.direction || pattern.direction === "Both") {
-                            isValidDirection = true;
-                        } else if (pattern.direction === "Forward" && targetUnit.pseudoPos > actorUnit.pseudoPos) {
-                            isValidDirection = true;
-                        } else if (pattern.direction === "Backward" && targetUnit.pseudoPos < actorUnit.pseudoPos) {
-                            isValidDirection = true;
-                        }
-
-                        if (isValidDirection) {
-                            potentialTargetIds.push(targetUnit.id);
-                            wsLogger(`TARGETING_HANDLER [${pattern.shape} Linear]: Found ${targetUnit.name} at psPos ${targetUnit.pseudoPos}`);
-                        }
-                    }
-                }
-            }
+            const maxDistance = pattern.distance || 1;
+            const validTargets = orderedUnits.filter(targetUnit => {
+                if (targetUnit.id === actorUnit.id) return false;
+                if (!targetableTypes.includes(targetUnit.type)) return false;
+                const distance = getCircularDistance(actorPseudoPos, targetUnit.pseudoPos, numAlive);
+                return distance <= maxDistance;
+            });
+            potentialTargetIds = validTargets.map(u => u.id);
             break;
 
-        case "SpecificPosition": 
-        case "SpecificPositions": 
-            const targetPositions = pattern.positions || (pattern.distance ? [pattern.distance] : []); 
-            const direction = pattern.direction || "Both"; 
-            const useCircular = pattern.circular || false;
-            const numTotalAlive = sortedAliveUnits.length;
+        case "SpecificPosition":
+        case "SpecificPositions":
+            const positions = pattern.positions || [pattern.distance || 1];
+            const direction = pattern.direction || "Both";
 
-            if (actorIndexInSorted === -1) { // Aktor harus ada di sorted list untuk tipe targeting ini
-                wsLogger(`TARGETING_HANDLER_ERROR [${pattern.shape}]: Actor unit ${actorUnit.name} not found in sorted alive units, required for this targeting type.`);
-                break;
-            }
-
-            if (numTotalAlive <= 1 && !useCircular && pattern.shape !== "Self") { 
-                 wsLogger(`TARGETING_HANDLER [${pattern.shape}]: Not enough units (${numTotalAlive}) for non-circular targeting or not Self.`);
-                 break;
-            }
-
-            targetPositions.forEach(posOffset => {
-                let targetIndex = -1;
-
+            positions.forEach(offset => {
+                // Maju (Forward)
                 if (direction === "Forward" || direction === "Both") {
-                    if (useCircular && numTotalAlive > 0) { // Pastikan numTotalAlive > 0 untuk modulo
-                        targetIndex = (actorIndexInSorted + posOffset) % numTotalAlive;
-                        if (targetIndex < 0) targetIndex += numTotalAlive; 
-                    } else {
-                        const targetPseudoPos = actorUnit.pseudoPos + posOffset;
-                        const foundUnit = sortedAliveUnits.find(u => u.pseudoPos === targetPseudoPos);
-                        if (foundUnit) targetIndex = sortedAliveUnits.indexOf(foundUnit);
-                    }
-
-                    if (targetIndex !== -1 && targetIndex !== actorIndexInSorted) {
-                        const targetUnit = sortedAliveUnits[targetIndex];
-                        if (targetUnit && targetableTypes.includes(targetUnit.type)) {
-                            potentialTargetIds.push(targetUnit.id);
-                            wsLogger(`TARGETING_HANDLER [${pattern.shape} Fwd circ:${useCircular}]: Found ${targetUnit.name} (index ${targetIndex}, psPos ${targetUnit.pseudoPos}) at offset ${posOffset}`);
-                        }
+                    const targetIndex = (actorPseudoPos + offset) % numAlive;
+                    const targetUnit = orderedUnits.find(u => u.pseudoPos === targetIndex);
+                    if (targetUnit && targetUnit.id !== actorUnit.id && targetableTypes.includes(targetUnit.type)) {
+                        potentialTargetIds.push(targetUnit.id);
                     }
                 }
-
-                if (direction === "Backward" || (direction === "Both" && posOffset !== 0) ) { 
-                    let backwardTargetIndex = -1;
-                    if (useCircular && numTotalAlive > 0) { // Pastikan numTotalAlive > 0 untuk modulo
-                        backwardTargetIndex = (actorIndexInSorted - posOffset + numTotalAlive) % numTotalAlive;
-                    } else {
-                        const targetPseudoPos = actorUnit.pseudoPos - posOffset;
-                        const foundUnit = sortedAliveUnits.find(u => u.pseudoPos === targetPseudoPos);
-                        if (foundUnit) backwardTargetIndex = sortedAliveUnits.indexOf(foundUnit);
-                    }
-
-                     if (backwardTargetIndex !== -1 && backwardTargetIndex !== actorIndexInSorted) {
-                        const targetUnit = sortedAliveUnits[backwardTargetIndex];
-                        if (targetUnit && targetableTypes.includes(targetUnit.type)) {
-                            potentialTargetIds.push(targetUnit.id);
-                            wsLogger(`TARGETING_HANDLER [${pattern.shape} Bwd circ:${useCircular}]: Found ${targetUnit.name} (index ${backwardTargetIndex}, psPos ${targetUnit.pseudoPos}) at offset -${posOffset}`);
-                        }
+                // Mundur (Backward)
+                if (direction === "Backward" || direction === "Both") {
+                    const targetIndex = (actorPseudoPos - offset + numAlive) % numAlive;
+                    const targetUnit = orderedUnits.find(u => u.pseudoPos === targetIndex);
+                    if (targetUnit && targetUnit.id !== actorUnit.id && targetableTypes.includes(targetUnit.type)) {
+                        potentialTargetIds.push(targetUnit.id);
                     }
                 }
             });
             break;
 
         case "Self":
-            if (actorIndexInSorted === -1) {
-                wsLogger(`TARGETING_HANDLER_ERROR [Self]: Actor unit ${actorUnit.name} not found in sorted alive units.`);
-                break;
-           }
-           // BUGFIX: Cek apakah "Self" ada di targetableTypes, bukan actorUnit.type
-           if (targetableTypes.includes("Self")) {
-               potentialTargetIds.push(actorUnit.id);
-               wsLogger(`TARGETING_HANDLER [Self]: Target is self: ${actorUnit.name}`);
-           }
-           break;
-
-        case "AnyDefeatedAlly":
-            // Tidak bergantung pada sortedAliveUnits atau actorIndexInSorted
-            const defeatedAllies = allUnitsFromState.filter(u => u.type === "Ally" && u.status === "Defeated");
-            defeatedAllies.forEach(ally => potentialTargetIds.push(ally.id));
-            wsLogger(`TARGETING_HANDLER [AnyDefeatedAlly]: Found ${defeatedAllies.length} defeated allies.`);
+            if (targetableTypes.includes("Self") || targetableTypes.includes(actorUnit.type)) {
+                potentialTargetIds.push(actorUnit.id);
+            }
             break;
 
         default:
-            wsLogger(`TARGETING_HANDLER_WARN: Unknown or unhandled pattern shape for selection: ${pattern.shape}`);
-            if (targetableTypes.includes("Enemy") && actorIndexInSorted !== -1) {
-                const closestEnemy = sortedAliveUnits.find(u => u.type === "Enemy" && u.id !== actorUnit.id);
-                if (closestEnemy) {
-                    potentialTargetIds.push(closestEnemy.id);
-                    wsLogger(`TARGETING_HANDLER_WARN: Fallback to closest enemy: ${closestEnemy.name}`);
-                }
-            }
-            break;
+             wsLogger(`TARGETING_HANDLER_WARN: Shape pattern tidak dikenal: ${pattern.shape}`);
+             break;
     }
 
     const uniqueTargetIds = [...new Set(potentialTargetIds)];
-    wsLogger(`TARGETING_HANDLER: Valid primary targets for ${command.name}: ${uniqueTargetIds.join(', ') || 'None'}`);
+    wsLogger(`TARGETING_HANDLER: Target utama yang valid untuk ${command.name}: [${uniqueTargetIds.join(', ')}]`);
     return uniqueTargetIds;
 }
 
-
 /**
- * Mendapatkan semua unit yang akan terkena efek berdasarkan target utama yang dipilih dan area efek skill (Tahap 2).
+ * Mendapatkan semua unit yang terkena efek area (AoE) berdasarkan target utama (Tahap 2).
+ * @param {string} primaryTargetId - ID target utama yang dipilih.
+ * @param {object} actorUnit - Unit yang melakukan aksi.
+ * @param {object} command - Objek command.
+ * @param {object} bState - Objek battle state LENGKAP.
+ * @returns {Array<string>} Array berisi semua ID unit yang terkena efek.
  */
-function getAreaAffectedTargets(primaryTargetId, actorUnit, command, allUnitsFromState) {
-    if (!command || !command.targetingParams || !command.targetingParams.area) {
-        wsLogger("TARGETING_HANDLER_ERROR: Missing command targetingParams.area in getAreaAffectedTargets.");
+function getAreaAffectedTargets(primaryTargetId, actorUnit, command, bState) {
+    if (!command?.targetingParams?.area) {
+        // Jika tidak ada parameter area, target yang terkena hanya target utama.
         return primaryTargetId ? [primaryTargetId] : [];
     }
 
-    const aliveUnits = getAliveUnits(allUnitsFromState);
-    if (aliveUnits.length === 0) return [];
+    const orderedUnits = getOrderedAliveUnits(bState);
+    if (orderedUnits.length === 0) return [];
 
-    const sortedAliveUnits = [...aliveUnits].sort((a, b) => a.pseudoPos - b.pseudoPos);
-    const numUnits = sortedAliveUnits.length;
-
-    const primaryTargetUnit = sortedAliveUnits.find(u => u.id === primaryTargetId);
+    const numAlive = orderedUnits.length;
     const areaParams = command.targetingParams.area;
-    const affectedTypes = areaParams.affectedTypes || ["Enemy"]; 
-    let originUnitForAoE = null;
-    const actorInSortedForAoE = sortedAliveUnits.find(u => u.id === actorUnit.id);
-
-
-    if (areaParams.origin === "SelectedTarget") {
-        if (!primaryTargetUnit) {
-            wsLogger("TARGETING_HANDLER_ERROR: Primary target not found for SelectedTarget origin AoE.");
-            return [];
-        }
-        originUnitForAoE = primaryTargetUnit;
-    } else if (areaParams.origin === "Caster") {
-        if (!actorInSortedForAoE) { // Gunakan actorInSortedForAoE yang sudah dicari
-             wsLogger("TARGETING_HANDLER_ERROR: Caster unit not found in sortedAliveUnits for Caster origin AoE.");
-            return [];
-        }
-        originUnitForAoE = actorInSortedForAoE;
-    } else {
-        wsLogger(`TARGETING_HANDLER_WARN: Unknown area origin: ${areaParams.origin}. Defaulting to SelectedTarget if possible.`);
-        originUnitForAoE = primaryTargetUnit || actorInSortedForAoE; // Fallback ke actor jika primaryTargetUnit tidak ada
-    }
-
-    if (!originUnitForAoE) {
-         wsLogger("TARGETING_HANDLER_ERROR: Origin unit for AoE could not be determined.");
-        return [];
-    }
-
-    const originIndex = sortedAliveUnits.findIndex(u => u.id === originUnitForAoE.id);
-    if (originIndex === -1) {
-        wsLogger(`TARGETING_HANDLER_ERROR: Origin unit ${originUnitForAoE.name} not found in sorted list for AoE.`);
-        return [];
-    }
-
+    const affectedTypes = areaParams.affectedTypes || ["Enemy"];
     let affectedTargetIds = [];
-    wsLogger(`TARGETING_HANDLER_AOE: Origin: ${originUnitForAoE.name} (psPos: ${originUnitForAoE.pseudoPos}, index: ${originIndex}), Shape: ${areaParams.shape}, AffectedTypes: ${affectedTypes.join(', ')}`);
+
+    let originUnit = null;
+    if (areaParams.origin === "Caster") {
+        originUnit = actorUnit;
+    } else { // Default ke "SelectedTarget"
+        originUnit = orderedUnits.find(u => u.id === primaryTargetId);
+    }
+
+    if (!originUnit) {
+        wsLogger("TARGETING_HANDLER_AOE_ERROR: Tidak dapat menentukan unit asal untuk AoE.");
+        return [];
+    }
+
+    const originPseudoPos = originUnit.pseudoPos;
+    wsLogger(`TARGETING_HANDLER_AOE: Asal: ${originUnit.name} (psPos: ${originPseudoPos}), Shape: ${areaParams.shape}`);
 
     switch (areaParams.shape) {
         case "SingleOnSelected":
+            const primaryTargetUnit = orderedUnits.find(u => u.id === primaryTargetId);
             if (primaryTargetUnit && affectedTypes.includes(primaryTargetUnit.type)) {
-                affectedTargetIds.push(primaryTargetUnit.id);
-                wsLogger(`TARGETING_HANDLER_AOE [SingleOnSelected]: Affected: ${primaryTargetUnit.name}`);
-            } else if (primaryTargetUnit && affectedTypes.includes("Self") && primaryTargetUnit.id === actorUnit.id){
-                // Kasus khusus jika skill Self tapi area originnya SelectedTarget (yang adalah Caster)
-                affectedTargetIds.push(primaryTargetUnit.id);
-                wsLogger(`TARGETING_HANDLER_AOE [SingleOnSelected Self]: Affected: ${primaryTargetUnit.name}`);
+                affectedTargetIds.push(primaryTargetId);
             }
             break;
 
         case "RadiusAroundOrigin":
-            const radiusDistance = areaParams.distance || 0;
-            if (numUnits > 0) {
-                for (let i = 0; i < numUnits; i++) {
-                    const currentUnit = sortedAliveUnits[i];
-                    const diff = Math.abs(i - originIndex);
-                    const circularDistance = Math.min(diff, numUnits - diff);
-
-                    if (circularDistance <= radiusDistance) {
-                        // Cek apakah tipe unit ini termasuk dalam affectedTypes ATAU
-                        // jika affectedTypes mengandung "Self" dan unit saat ini adalah caster
-                        if (affectedTypes.includes(currentUnit.type) || (affectedTypes.includes("Self") && currentUnit.id === actorUnit.id) ) {
-                            affectedTargetIds.push(currentUnit.id);
-                            wsLogger(`TARGETING_HANDLER_AOE [RadiusAroundOrigin D:${radiusDistance}]: Unit ${currentUnit.name} (index ${i}, psPos ${currentUnit.pseudoPos}) is within circular radius of ${originUnitForAoE.name}. CircDist: ${circularDistance}`);
-                        }
-                    }
+            const radius = areaParams.distance || 0;
+            orderedUnits.forEach(targetUnit => {
+                const distance = getCircularDistance(originPseudoPos, targetUnit.pseudoPos, numAlive);
+                if (distance <= radius && affectedTypes.includes(targetUnit.type)) {
+                    affectedTargetIds.push(targetUnit.id);
                 }
-            }
-            break;
-        
-        case "LineThroughTarget": 
-            if (primaryTargetUnit) { // Membutuhkan primaryTargetUnit sebagai acuan
-                 // Target utama selalu kena jika tipenya sesuai (atau jika affectedTypes adalah "Self" dan primaryTarget adalah caster)
-                if (affectedTypes.includes(primaryTargetUnit.type) || (affectedTypes.includes("Self") && primaryTargetUnit.id === actorUnit.id) ) {
-                    affectedTargetIds.push(primaryTargetUnit.id); 
-                    wsLogger(`TARGETING_HANDLER_AOE [LineThroughTarget]: Primary target ${primaryTargetUnit.name} affected.`);
-                }
-
-                const primaryTargetIndexInSorted = sortedAliveUnits.findIndex(u => u.id === primaryTargetUnit.id);
-                if (primaryTargetIndexInSorted !== -1) { // Pastikan primary target ditemukan di sorted list
-                    const lineDistance = areaParams.distance || 1; 
-
-                    // Target di depan primaryTarget (relatif dalam sortedAliveUnits)
-                    const nextTargetIndex = primaryTargetIndexInSorted + lineDistance;
-                    if (nextTargetIndex >= 0 && nextTargetIndex < numUnits) { 
-                        const nextTarget = sortedAliveUnits[nextTargetIndex];
-                        if (nextTarget && affectedTypes.includes(nextTarget.type)) {
-                            affectedTargetIds.push(nextTarget.id);
-                            wsLogger(`TARGETING_HANDLER_AOE [LineThroughTarget]: Forward pierce hit ${nextTarget.name}.`);
-                        }
-                    }
-                    // Target di belakang primaryTarget (relatif dalam sortedAliveUnits)
-                    const prevTargetIndex = primaryTargetIndexInSorted - lineDistance;
-                    if (prevTargetIndex >= 0 && prevTargetIndex < numUnits) { 
-                        const prevTarget = sortedAliveUnits[prevTargetIndex];
-                        if (prevTarget && affectedTypes.includes(prevTarget.type)) {
-                            affectedTargetIds.push(prevTarget.id);
-                             wsLogger(`TARGETING_HANDLER_AOE [LineThroughTarget]: Backward pierce hit ${prevTarget.name}.`);
-                        }
-                    }
-                }
-            } else {
-                 wsLogger(`TARGETING_HANDLER_AOE_WARN [LineThroughTarget]: Primary target ID ${primaryTargetId} not found in sorted units.`);
-            }
+            });
             break;
 
         default:
-            wsLogger(`TARGETING_HANDLER_WARN: Unknown or unhandled area shape: ${areaParams.shape}`);
-            if (primaryTargetUnit && affectedTypes.includes(primaryTargetUnit.type)) {
-                affectedTargetIds.push(primaryTargetUnit.id);
-            } else if (primaryTargetUnit && affectedTypes.includes("Self") && primaryTargetUnit.id === actorUnit.id){
-                 affectedTargetIds.push(primaryTargetUnit.id);
-            }
-            break;
+             wsLogger(`TARGETING_HANDLER_AOE_WARN: Area shape tidak dikenal: ${areaParams.shape}`);
+             // Fallback untuk hanya mengenai unit asal jika tipenya cocok
+             if (affectedTypes.includes(originUnit.type)) {
+                affectedTargetIds.push(originUnit.id);
+             }
+             break;
     }
 
     const uniqueAffectedIds = [...new Set(affectedTargetIds)];
-    wsLogger(`TARGETING_HANDLER_AOE: Final affected targets for ${command.name}: ${uniqueAffectedIds.join(', ') || 'None'}`);
+    wsLogger(`TARGETING_HANDLER_AOE: Target akhir yang terkena efek: [${uniqueAffectedIds.join(', ')}]`);
     return uniqueAffectedIds;
 }
 
-wsLogger("TARGETING_HANDLER_JS: targeting_handler.js (v4: Improved Circular & AoE Logic) loaded.");
+wsLogger("TARGETING_HANDLER_JS: targeting_handler.js (Final Refactor) loaded.");

@@ -1,6 +1,6 @@
 // js/event_handlers.js
 // Gamicraft WebScreen Event Handling Logic
-// Versi final dengan perbaikan logika pengecekan elemen.
+// VERSI FINAL: Memperbaiki alur logika skill dan menjaga logging.
 
 // --- Konstanta ---
 const DOUBLE_TAP_END_TURN_THRESHOLD = 400;
@@ -21,6 +21,12 @@ let lastTappedActiveUnitId = null;
 let lastTapTimeOnTarget = 0;
 let lastTappedTargetUnitId = null;
 
+// Variabel global untuk state targeting
+let selectedActionDetails = null;
+let validPrimaryTargetIds = [];
+let selectedPrimaryTargetId = null;
+let currentAffectedTargetIds = [];
+
 // Flag untuk konsistensi highlight tap pertama
 let isWaitingForSecondTapEndTurn = false;
 let isWaitingForSecondTapBasicAttack = false;
@@ -29,12 +35,12 @@ let isWaitingForSecondTapBasicAttack = false;
  * Inisialisasi semua event listener utama.
  */
 function initializeEventListeners() {
-    wsLogger("EVENT_HANDLER: Initializing event listeners (with panel overlay and blur).");
-    
+    wsLogger("EVENT_HANDLER: Initializing event listeners...");
+
     if (elBattleOptionsTrigger) elBattleOptionsTrigger.addEventListener('click', (event) => {
-        event.stopPropagation(); 
+        event.stopPropagation();
         sendSoundCommand({ sfx_name: "ui_tap" });
-        handleToggleStatsPanel(); 
+        handleToggleStatsPanel();
     });
 
     if (elCloseLogBtn) elCloseLogBtn.addEventListener('click', () => {
@@ -63,18 +69,18 @@ function initializeEventListeners() {
 
     if (elActionButtonsGroup) elActionButtonsGroup.addEventListener('click', handleActionButtonClick);
     if (elPseudomapTrack) elPseudomapTrack.addEventListener('click', handlePseudomapUnitClick);
-    
+
     const openWsLogButtonFromBattleLog = document.getElementById('open-ws-log-btn');
     if (openWsLogButtonFromBattleLog) openWsLogButtonFromBattleLog.addEventListener('click', handleToggleWsLoggerScreen);
     if (elCloseWsLoggerBtn) elCloseWsLoggerBtn.addEventListener('click', () => handleToggleWsLoggerScreen(false));
     if (elCopyWsLogBtn) elCopyWsLogBtn.addEventListener('click', handleCopyWsLog);
     if (elClearWsLogBtn) elClearWsLogBtn.addEventListener('click', handleClearWsLog);
-    
+
     const statsPanelBattleLogBtn = document.getElementById('stats-panel-battle-log-btn');
     if (statsPanelBattleLogBtn) {
         statsPanelBattleLogBtn.addEventListener('click', () => {
             sendSoundCommand({ sfx_name: "ui_tap" });
-            handleToggleStatsPanel(false); 
+            handleToggleStatsPanel(false);
             handleToggleBattleLog(true);
         });
     }
@@ -86,7 +92,7 @@ function initializeEventListeners() {
             handleToggleWsLoggerScreen(true);
         });
     }
-    
+
     document.addEventListener('click', handleClosePanelOnClickOutside);
     document.body.addEventListener('click', handleGlobalClickToCancelTargeting, true);
     document.querySelectorAll('.styled-button, .action-buttons-group button').forEach(button => {
@@ -103,27 +109,292 @@ function initializeEventListeners() {
             if(battleInterface) battleInterface.classList.remove('is-fully-hidden');
         });
     }
-    
+
     wsLogger("EVENT_HANDLER: Event listeners initialization complete.");
 }
 
 /**
- * Menampilkan atau menyembunyikan panel statistik, overlay, dan efek blur.
- * @param {boolean} [explicitShow=null] - Jika true, paksa tampil. Jika false, paksa sembunyi. Jika null, toggle.
+ * Menangani klik pada unit di pseudomap. Ini adalah pusat logika untuk targeting.
+ * @param {MouseEvent} event
  */
+function handlePseudomapUnitClick(event) {
+    const targetFrame = event.target.closest('.pseudomap-unit-frame');
+    if (!targetFrame) return;
+
+    sendSoundCommand({ sfx_name: "ui_tap" });
+    const clickedUnitId = targetFrame.dataset.unitId;
+    wsLogger(`PSEUDOMAP_CLICK: Unit [${clickedUnitId}] diklik. wsMode saat ini: "${wsMode}".`);
+
+    // --- ALUR UNTUK MODE TARGETING SKILL ---
+    if (wsMode === "selecting_primary_target") {
+        wsLogger(`PSEUDOMAP_CLICK: Memproses klik dalam mode 'selecting_primary_target'.`);
+        if (validPrimaryTargetIds.includes(clickedUnitId)) {
+            wsLogger(`PSEUDOMAP_CLICK: Target [${clickedUnitId}] valid. Melanjutkan ke konfirmasi area.`);
+            selectedPrimaryTargetId = clickedUnitId;
+            
+            // --- PERBAIKAN DI SINI: Tambahkan auto-scroll jika targetnya musuh ---
+            const primaryTargetUnit = getUnitById(selectedPrimaryTargetId); // Fungsi ini sekarang aman dipanggil
+            if (primaryTargetUnit && primaryTargetUnit.type === 'Enemy') {
+                if (typeof scrollToEnemyInCarousel === 'function') {
+                    wsLogger(`PSEUDOMAP_CLICK: Target adalah musuh. Memanggil auto-scroll.`);
+                    scrollToEnemyInCarousel(selectedPrimaryTargetId);
+                }
+            }
+            // --- AKHIR PERBAIKAN ---
+
+            const activeUnit = getActiveUnit();
+            currentAffectedTargetIds = getAreaAffectedTargets(selectedPrimaryTargetId, activeUnit, selectedActionDetails.commandObject, bState);
+
+            if (currentAffectedTargetIds.length > 0) {
+                wsMode = "confirming_effect_area";
+                wsLogger(`PSEUDOMAP_CLICK: wsMode diubah menjadi 'confirming_effect_area'. Target terpengaruh: [${currentAffectedTargetIds.join(', ')}]. Menunggu klik konfirmasi.`);
+                addLogEntry(`Skill: ${selectedActionDetails.buttonText}. Tekan target lagi untuk konfirmasi.`, "system-info");
+                if (typeof ui_renderConfirmAreaMode === "function") ui_renderConfirmAreaMode(selectedPrimaryTargetId, currentAffectedTargetIds, getAllUnitFramesOnMap());
+            } else {
+                wsLogger("PSEUDOMAP_CLICK_ERROR: Gagal menentukan area efek skill. Membatalkan aksi.");
+                addLogEntry("Error: Tidak dapat menentukan area efek skill.", "error");
+                exitTargetingMode();
+            }
+        } else {
+            wsLogger(`PSEUDOMAP_CLICK_WARN: Target [${clickedUnitId}] tidak valid. Aksi dibatalkan.`);
+            handleActionCancel(); // Klik di luar target valid akan membatalkan
+        }
+        return;
+    }
+
+    if (wsMode === "confirming_effect_area") {
+        wsLogger(`PSEUDOMAP_CLICK: Memproses klik dalam mode 'confirming_effect_area'.`);
+        if (currentAffectedTargetIds.includes(clickedUnitId)) {
+            wsLogger(`PSEUDOMAP_CLICK: Target [${clickedUnitId}] valid untuk konfirmasi. Mengeksekusi aksi.`);
+            handleActionConfirm();
+        } else {
+            wsLogger("PSEUDOMAP_CLICK_WARN: Klik di luar area efek. Aksi dibatalkan.");
+            handleActionCancel();
+        }
+        return;
+    }
+    
+    if (wsMode === "selecting_revive_target") {
+         wsLogger(`PSEUDOMAP_CLICK: Memproses klik dalam mode 'selecting_revive_target'.`);
+        if (validPrimaryTargetIds.includes(clickedUnitId)) {
+            wsLogger(`EVENT_HANDLER: Revive dikonfirmasi untuk target: ${clickedUnitId}`);
+            sendCommandToTasker("PLAYER_ACTION", { actorId: selectedActionDetails.actorId, commandId: selectedActionDetails.commandId, affectedTargetIds: [clickedUnitId] });
+            exitTargetingMode();
+        } else {
+            wsLogger("EVENT_HANDLER: Klik di area yang tidak bisa di-revive. Membatalkan revive.");
+            handleActionCancel();
+        }
+        return;
+    }
+
+
+    // --- ALUR UNTUK MODE IDLE (BASIC ATTACK & END TURN) ---
+    const currentTime = new Date().getTime();
+    const activeUnit = getActiveUnit();
+    if (wsMode === "idle" && activeUnit && activeUnit.id === bState.activeUnitID && bState.battleState === "Ongoing") {
+        // Double tap pada unit aktif untuk End Turn
+        if (clickedUnitId === activeUnit.id) {
+            if (isWaitingForSecondTapEndTurn && lastTappedActiveUnitId === clickedUnitId && (currentTime - lastTapTimeOnActiveUnit) < DOUBLE_TAP_END_TURN_THRESHOLD) {
+                wsLogger("IDLE_ACTION: Double tap End Turn terdeteksi. Mengirim perintah.");
+                sendCommandToTasker("PLAYER_END_TURN", { actorId: activeUnit.id });
+                resetDoubleTapState();
+            } else {
+                wsLogger("IDLE_ACTION: Tap pertama pada unit aktif. Menunggu tap kedua untuk End Turn.");
+                lastTapTimeOnActiveUnit = currentTime;
+                lastTappedActiveUnitId = clickedUnitId;
+                isWaitingForSecondTapEndTurn = true;
+                isWaitingForSecondTapBasicAttack = false; // Reset state lain
+                ui_showEndTurnHint(clickedUnitId, true);
+                setTimeout(() => {
+                    if (isWaitingForSecondTapEndTurn && lastTappedActiveUnitId === clickedUnitId) {
+                        resetDoubleTapState();
+                    }
+                }, DOUBLE_TAP_END_TURN_THRESHOLD + 50);
+            }
+            return;
+        }
+
+        // Double tap pada target musuh untuk Basic Attack
+        let validBasicAttackTargets = getValidBasicAttackTargetIdsForUI(activeUnit, bState.units);
+        if (validBasicAttackTargets.includes(clickedUnitId)) {
+            if (isWaitingForSecondTapBasicAttack && lastTappedTargetUnitId === clickedUnitId && (currentTime - lastTapTimeOnTarget) < DOUBLE_TAP_BASIC_ATTACK_THRESHOLD) {
+                wsLogger("IDLE_ACTION: Double tap Basic Attack terdeteksi. Mengirim perintah.");
+                sendCommandToTasker("PLAYER_BASIC_ATTACK", { actorId: activeUnit.id, targetId: clickedUnitId });
+                resetDoubleTapState();
+            } else {
+                wsLogger("IDLE_ACTION: Tap pertama pada target Basic Attack. Menunggu tap kedua.");
+                lastTapTimeOnTarget = currentTime;
+                lastTappedTargetUnitId = clickedUnitId;
+                isWaitingForSecondTapBasicAttack = true;
+                isWaitingForSecondTapEndTurn = false; // Reset state lain
+                if (typeof ui_highlightPotentialBasicAttackTarget === "function") ui_highlightPotentialBasicAttackTarget(clickedUnitId, true);
+                if (getUnitById(clickedUnitId)?.type === "Enemy") scrollToEnemyInCarousel(clickedUnitId);
+            }
+            return;
+        }
+
+        // Jika klik di tempat lain saat idle, reset state double tap
+        resetDoubleTapState();
+    }
+}
+
+
+/**
+ * Menangani klik pada tombol aksi (skill).
+ * @param {MouseEvent} event
+ */
+function handleActionButtonClick(event) {
+    const button = event.target.closest('button');
+    if (!button || button.classList.contains('disabled')) return;
+
+    if (wsMode !== "idle") {
+        wsLogger("ACTION_BUTTON_CLICK: Mode tidak idle. Membatalkan aksi sebelumnya.");
+        handleActionCancel();
+    }
+    resetDoubleTapState();
+
+    const commandId = button.dataset.commandId;
+    const activeUnit = getActiveUnit();
+    if (!activeUnit) return;
+
+    const commandObject = activeUnit.commands.find(cmd => cmd.commandId === commandId);
+    if (!commandObject) return;
+
+    wsLogger(`ACTION_BUTTON_CLICK: Tombol skill '${commandObject.name}' ditekan.`);
+    
+    selectedActionDetails = {
+        commandId: commandId,
+        commandObject: commandObject,
+        actionType: commandObject.type,
+        spCost: commandObject.spCost || 0,
+        actorId: activeUnit.id,
+        actorName: activeUnit.name,
+        buttonText: button.textContent
+    };
+
+    const validTargets = getValidPrimaryTargets(activeUnit, commandObject, bState);
+
+    if (validTargets.length > 0) {
+        sendSoundCommand({ sfx_name: "ui_tap" });
+        
+        const isReviveSkill = commandObject.targetingParams?.selection?.pattern?.shape === "AnyDefeatedAlly";
+        wsMode = isReviveSkill ? "selecting_revive_target" : "selecting_primary_target";
+        validPrimaryTargetIds = validTargets;
+
+        wsLogger(`ACTION_BUTTON_CLICK: Ditemukan ${validTargets.length} target valid. wsMode diubah menjadi '${wsMode}'.`);
+        button.classList.add('skill-button-active');
+        addLogEntry(isReviveSkill ? "Pilih teman yang akan dihidupkan." : "Pilih target utama untuk skill.", "system-info");
+
+        if (isReviveSkill && typeof ui_renderReviveTargetingMode === "function") {
+             ui_renderReviveTargetingMode(validPrimaryTargetIds);
+        } else if (typeof ui_renderSelectPrimaryTargetMode === "function") {
+            ui_renderSelectPrimaryTargetMode(validPrimaryTargetIds, getAllUnitFramesOnMap());
+        }
+    } else {
+        wsLogger("ACTION_BUTTON_CLICK_WARN: Tidak ada target valid untuk skill ini.");
+        sendSoundCommand({ sfx_name: "ui_error" });
+        if(typeof ui_createFeedbackPopup === "function") {
+            ui_createFeedbackPopup(button, 'No Target', 'info-popup', { verticalOrigin: 'top', yOffset: -10, verticalAnimation: -100 });
+        }
+    }
+}
+
+/**
+ * Mengeksekusi aksi setelah dikonfirmasi.
+ */
+function handleActionConfirm() {
+    if (wsMode !== "confirming_effect_area" || !selectedActionDetails) return;
+    wsLogger("ACTION_CONFIRM: Aksi dikonfirmasi. Membangun dan mengirim perintah ke Tasker.");
+
+    const commandPayload = {
+        actorId: selectedActionDetails.actorId,
+        commandId: selectedActionDetails.commandId,
+        primaryTargetId: selectedPrimaryTargetId,
+        affectedTargetIds: currentAffectedTargetIds
+    };
+    sendCommandToTasker("PLAYER_ACTION", commandPayload);
+    exitTargetingMode();
+}
+
+/**
+ * Membatalkan proses targeting.
+ */
+function handleActionCancel() {
+    wsLogger("ACTION_CANCEL: Aksi dibatalkan oleh pengguna atau sistem.");
+    addLogEntry("Aksi dibatalkan.", "system-info");
+    exitTargetingMode();
+}
+
+/**
+ * Menangani klik di mana saja di body untuk membatalkan targeting.
+ * Berjalan pada fase capture untuk menangkap klik sebelum elemen lain.
+ * @param {MouseEvent} event
+ */
+function handleGlobalClickToCancelTargeting(event) {
+    if (wsMode !== "idle") {
+        const isClickOnActionArea =
+            (elPseudomapTrack && elPseudomapTrack.contains(event.target)) ||
+            (elActionButtonsGroup && elActionButtonsGroup.contains(event.target.closest('button')));
+
+        if (!isClickOnActionArea) {
+             wsLogger("GLOBAL_CLICK_CANCEL: Klik di luar area relevan terdeteksi. Membatalkan aksi.");
+             handleActionCancel();
+        }
+    }
+}
+
+/**
+ * Mereset semua state yang berhubungan dengan targeting ke kondisi awal.
+ */
+function exitTargetingMode() {
+    wsLogger("EXIT_TARGETING_MODE: Mereset semua state targeting. wsMode diubah ke 'idle'.");
+    wsMode = "idle";
+    selectedActionDetails = null;
+    validPrimaryTargetIds = [];
+    selectedPrimaryTargetId = null;
+    currentAffectedTargetIds = [];
+
+    const actionButtons = elActionButtonsGroup ? elActionButtonsGroup.querySelectorAll('button') : [];
+    actionButtons.forEach(btn => btn.classList.remove('skill-button-active'));
+
+    if (typeof ui_clearAllTargetingVisuals === "function") {
+        ui_clearAllTargetingVisuals();
+    }
+    resetDoubleTapState();
+}
+
+/**
+ * Mereset state double tap.
+ */
+function resetDoubleTapState() {
+    if (isWaitingForSecondTapEndTurn || isWaitingForSecondTapBasicAttack) {
+         wsLogger("RESET_DOUBLE_TAP: Mereset state double tap dan highlight.");
+    }
+    if (lastTappedActiveUnitId) ui_showEndTurnHint(lastTappedActiveUnitId, false);
+    if (lastTappedTargetUnitId) ui_highlightPotentialBasicAttackTarget(lastTappedTargetUnitId, false);
+
+    lastTapTimeOnActiveUnit = 0;
+    lastTappedActiveUnitId = null;
+    lastTapTimeOnTarget = 0;
+    lastTappedTargetUnitId = null;
+    isWaitingForSecondTapEndTurn = false;
+    isWaitingForSecondTapBasicAttack = false;
+
+    if (typeof ui_resetIdleHighlights === "function") {
+        ui_resetIdleHighlights();
+    }
+}
+
+
+// --- FUNGSI-FUNGSI LAIN (tidak ada perubahan) ---
 function handleToggleStatsPanel(explicitShow = null) {
-    // --- PERBAIKAN DI SINI ---
-    // Pengecekan sekarang langsung ke variabel, tanpa "window."
     if (!elStatsPanel || !elPanelOverlay) {
         wsLogger("EVENT_HANDLER_STATS: Elemen panel statistik atau overlay tidak ditemukan.");
         return;
     }
-    // -------------------------
-
     const battleInterface = document.getElementById('battle-interface');
     const isCurrentlyVisible = elStatsPanel.classList.contains('is-visible');
     let showPanel = (explicitShow === null) ? !isCurrentlyVisible : explicitShow;
-
     if (showPanel) {
         elPanelOverlay.classList.add('is-visible');
         elStatsPanel.classList.add('is-visible');
@@ -135,241 +406,19 @@ function handleToggleStatsPanel(explicitShow = null) {
     }
 }
 
-/**
- * Menutup panel statistik jika pengguna mengklik di luar area panel atau tombol pemicunya.
- * @param {MouseEvent} event - Event klik dari listener.
- */
 function handleClosePanelOnClickOutside(event) {
     if (elStatsPanel && elStatsPanel.classList.contains('is-visible')) {
         const isClickInsidePanel = elStatsPanel.contains(event.target);
-        // Pastikan elBattleOptionsTrigger sudah ada sebelum diakses
         const isClickOnTrigger = elBattleOptionsTrigger ? elBattleOptionsTrigger.contains(event.target) : false;
-
         if (!isClickInsidePanel && !isClickOnTrigger) {
-            handleToggleStatsPanel(false); // Tutup panel
+            handleToggleStatsPanel(false);
         }
     }
-}
-
-// Sisa dari file ini tidak ada perubahan dari versi sebelumnya.
-// Fungsi-fungsi di bawah ini tetap sama.
-
-function handlePseudomapUnitClick(event) {
-    const targetFrame = event.target.closest('.pseudomap-unit-frame');
-    if (!targetFrame) return;
-    sendSoundCommand({ sfx_name: "ui_tap" });
-    const clickedUnitId = targetFrame.dataset.unitId;
-    const currentTime = new Date().getTime();
-    const activeUnit = getActiveUnit();
-    if (wsMode === "idle" && activeUnit && activeUnit.id === bState.activeUnitID && bState.battleState === "Ongoing") {
-        if (clickedUnitId === activeUnit.id) {
-            if (isWaitingForSecondTapEndTurn && lastTappedActiveUnitId === clickedUnitId && (currentTime - lastTapTimeOnActiveUnit) < DOUBLE_TAP_END_TURN_THRESHOLD) {
-                sendCommandToTasker("PLAYER_END_TURN", { actorId: activeUnit.id });
-                resetDoubleTapState();
-                return;
-            }
-            lastTapTimeOnActiveUnit = currentTime;
-            lastTappedActiveUnitId = clickedUnitId;
-            isWaitingForSecondTapEndTurn = true;
-            isWaitingForSecondTapBasicAttack = false;
-            ui_showEndTurnHint(clickedUnitId, true);
-            setTimeout(() => {
-                if (isWaitingForSecondTapEndTurn && lastTappedActiveUnitId === clickedUnitId) {
-                    resetDoubleTapState();
-                }
-            }, DOUBLE_TAP_END_TURN_THRESHOLD + 50);
-            return;
-        }
-        let validBasicAttackTargets = getValidBasicAttackTargetIdsForUI(activeUnit, bState.units);
-        if (validBasicAttackTargets.includes(clickedUnitId)) {
-            if (isWaitingForSecondTapBasicAttack && lastTappedTargetUnitId === clickedUnitId && (currentTime - lastTapTimeOnTarget) < DOUBLE_TAP_BASIC_ATTACK_THRESHOLD) {
-                sendCommandToTasker("PLAYER_BASIC_ATTACK", { actorId: activeUnit.id, targetId: clickedUnitId });
-                resetDoubleTapState();
-                return;
-            }
-            lastTapTimeOnTarget = currentTime;
-            lastTappedTargetUnitId = clickedUnitId;
-            isWaitingForSecondTapBasicAttack = true;
-            isWaitingForSecondTapEndTurn = false;
-            if (typeof ui_highlightPotentialBasicAttackTarget === "function") ui_highlightPotentialBasicAttackTarget(clickedUnitId, true);
-            if (getUnitById(clickedUnitId)?.type === "Enemy") scrollToEnemyInCarousel(clickedUnitId);
-            return;
-        }
-        resetDoubleTapState();
-        return;
-    }
-    if (wsMode === "selecting_primary_target") {
-        if (validPrimaryTargetIds.includes(clickedUnitId)) {
-            selectedPrimaryTargetId = clickedUnitId;
-            const primaryTargetUnit = getUnitById(selectedPrimaryTargetId);
-            if (primaryTargetUnit?.type === "Enemy") scrollToEnemyInCarousel(primaryTargetUnit.id);
-            currentAffectedTargetIds = getAreaAffectedTargets(selectedPrimaryTargetId, activeUnit, selectedActionDetails.commandObject, bState.units);
-            if (currentAffectedTargetIds.length > 0) {
-                wsMode = "confirming_effect_area";
-                addLogEntry(`Skill: ${selectedActionDetails.buttonText}. Tap affected unit to confirm.`, "system-info");
-                if (typeof ui_renderConfirmAreaMode === "function") ui_renderConfirmAreaMode(selectedPrimaryTargetId, currentAffectedTargetIds, getAllUnitFramesOnMap());
-            } else {
-                addLogEntry("Error: Could not determine skill area of effect.", "error");
-                exitTargetingMode();
-            }
-        } else {
-            addLogEntry("Invalid skill target. Please select a highlighted unit.", "error-feedback");
-        }
-    } else if (wsMode === "selecting_revive_target") {
-        if (validPrimaryTargetIds.includes(clickedUnitId)) {
-            wsLogger(`EVENT_HANDLER: Revive confirmed for target: ${clickedUnitId}`);
-            sendCommandToTasker("PLAYER_ACTION", { actorId: selectedActionDetails.actorId, commandId: selectedActionDetails.commandId, affectedTargetIds: [clickedUnitId] });
-            exitTargetingMode();
-        } else {
-            wsLogger("EVENT_HANDLER: Clicked on a non-revivable area. Cancelling revive.");
-            handleActionCancel();
-        }
-    } else if (wsMode === "confirming_effect_area") {
-        if (currentAffectedTargetIds.includes(clickedUnitId)) {
-            handleActionConfirm();
-        } else {
-            wsLogger("EVENT_HANDLER: Clicked on a non-affected unit during skill confirmation. Action cancelled.");
-            handleActionCancel();
-        }
-    }
-}
-
-function handleActionButtonClick(event) {
-    const button = event.target.closest('button');
-    if (!button || button.classList.contains('disabled')) return;
-    if (wsMode !== "idle") {
-        handleActionCancel();
-    }
-    resetDoubleTapState();
-    const commandId = button.dataset.commandId;
-    const activeUnit = getActiveUnit();
-    if (!activeUnit) return;
-    const commandObject = activeUnit.commands.find(cmd => cmd.commandId === commandId);
-    if (!commandObject) return;
-    selectedActionDetails = {
-        commandId: commandId,
-        commandObject: commandObject,
-        actionType: commandObject.type,
-        spCost: commandObject.spCost || 0,
-        actorId: activeUnit.id,
-        actorName: activeUnit.name,
-        buttonText: button.textContent
-    };
-    const commandPatternShape = commandObject.targetingParams?.selection?.pattern?.shape;
-    if (commandPatternShape === "AnyDefeatedAlly") {
-        const defeatedAllyIds = bState.units.filter(u => u.type === "Ally" && u.status === "Defeated").map(u => u.id);
-        if (defeatedAllyIds.length > 0) {
-            sendSoundCommand({ sfx_name: "ui_tap" });
-            wsMode = "selecting_revive_target";
-            validPrimaryTargetIds = defeatedAllyIds;
-            addLogEntry("Select a fallen hero to revive.", "system-info");
-            button.classList.add('skill-button-active');
-            if (typeof ui_renderReviveTargetingMode === "function") {
-                ui_renderReviveTargetingMode(validPrimaryTargetIds);
-            }
-        } else {
-            sendSoundCommand({ sfx_name: "ui_error" });
-            if(typeof ui_createFeedbackPopup === "function") {
-                ui_createFeedbackPopup(button, 'No Target', 'info-popup', { verticalOrigin: 'top', yOffset: -10, verticalAnimation: -100 });
-            }
-        }
-    } else if (commandPatternShape === "Self") {
-        sendSoundCommand({ sfx_name: "ui_tap" });
-        selectedPrimaryTargetId = activeUnit.id;
-        currentAffectedTargetIds = getAreaAffectedTargets(selectedPrimaryTargetId, activeUnit, commandObject, bState.units);
-        if (currentAffectedTargetIds.length > 0) {
-            wsMode = "confirming_effect_area";
-            button.classList.add('skill-button-active');
-            addLogEntry(`Confirm skill effect. Tap a highlighted unit to execute.`, "system-info");
-            if (typeof ui_renderConfirmAreaMode === "function") {
-                ui_renderConfirmAreaMode(selectedPrimaryTargetId, currentAffectedTargetIds, getAllUnitFramesOnMap());
-            }
-        }
-    } else {
-        const validTargets = getValidPrimaryTargets(activeUnit, commandObject, bState.units);
-        if (validTargets.length > 0) {
-            sendSoundCommand({ sfx_name: "ui_tap" });
-            wsMode = "selecting_primary_target";
-            validPrimaryTargetIds = validTargets;
-            button.classList.add('skill-button-active');
-            addLogEntry("Select primary target for skill.", "system-info");
-            if (typeof ui_renderSelectPrimaryTargetMode === "function") {
-                ui_renderSelectPrimaryTargetMode(validPrimaryTargetIds, getAllUnitFramesOnMap());
-            }
-        } else {
-            sendSoundCommand({ sfx_name: "ui_error" });
-            if(typeof ui_createFeedbackPopup === "function") {
-                ui_createFeedbackPopup(button, 'No Target', 'info-popup', { verticalOrigin: 'top', yOffset: -10, verticalAnimation: -100 });
-            }
-        }
-    }
-}
-
-function handleActionConfirm() {
-    if (wsMode !== "confirming_effect_area" || !selectedActionDetails) return;
-    const targetName = getUnitById(selectedPrimaryTargetId)?.name || selectedPrimaryTargetId;
-    addLogEntry(`${selectedActionDetails.actorName} uses ${selectedActionDetails.buttonText} on ${targetName}!`, "ally-action-execute");
-    sendCommandToTasker("PLAYER_ACTION", {
-        actorId: selectedActionDetails.actorId, commandId: selectedActionDetails.commandId,
-        primaryTargetId: selectedPrimaryTargetId, affectedTargetIds: currentAffectedTargetIds
-    });
-    exitTargetingMode();
-}
-
-function resetDoubleTapState() {
-    wsLogger("EVENT_HANDLER_TRACE: resetDoubleTapState CALLED.");
-    if (lastTappedActiveUnitId) ui_showEndTurnHint(lastTappedActiveUnitId, false);
-    if (lastTappedTargetUnitId) ui_highlightPotentialBasicAttackTarget(lastTappedTargetUnitId, false);
-    lastTapTimeOnActiveUnit = 0;
-    lastTappedActiveUnitId = null;
-    lastTapTimeOnTarget = 0;
-    lastTappedTargetUnitId = null;
-    isWaitingForSecondTapEndTurn = false;
-    isWaitingForSecondTapBasicAttack = false;
-    if (typeof ui_resetIdleHighlights === "function") {
-        ui_resetIdleHighlights();
-    }
-    wsLogger("EVENT_HANDLER: Double tap states and highlights reset.");
-}
-
-function exitTargetingMode() {
-    wsLogger("EVENT_HANDLER: Exiting targeting mode. Previous wsMode: " + wsMode);
-    wsMode = "idle";
-    selectedActionDetails = null;
-    validPrimaryTargetIds = [];
-    selectedPrimaryTargetId = null;
-    currentAffectedTargetIds = [];
-    const actionButtons = elActionButtonsGroup ? elActionButtonsGroup.querySelectorAll('button') : [];
-    actionButtons.forEach(btn => btn.classList.remove('skill-button-active'));
-    if (typeof ui_clearAllTargetingVisuals === "function") {
-        ui_clearAllTargetingVisuals();
-    }
-    resetDoubleTapState();
-    wsLogger("EVENT_HANDLER: Targeting mode finished. wsMode set to 'idle'.");
-}
-
-function handleGlobalClickToCancelTargeting(event) {
-    if (wsMode !== "idle") {
-        const isClickOnActionArea = 
-            (elPseudomapTrack && elPseudomapTrack.contains(event.target)) ||
-            (elActionButtonsGroup && elActionButtonsGroup.contains(event.target.closest('button')));
-        if (!isClickOnActionArea) {
-             wsLogger("EVENT_HANDLER: Targeting cancelled by clicking outside relevant areas.");
-             handleActionCancel();
-        }
-    }
-}
-
-function handleActionCancel() {
-    wsLogger("EVENT_HANDLER: Action targeting cancelled.");
-    addLogEntry("Action cancelled.", "system-info");
-    exitTargetingMode();
 }
 
 function handleEnemyCarouselClick(event) {
     if (wsMode !== "idle") {
         handleActionCancel();
-        return;
     }
 }
 
@@ -413,16 +462,13 @@ function handleTouchEnd(event, carouselType) {
 }
 
 function navigateEnemyCarousel(direction) {
-    if (!bState || !bState.units) { wsLogger("NAV_ENEMY_CAROUSEL_ERROR: bState.units not available."); return; }
+    if (!bState || !bState.units) { return; }
     const enemies = bState.units.filter(unit => unit.type === "Enemy" && unit.status !== "Defeated");
     if (enemies.length <= 1) return;
     const prevIndex = currentEnemyIndex;
-    currentEnemyIndex += direction;
-    if (currentEnemyIndex < 0) currentEnemyIndex = enemies.length - 1;
-    else if (currentEnemyIndex >= enemies.length) currentEnemyIndex = 0;
+    currentEnemyIndex = (currentEnemyIndex + direction + enemies.length) % enemies.length;
     if (prevIndex !== currentEnemyIndex) {
         if (typeof renderEnemyStage === "function") renderEnemyStage();
-        else wsLogger("NAV_ENEMY_CAROUSEL_ERROR: renderEnemyStage function not found!");
     }
 }
 
@@ -434,19 +480,16 @@ function navigatePlayerHeroesCarouselManual(direction) {
     if (!heroCardElement) return;
     const cardWidth = heroCardElement.offsetWidth;
     const cardGapStyle = getComputedStyle(elPlayerHeroesCarousel).gap;
-    const cardGap = cardGapStyle && cardGapStyle !== 'normal' ? parseInt(cardGapStyle) : (window.VAR_PLAYER_HERO_CARD_GAP || 8);
+    const cardGap = cardGapStyle && cardGapStyle !== 'normal' ? parseInt(cardGapStyle) : 10;
     const cardWidthWithGap = cardWidth + cardGap;
     const deckContainerWidth = elPlayerHeroesDeck.offsetWidth;
     const cardsThatFitInView = Math.max(1, Math.floor(deckContainerWidth / cardWidthWithGap));
     const maxStartIndex = Math.max(0, playerHeroes.length - cardsThatFitInView);
     const prevStartIndex = currentPlayerHeroStartIndex;
-    currentPlayerHeroStartIndex += direction;
-    currentPlayerHeroStartIndex = Math.max(0, currentPlayerHeroStartIndex);
-    currentPlayerHeroStartIndex = Math.min(currentPlayerHeroStartIndex, maxStartIndex);
+    currentPlayerHeroStartIndex = Math.max(0, Math.min(currentPlayerHeroStartIndex + direction, maxStartIndex));
     if (prevStartIndex !== currentPlayerHeroStartIndex) {
         const newScrollOffsetPx = currentPlayerHeroStartIndex * cardWidthWithGap;
         elPlayerHeroesCarousel.style.transform = `translateX(-${newScrollOffsetPx}px)`;
-        wsLogger(`NAV_PLAYER_MANUAL: Swiped. New StartIndex: ${currentPlayerHeroStartIndex}. Offset: ${newScrollOffsetPx}px`);
     }
 }
 
@@ -463,7 +506,6 @@ function createRipple(event, buttonElement) {
     circle.style.top = `${event.clientY - buttonRect.top - radius}px`;
     circle.classList.add("ripple");
     button.appendChild(circle);
-    circle.addEventListener('animationend', () => { if (circle.parentNode) circle.parentNode.removeChild(circle); });
     setTimeout(() => { if(circle && circle.parentNode) circle.parentNode.removeChild(circle); }, 600);
 }
 
@@ -471,21 +513,14 @@ function handleCopyWsLog() {
     if (typeof getAccumulatedWsLog === "function") {
         const logText = getAccumulatedWsLog();
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(logText)
-                .then(() => {
-                    wsLogger("EVENT_HANDLER_INFO: WS Log copied to clipboard!");
-                    alert("Log copied to clipboard!");
-                })
-                .catch(err => {
-                    wsLogger("EVENT_HANDLER_ERROR: Failed to copy WS Log: " + err);
-                    tryManuallyCopyLog(logText);
-                });
+            navigator.clipboard.writeText(logText).then(() => {
+                alert("Log copied to clipboard!");
+            }).catch(err => {
+                tryManuallyCopyLog(logText);
+            });
         } else {
-            wsLogger("EVENT_HANDLER_WARN: Clipboard API not available. Attempting manual copy prompt.");
             tryManuallyCopyLog(logText);
         }
-    } else {
-        wsLogger("EVENT_HANDLER_ERROR: getAccumulatedWsLog function not found.");
     }
 }
 
@@ -495,23 +530,16 @@ function tryManuallyCopyLog(logText) {
 
 function handleClearWsLog() {
     if (typeof clearAccumulatedWsLog === "function") {
-        if (confirm("Are you sure you want to clear the WS Log? This action cannot be undone.")) {
+        if (confirm("Are you sure you want to clear the WS Log?")) {
             clearAccumulatedWsLog();
-            wsLogger("EVENT_HANDLER_INFO: WS Log cleared by user.");
         }
-    } else {
-        wsLogger("EVENT_HANDLER_ERROR: clearAccumulatedWsLog function not found.");
     }
 }
 
 function handleToggleWsLoggerScreen(explicitShow = null) {
-    if (!elWsLoggerScreen) {
-        wsLogger("EVENT_HANDLER_ERROR: WS Logger screen element (#ws-logger-screen) not found.");
-        return;
-    }
+    if (!elWsLoggerScreen) return;
     const isCurrentlyVisible = elWsLoggerScreen.classList.contains('is-visible');
     let showScreen = (explicitShow === null) ? !isCurrentlyVisible : explicitShow;
-
     if (showScreen) {
         elWsLoggerScreen.classList.remove('is-hidden');
         requestAnimationFrame(() => {
@@ -522,4 +550,4 @@ function handleToggleWsLoggerScreen(explicitShow = null) {
     }
 }
 
-wsLogger("EVENT_HANDLER_JS: event_handlers.js (with full code and refined close logic) loaded.");
+wsLogger("EVENT_HANDLER_JS: event_handlers.js (with debug logging) loaded.");
