@@ -552,9 +552,11 @@ function addLogEntry(message, type = "system", forceShow = false) {
     }
 }
 
+
 /**
- * Renders the pseudomap with the active unit centered visually.
- * This is the core visual refactoring to maintain the original game design.
+ * Renders the pseudomap.
+ * Versi ini menggunakan _turnOrder sebagai sumber kebenaran untuk urutan visual,
+ * membuatnya lebih tangguh terhadap perubahan pseudoPos.
  */
 function renderPseudomap() {
     if (!elPseudomapTrack) {
@@ -563,53 +565,28 @@ function renderPseudomap() {
     }
     elPseudomapTrack.innerHTML = '';
 
-    const allUnitsForMap = bState.units ? bState.units.filter(u => u.status !== "Defeated") : [];
-    if (allUnitsForMap.length === 0) {
-        return;
-    }
+    // --- PERUBAHAN DI SINI ---
+    // 1. Dapatkan daftar unit terurut, lalu susun kembali agar seimbang secara visual.
+    const unitsToRender = createVisuallyBalancedOrder(getOrderedAliveUnitsForRender());
+    // --- AKHIR PERUBAHAN ---
 
-    // --- REFACTORED: Simplified and Corrected Sorting Logic ---
-    const activeUnit = allUnitsForMap.find(u => u.pseudoPos === 0);
-    const numAlive = allUnitsForMap.length;
-
-    // Tentukan jumlah unit di sisi kanan untuk menyeimbangkan
-    const numOnRight = Math.floor(numAlive / 2);
-
-    const rightSideUnits = [];
-    // Bangun array sisi kanan (pseudoPos: 1, 2, ..., numOnRight)
-    for (let i = 1; i <= numOnRight; i++) {
-        const unit = allUnitsForMap.find(u => u.pseudoPos === i);
-        if (unit) rightSideUnits.push(unit);
-    }
-
-    const leftSideUnits = [];
-    // Bangun array sisi kiri (pseudoPos: numOnRight + 1, ..., numAlive - 1)
-    for (let i = numOnRight + 1; i < numAlive; i++) {
-        const unit = allUnitsForMap.find(u => u.pseudoPos === i);
-        if (unit) leftSideUnits.push(unit);
-    }
-    // Karena dibangun dengan loop, array sudah terurut secara ascending.
-
-    // Gabungkan dalam urutan visual yang benar: [...kiri, tengah, ...kanan]
-    const finalRenderOrder = [...leftSideUnits, activeUnit, ...rightSideUnits].filter(Boolean);
-
-
-    // Get basic attack target IDs before the loop for efficiency
+    // 2. Dapatkan target serangan dasar yang valid (jika dalam mode idle)
     let validBasicTargets = [];
     const currentActiveUnit = getActiveUnit();
     if (wsMode === "idle" && currentActiveUnit && currentActiveUnit.type === "Ally" && bState.battleState === "Ongoing") {
-        validBasicTargets = getValidBasicAttackTargetIdsForUI(currentActiveUnit, allUnitsForMap);
+        const allAliveUnits = bState.units.filter(u => u.status !== "Defeated");
+        validBasicTargets = getValidBasicAttackTargetIdsForUI(currentActiveUnit, allAliveUnits);
     }
 
-    // --- Render loop now uses the correctly ordered 'finalRenderOrder' array ---
-    finalRenderOrder.forEach(unit => {
-        if (!unit) return; // Safety check
+    // 3. Langsung render setiap unit sesuai urutan
+    unitsToRender.forEach(unit => {
+        if (!unit) return;
 
         const frame = document.createElement('div');
         frame.classList.add('pseudomap-unit-frame', unit.type.toLowerCase());
         frame.dataset.unitId = unit.id;
 
-        // Apply style based on the unit's actual status from bState
+        // Logika styling (active, end-turn, stun) tetap sama dan aman
         if (unit.id === bState.activeUnitID) {
             frame.classList.add('active');
             if (wsMode === "idle") frame.classList.add('active-turn-idle');
@@ -617,12 +594,10 @@ function renderPseudomap() {
             frame.classList.add('end-turn');
         }
 
-        // Highlight if it's a valid target for a basic attack
         if (wsMode === "idle" && validBasicTargets.includes(unit.id)) {
             frame.classList.add('valid-basic-attack-target');
         }
 
-        // Check for stun status
         const isStunned = unit.statusEffects?.debuffs?.some(e => e.name === "Stun");
         if (isStunned) {
             frame.classList.add('is-stunned');
@@ -1162,5 +1137,55 @@ function renderStatsPanel() {
     });
 }
 
+/**
+ * HELPER BARU: Mengambil unit yang hidup, diurutkan berdasarkan _turnOrder.
+ * Ini adalah sumber kebenaran untuk urutan render di pseudomap.
+ * @returns {Array<object>} Array objek unit yang sudah diurutkan.
+ */
+function getOrderedAliveUnitsForRender() {
+    if (!bState || !bState.units || !bState._turnOrder) {
+        wsLogger("UI_RENDERER_HELPER_ERROR: bState atau _turnOrder tidak ada.");
+        return (bState.units || []).filter(u => u.status !== 'Defeated').sort((a,b) => a.pseudoPos - b.pseudoPos);
+    }
+    // Ubah _turnOrder (array of IDs) menjadi array of unit objects
+    return bState._turnOrder
+        .map(id => getUnitById(id))
+        .filter(unit => unit && unit.status !== 'Defeated');
+}
+
+/**
+ * HELPER BARU: Mengambil daftar unit terurut dan menyusunnya kembali
+ * agar seimbang secara visual untuk ditampilkan di pseudomap.
+ * @param {Array<object>} orderedUnits - Array unit yang sudah terurut berdasarkan giliran.
+ * @returns {Array<object>} Array unit yang sudah siap dirender dengan seimbang.
+ */
+function createVisuallyBalancedOrder(orderedUnits) {
+    const totalUnits = orderedUnits.length;
+    if (totalUnits === 0) {
+        return [];
+    }
+
+    // Unit aktif selalu berada di index 0 dari array input 'orderedUnits'
+    const activeUnit = orderedUnits[0];
+
+    // Hitung jumlah unit di sisi kiri
+    const numOnLeft = Math.floor((totalUnits - 1) / 2);
+
+    // Sisa unit akan berada di sisi kanan
+    const numOnRight = totalUnits - 1 - numOnLeft;
+
+    // Ambil unit-unit untuk sisi kanan dari array (setelah unit aktif)
+    const rightSideUnits = orderedUnits.slice(1, 1 + numOnRight);
+    
+    // Ambil unit-unit untuk sisi kiri dari sisa array (bagian paling akhir)
+    const leftSideUnits = orderedUnits.slice(1 + numOnRight);
+
+    // Gabungkan dalam urutan visual yang benar: [Kiri, Tengah, Kanan]
+    const finalVisualOrder = [...leftSideUnits, activeUnit, ...rightSideUnits];
+    
+    wsLogger(`VISUAL_BALANCE: Total: ${totalUnits}, Left: ${leftSideUnits.length}, Active: 1, Right: ${rightSideUnits.length}`);
+
+    return finalVisualOrder;
+}
 
 wsLogger("UI_RENDERER_JS: ui_renderer.js (with stats panel logic) loaded.");
