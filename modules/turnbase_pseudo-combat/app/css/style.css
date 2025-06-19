@@ -812,6 +812,11 @@ html, body {
     color: white;
 }
 
+.shield-popup {
+    background-color: rgba(52, 152, 219, 0.9); /* Biru (var --color-accent-primary) */
+    color: white;
+}
+
 .sp-gain-popup {
     background-color: rgba(241, 196, 15, 0.95); /* Kuning/Emas (var --color-accent-quaternary) */
     color: #2c3e50; /* Teks gelap agar kontras */

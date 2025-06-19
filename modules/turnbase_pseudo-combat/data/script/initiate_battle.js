@@ -40,7 +40,7 @@ try {
         let statGrowth = { hp: 0, atk: 0 };
         if (unit.type === 'Ally') {
             // Added safety check for unit.id before using .includes()
-            statGrowth = (unit.id && unit.id.includes("kyuris")) ? { hp: 1, atk: 1 } : { hp: 3, atk: 2 };
+            statGrowth = (unit.id && unit.id.includes("kyuris")) ? { hp: 1, atk: 0.25 } : { hp: 4, atk: 1 };
         } else if (unit.type === 'Enemy') {
             if (unit.tier === "Minion") statGrowth = { hp: 2, atk: 1 };
             else if (unit.tier === "Elite") statGrowth = { hp: 4, atk: 2 };
