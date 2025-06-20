@@ -163,6 +163,7 @@ function refreshAllUIElements(passedPreviousBState = null) {
 
     const damagedUnitData = [], healedUnitData = [], defeatedUnitData = [];
     const shieldGainedData = [], shieldDamagedData = [];
+    const revivedUnitData = [];
     let spGained = 0, spSpent = 0, stunnedUnitId = null;
 
     // Langkah 1: Kumpulkan semua data perubahan (Blok ini sudah benar)
@@ -176,6 +177,10 @@ function refreshAllUIElements(passedPreviousBState = null) {
             bState.units.forEach(currentUnit => {
                 const prevUnitData = passedPreviousBState.units.find(prevU => prevU.id === currentUnit.id);
                 if (!prevUnitData) return;
+                
+                if (prevUnitData.status === "Defeated" && currentUnit.status !== "Defeated") {
+                    revivedUnitData.push({ unitId: currentUnit.id, type: currentUnit.type });
+                }
                 if (currentUnit.status === "Defeated" && prevUnitData.status !== "Defeated") {
                     defeatedUnitData.push({ unitId: currentUnit.id, type: currentUnit.type });
                 }
@@ -245,6 +250,12 @@ function refreshAllUIElements(passedPreviousBState = null) {
             ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `+${data.amount}`, 'shield-popup');
         }, 500); 
     });
+
+    revivedUnitData.forEach(data => {
+        // Kita gunakan 'info-popup' agar gayanya sama seperti 'No Target' dan 'Stunned'
+        ui_createFeedbackPopup(findBestAnchorElement(data.unitId), 'Respawn', 'info-popup', { verticalOrigin: 'center' });
+    });
+
     if (spGained > 0) ui_createFeedbackPopup(elTeamResourcesDisplay, `+${spGained} SP`, 'sp-gain-popup');
     if (spSpent > 0) ui_createFeedbackPopup(elTeamResourcesDisplay, `-${spSpent} SP`, 'sp-spent-popup');
     if (stunnedUnitId) ui_createFeedbackPopup(elPseudomapArea, 'Stunned!', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });

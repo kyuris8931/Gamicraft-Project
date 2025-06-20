@@ -1,7 +1,7 @@
-// --- script_tasker/process_skill.js (Complete & Fixed Version) ---
+// --- script_tasker/process_skill.js (Version with Revive Logic) ---
 // Description: Processes all SKILL actions from players.
 // Includes: damage/heal/shield calculation, status effect application, SP reduction,
-// tracking defeated enemies for progression system, and determining SFX.
+// tracking defeated enemies, and advanced revive logic.
 //
 // Input Variables from Tasker:
 // - battle_state: JSON string of the current battle_state.
@@ -147,6 +147,62 @@ function applyStatus(targetUnit, statusName, chance, duration, sourceUnitId) {
     return true;
 }
 
+/**
+ * version 1.0
+ * created on 20-06-2025
+ * Menyinkronkan nilai pseudoPos semua unit berdasarkan urutan mereka di bState._turnOrder.
+ * Ini memastikan posisi visual di pseudomap selalu sesuai dengan urutan giliran.
+ * @param {object} bState - Objek battle_state yang akan dimodifikasi.
+ */
+function updateAllPseudoPositions(bState) {
+    if (!bState?._turnOrder || !bState?.units) return;
+    
+    // Dapatkan hanya unit yang ada di dalam _turnOrder (unit yang hidup)
+    const aliveUnitsInOrder = bState._turnOrder.map(id => bState.units.find(u => u.id === id));
+
+    aliveUnitsInOrder.forEach((unit, index) => {
+        if (unit) {
+            unit.pseudoPos = index;
+            scriptLogger(`SYNC_POS: Unit ${unit.name} (ID: ${unit.id}) set to pseudoPos: ${index}.`);
+        }
+    });
+}
+
+/**
+ * version 1.0
+ * created on 20-06-2025
+ * Menyisipkan sebuah unit ke dalam array _turnOrder pada posisi tertentu, 
+ * menggeser unit lain ke belakang, dan memperbarui semua pseudoPos.
+ * @param {object} bState - Objek battle_state yang akan dimodifikasi.
+ * @param {string} unitIdToInsert - ID dari unit yang akan disisipkan.
+ * @param {number} targetIndex - Posisi (indeks array) di mana unit akan disisipkan.
+ * @returns {object} Objek bState yang telah diperbarui.
+ */
+function insertUnitAndReorder(bState, unitIdToInsert, targetIndex) {
+    scriptLogger(`REORDER_LOGIC: Memulai proses untuk menyisipkan ${unitIdToInsert} di indeks ${targetIndex}.`);
+
+    let turnOrder = bState._turnOrder || [];
+    
+    // Pastikan unit yang akan disisipkan tidak sudah ada di dalam turn order
+    turnOrder = turnOrder.filter(id => id !== unitIdToInsert);
+    
+    // Pastikan targetIndex valid
+    const finalIndex = Math.max(0, Math.min(targetIndex, turnOrder.length));
+    
+    // Sisipkan unit menggunakan splice
+    turnOrder.splice(finalIndex, 0, unitIdToInsert);
+    
+    scriptLogger(`REORDER_LOGIC: Urutan giliran baru (sebelum sinkronisasi): ${turnOrder.join(', ')}`);
+    
+    // Update bState dengan turn order yang baru
+    bState._turnOrder = turnOrder;
+    
+    // SANGAT PENTING: Panggil fungsi sinkronisasi setelah memodifikasi _turnOrder
+    updateAllPseudoPositions(bState);
+    
+    scriptLogger(`REORDER_LOGIC: Proses penyisipan dan sinkronisasi selesai.`);
+    return bState;
+}
 
 // --- MAIN SCRIPT LOGIC ---
 let bState;
@@ -279,9 +335,21 @@ try {
                         applyShield(targetUnit, shieldAmount);
                         targetsHitSummary.push(`${targetUnit.name} (+${shieldAmount} Shield)`);
                         break;
+                    // case revive update on 20-06-2025
                     case "revive":
-                        applyRevive(targetUnit, effect.hpPercentage || 0.3);
+                        // Langkah 1: Terapkan status revive (HP, status, dll) seperti biasa.
+                        applyRevive(targetUnit, effect.hpPercentage || 0.50); // Anda bisa sesuaikan persentase HP di sini
                         targetsHitSummary.push(`${targetUnit.name} (Revived)`);
+                        scriptLogger(`SKILL_REVIVE: ${targetUnit.name} dihidupkan kembali.`);
+                        
+                        // Langkah 2: Panggil helper baru untuk memasukkan unit ini ke _turnOrder
+                        // Kita ingin dia di pseudoPos 1, yang berarti di indeks 1 dari array _turnOrder.
+                        bState = insertUnitAndReorder(bState, targetUnit.id, 1);
+                        
+                        // Langkah 3: Beri "flag" agar turn manager tahu giliran berikutnya harus diperbarui
+                        // secara khusus setelah revive.
+                        bState._turnOrderModifiedBySkill = true;
+                        
                         break;
                     case "status":
                         if (applyStatus(targetUnit, effect.statusName, effect.chance || 1.0, effect.duration || 1, actor.id)) {
