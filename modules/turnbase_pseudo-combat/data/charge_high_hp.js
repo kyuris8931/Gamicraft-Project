@@ -1,43 +1,68 @@
-try {
-    const bState = JSON.parse(battle_state);
-    if (!bState.units || !Array.isArray(bState.units)) {
-        throw new Error("bState.units tidak ditemukan atau bukan array.");
-    }
-    const finalEffects = [];
-    const isHighRoll = Math.random() < 0.5;
-    const healPercentage = isHighRoll ? 0.90 : 0.60;
+// --- script_tasker/charge_high_heal.js ---
+// Description: Heals all living allies for a random high amount (40% to 60% of their Max HP).
+//
+// Input Variables from Tasker:
+// - battle_state: JSON string of the current battle_state.
+//
+// Output Variables for Tasker:
+// - battle_state: JSON string of the updated battle_state.
 
-    bState.units.forEach(unit => {
-        if (unit.type === "Ally" && unit.status !== "Defeated") {
-            const maxHp = unit.stats.maxHp;
-            const oldHp = unit.stats.hp;
-            if (oldHp < maxHp) {
-                const healAmount = Math.round(maxHp * healPercentage);
-                unit.stats.hp = Math.min(maxHp, oldHp + healAmount);
-                const actualHealReceived = unit.stats.hp - oldHp;
-                if (actualHealReceived > 0) {
-                    finalEffects.push({
-                        unitId: unit.id,
-                        type: "heal",
-                        amount: actualHealReceived
-                    });
+const log = (message) => {
+    // flash(`JS LOG: ${message}`);
+};
+
+try {
+    // 1. Ambil dan parse battle_state
+    const bState = JSON.parse(battle_state);
+
+    // 2. Temukan semua unit "Ally" yang masih hidup
+    const livingAllies = bState.units.filter(unit => unit.type === 'Ally' && unit.status !== 'Defeated');
+
+    if (livingAllies.length > 0) {
+        // --- DIUBAH: Nama variabel agar lebih jelas ---
+        const healEffectsLog = [];
+
+        // 3. Loop melalui setiap ally yang hidup dan sembuhkan mereka
+        livingAllies.forEach(ally => {
+            if (ally.stats && typeof ally.stats.hp === 'number' && typeof ally.stats.maxHp === 'number') {
+                const healPercentage = Math.random() * 0.20 + 0.40;
+                const healAmount = Math.round(ally.stats.maxHp * healPercentage);
+                const oldHp = ally.stats.hp;
+
+                ally.stats.hp = Math.min(ally.stats.maxHp, ally.stats.hp + healAmount);
+
+                const actualHealedAmount = ally.stats.hp - oldHp;
+
+                if (actualHealedAmount > 0) {
+                     // --- DIUBAH: Push objek terstruktur, bukan string ---
+                     healEffectsLog.push({
+                         type: 'heal', // Tambahkan tipe agar mudah dibaca UI
+                         unitId: ally.id,
+                         amount: actualHealedAmount
+                     });
                 }
             }
-        }
-    });
+        });
 
-    bState.battleMessage = `A wave of healing energy washes over the team!`;
-    
-    if (finalEffects.length > 0) {
+        // 4. Update pesan untuk ditampilkan di UI
+        bState.battleMessage = "A wave of soothing energy washes over the party, restoring health!";
+
+        // 5. Set "flag" lastActionDetails dengan struktur data yang BENAR
         bState.lastActionDetails = {
-            actorId: "SYSTEM_ITEM_HEAL",
+            actorId: "SYSTEM_ITEM_HEAL", // ID khusus untuk item heal
             commandName: "Mass Heal",
-            effects: finalEffects
+            // --- DIUBAH: Gunakan properti `effects` dengan log terstruktur ---
+            effects: healEffectsLog
         };
+        
+    } else {
+        bState.battleMessage = "A healing energy was released, but no one was there to receive it...";
     }
     
+    // 6. Siapkan output kembali ke Tasker
     battle_state = JSON.stringify(bState);
 
 } catch (e) {
-    if (typeof setLocal === 'function') setLocal('errmsg', e.message);
+    log(`Error: ${e.message}`);
+    setLocal('errmsg', e.message);
 }

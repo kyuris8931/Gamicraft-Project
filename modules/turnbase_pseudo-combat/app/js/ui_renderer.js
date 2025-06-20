@@ -168,14 +168,11 @@ function refreshAllUIElements(passedPreviousBState = null) {
 
     // --- Langkah 1: Lakukan perbandingan numerik (diffing) untuk aksi normal ---
     if (passedPreviousBState) {
-        // Perbandingan SP untuk aksi normal (serangan, skill biasa)
         if (typeof bState.teamSP === 'number' && typeof passedPreviousBState.teamSP === 'number') {
             const spChange = bState.teamSP - passedPreviousBState.teamSP;
             if (spChange > 0) spGained += spChange;
             else if (spChange < 0) spSpent += -spChange;
         }
-
-        // Perbandingan Statistik Unit
         if (bState.units && passedPreviousBState.units) {
             bState.units.forEach(currentUnit => {
                 const prevUnitData = passedPreviousBState.units.find(prevU => prevU.id === currentUnit.id);
@@ -187,7 +184,6 @@ function refreshAllUIElements(passedPreviousBState = null) {
                     const oldHp = prevUnitData.stats.hp, newHp = currentUnit.stats.hp;
                     const oldShield = prevUnitData.stats.shieldHP || 0, newShield = currentUnit.stats.shieldHP || 0;
                     const hpChange = newHp - oldHp, shieldChange = newShield - oldShield;
-
                     if (hpChange < 0) {
                         damagedUnitData.push({ unitId: currentUnit.id, amount: Math.abs(hpChange) + Math.abs(shieldChange), type: currentUnit.type });
                     } else if (hpChange === 0 && shieldChange < 0) {
@@ -208,42 +204,49 @@ function refreshAllUIElements(passedPreviousBState = null) {
     if (bState.lastActionDetails) {
         if (bState.lastActionDetails.actorId?.startsWith("SYSTEM_ITEM")) {
             wsLogger("UI_RENDERER: Processing SYSTEM_ITEM action details from flag.");
-            
-            // LOGIKA BARU UNTUK MEMBACA DATA TERSTRUKTUR
             const effects = bState.lastActionDetails.effects || [];
             const spEffect = effects.find(e => e.type === 'sp_gain');
-
             if (spEffect && spEffect.amount > 0) {
-                // Kita tambahkan, bukan menimpanya, untuk keamanan.
                 spGained += spEffect.amount;
             }
-            
-            // Penting: Hapus flag setelah dibaca agar tidak dieksekusi lagi
+            const healEffects = effects.filter(e => e.type === 'heal' && e.amount > 0);
+            if (healEffects.length > 0) {
+                wsLogger(`UI_RENDERER: Found ${healEffects.length} heal effects from SYSTEM_ITEM_HEAL flag.`);
+                healEffects.forEach(effect => {
+                    healedUnitData.push({
+                        unitId: effect.unitId,
+                        amount: effect.amount,
+                        type: 'Ally'
+                    });
+                });
+            }
             bState.lastActionDetails = null;
         }
-        // Periksa flag lain yang non-item
         else if (bState.lastActionDetails.actionOutcome === "STUNNED") {
             stunnedUnitId = bState.lastActionDetails.actorId;
         }
     }
-    
-    // --- Langkah 3: Render Pop-up berdasarkan semua data yang terkumpul ---
-    healedUnitData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `+${data.amount}`, 'heal-popup'));
-    shieldGainedData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `+${data.amount}`, 'shield-popup'));
-    if (spGained > 0) ui_createFeedbackPopup(elTeamResourcesDisplay, `+${spGained} SP`, 'sp-gain-popup');
-    if (spSpent > 0) ui_createFeedbackPopup(elTeamResourcesDisplay, `-${spSpent} SP`, 'sp-spent-popup');
-    const enemyPopupOptions = { verticalOrigin: 'top', yOffset: 50 };
-    damagedUnitData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `-${data.amount}`, 'damage-popup', data.type === 'Enemy' ? enemyPopupOptions : {}));
-    shieldDamagedData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `-${data.amount}`, 'shield-popup', data.type === 'Enemy' ? enemyPopupOptions : {}));
 
-    // --- Langkah 4: Tunda render utama jika ada animasi kematian ---
+    // --- Langkah 3 & 4 digabungkan: Render UI dulu, baru tampilkan pop-up ---
     const performStandardRenderAndPopups = () => {
+        // --- Render semua komponen UI utama DULU ---
         renderDynamicBackground();
         renderTopBar();
         renderEnemyStage();
         renderPlayerHeroesDeck();
         renderPlayerActionBar();
         renderPseudomap();
+
+        // --- SEKARANG, BUAT POP-UP KARENA JANGKARNYA SUDAH PASTI ADA ---
+        healedUnitData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `+${data.amount}`, 'heal-popup'));
+        shieldGainedData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `+${data.amount}`, 'shield-popup'));
+        if (spGained > 0) ui_createFeedbackPopup(elTeamResourcesDisplay, `+${spGained} SP`, 'sp-gain-popup');
+        if (spSpent > 0) ui_createFeedbackPopup(elTeamResourcesDisplay, `-${spSpent} SP`, 'sp-spent-popup');
+        const enemyPopupOptions = { verticalOrigin: 'top', yOffset: 50 };
+        damagedUnitData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `-${data.amount}`, 'damage-popup', data.type === 'Enemy' ? enemyPopupOptions : {}));
+        shieldDamagedData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `-${data.amount}`, 'shield-popup', data.type === 'Enemy' ? enemyPopupOptions : {}));
+        // -------------------------------------------------------------------
+
         if (stunnedUnitId) ui_createFeedbackPopup(elPseudomapArea, 'Stunned!', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
         if (bState.lastActionDetails?.actionOutcome === "NO_TARGET_IN_RANGE") {
             if (passedPreviousBState?.lastActionDetails?.actionOutcome !== "NO_TARGET_IN_RANGE") {
