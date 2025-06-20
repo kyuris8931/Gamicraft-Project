@@ -158,72 +158,44 @@ function refreshAllUIElements(passedPreviousBState = null) {
     if (activeUnit && activeUnit.type === 'Enemy') {
         if (!passedPreviousBState || activeUnit.id !== passedPreviousBState.activeUnitID) {
             scrollToEnemyInCarousel(activeUnit.id);
-            wsLogger(`UI_RENDERER: Auto-scrolling to active enemy: ${activeUnit.name}`);
         }
     }
 
     // Variabel untuk menampung semua jenis perubahan
-    const damagedUnitData = [];
-    const healedUnitData = [];
-    const defeatedUnitData = [];
-    const shieldGainedData = [];
-    const shieldDamagedData = [];
-    let spGained = 0;
-    let spSpent = 0;
-    let stunnedUnitId = null;
+    const damagedUnitData = [], healedUnitData = [], defeatedUnitData = [];
+    const shieldGainedData = [], shieldDamagedData = [];
+    let spGained = 0, spSpent = 0, stunnedUnitId = null;
 
-    if (bState.lastActionDetails?.actionOutcome === "STUNNED") {
-        stunnedUnitId = bState.lastActionDetails.actorId;
-    }
-
-    if (bState.lastActionDetails && bState.lastActionDetails.actorId && bState.lastActionDetails.actorId.startsWith("SYSTEM_ITEM")) {
-        // ... Logika untuk item eksternal ...
-    } else if (passedPreviousBState) {
-        // Logika untuk SP
+    // --- Langkah 1: Lakukan perbandingan numerik (diffing) untuk aksi normal ---
+    if (passedPreviousBState) {
+        // Perbandingan SP untuk aksi normal (serangan, skill biasa)
         if (typeof bState.teamSP === 'number' && typeof passedPreviousBState.teamSP === 'number') {
             const spChange = bState.teamSP - passedPreviousBState.teamSP;
-            if (spChange > 0) spGained = spChange;
-            else if (spChange < 0) spSpent = -spChange;
+            if (spChange > 0) spGained += spChange;
+            else if (spChange < 0) spSpent += -spChange;
         }
 
-        // ===================================================================
-        // === LOGIKA BARU YANG SUDAH DIPERBAIKI (BUKAN if/else) ===
-        // ===================================================================
+        // Perbandingan Statistik Unit
         if (bState.units && passedPreviousBState.units) {
             bState.units.forEach(currentUnit => {
                 const prevUnitData = passedPreviousBState.units.find(prevU => prevU.id === currentUnit.id);
                 if (!prevUnitData) return;
-
-                // Cek status kematian
                 if (currentUnit.status === "Defeated" && prevUnitData.status !== "Defeated") {
                     defeatedUnitData.push({ unitId: currentUnit.id, type: currentUnit.type });
                 }
-
                 if (prevUnitData.stats && currentUnit.stats) {
-                    const oldHp = prevUnitData.stats.hp;
-                    const newHp = currentUnit.stats.hp;
-                    const oldShield = prevUnitData.stats.shieldHP || 0;
-                    const newShield = currentUnit.stats.shieldHP || 0;
+                    const oldHp = prevUnitData.stats.hp, newHp = currentUnit.stats.hp;
+                    const oldShield = prevUnitData.stats.shieldHP || 0, newShield = currentUnit.stats.shieldHP || 0;
+                    const hpChange = newHp - oldHp, shieldChange = newShield - oldShield;
 
-                    const hpChange = newHp - oldHp;
-                    const shieldChange = newShield - oldShield;
-
-                    // 1. Cek jika ada damage ke HP
                     if (hpChange < 0) {
-                        const totalDamage = Math.abs(hpChange) + Math.abs(shieldChange);
-                        damagedUnitData.push({ unitId: currentUnit.id, amount: totalDamage, type: currentUnit.type });
-                    }
-                    // 2. Cek jika HANYA shield yang kena damage
-                    else if (hpChange === 0 && shieldChange < 0) {
+                        damagedUnitData.push({ unitId: currentUnit.id, amount: Math.abs(hpChange) + Math.abs(shieldChange), type: currentUnit.type });
+                    } else if (hpChange === 0 && shieldChange < 0) {
                         shieldDamagedData.push({ unitId: currentUnit.id, amount: Math.abs(shieldChange), type: currentUnit.type });
                     }
-
-                    // 3. Cek secara terpisah untuk penambahan HP (heal)
                     if (hpChange > 0) {
                         healedUnitData.push({ unitId: currentUnit.id, amount: hpChange, type: currentUnit.type });
                     }
-
-                    // 4. Cek secara terpisah untuk penambahan Shield
                     if (shieldChange > 0) {
                         shieldGainedData.push({ unitId: currentUnit.id, amount: shieldChange, type: currentUnit.type });
                     }
@@ -232,37 +204,39 @@ function refreshAllUIElements(passedPreviousBState = null) {
         }
     }
 
-    // --- Pembuatan Pop-Up Instan (Tidak Ditunda) ---
-    healedUnitData.forEach(data => {
-        const anchor = findBestAnchorElement(data.unitId);
-        if (anchor) ui_createFeedbackPopup(anchor, `+${data.amount}`, 'heal-popup');
-    });
+    // --- Langkah 2: Periksa "flag" dari aksi item/sistem secara terpisah ---
+    if (bState.lastActionDetails) {
+        if (bState.lastActionDetails.actorId?.startsWith("SYSTEM_ITEM")) {
+            wsLogger("UI_RENDERER: Processing SYSTEM_ITEM action details from flag.");
+            
+            // LOGIKA BARU UNTUK MEMBACA DATA TERSTRUKTUR
+            const effects = bState.lastActionDetails.effects || [];
+            const spEffect = effects.find(e => e.type === 'sp_gain');
 
-    shieldGainedData.forEach(data => {
-        const anchor = findBestAnchorElement(data.unitId);
-        if (anchor) ui_createFeedbackPopup(anchor, `+${data.amount}`, 'shield-popup');
-    });
-
-    if (spGained > 0 && elTeamResourcesDisplay) {
-        ui_createFeedbackPopup(elTeamResourcesDisplay, `+${spGained} SP`, 'sp-gain-popup');
+            if (spEffect && spEffect.amount > 0) {
+                // Kita tambahkan, bukan menimpanya, untuk keamanan.
+                spGained += spEffect.amount;
+            }
+            
+            // Penting: Hapus flag setelah dibaca agar tidak dieksekusi lagi
+            bState.lastActionDetails = null;
+        }
+        // Periksa flag lain yang non-item
+        else if (bState.lastActionDetails.actionOutcome === "STUNNED") {
+            stunnedUnitId = bState.lastActionDetails.actorId;
+        }
     }
-    if (spSpent > 0 && elTeamResourcesDisplay) {
-        ui_createFeedbackPopup(elTeamResourcesDisplay, `-${spSpent} SP`, 'sp-spent-popup');
-    }
+    
+    // --- Langkah 3: Render Pop-up berdasarkan semua data yang terkumpul ---
+    healedUnitData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `+${data.amount}`, 'heal-popup'));
+    shieldGainedData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `+${data.amount}`, 'shield-popup'));
+    if (spGained > 0) ui_createFeedbackPopup(elTeamResourcesDisplay, `+${spGained} SP`, 'sp-gain-popup');
+    if (spSpent > 0) ui_createFeedbackPopup(elTeamResourcesDisplay, `-${spSpent} SP`, 'sp-spent-popup');
+    const enemyPopupOptions = { verticalOrigin: 'top', yOffset: 50 };
+    damagedUnitData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `-${data.amount}`, 'damage-popup', data.type === 'Enemy' ? enemyPopupOptions : {}));
+    shieldDamagedData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `-${data.amount}`, 'shield-popup', data.type === 'Enemy' ? enemyPopupOptions : {}));
 
-    damagedUnitData.forEach(data => {
-        const anchor = findBestAnchorElement(data.unitId);
-        const popupOptions = (data.type === 'Enemy') ? { verticalOrigin: 'top', yOffset: 50 } : {};
-        if (anchor) ui_createFeedbackPopup(anchor, `-${data.amount}`, 'damage-popup', popupOptions);
-    });
-
-    shieldDamagedData.forEach(data => {
-        const anchor = findBestAnchorElement(data.unitId);
-        const popupOptions = (data.type === 'Enemy') ? { verticalOrigin: 'top', yOffset: 50 } : {};
-        if (anchor) ui_createFeedbackPopup(anchor, `-${data.amount}`, 'shield-popup', popupOptions);
-    });
-
-    // Fungsi render besar yang bisa ditunda
+    // --- Langkah 4: Tunda render utama jika ada animasi kematian ---
     const performStandardRenderAndPopups = () => {
         renderDynamicBackground();
         renderTopBar();
@@ -270,42 +244,27 @@ function refreshAllUIElements(passedPreviousBState = null) {
         renderPlayerHeroesDeck();
         renderPlayerActionBar();
         renderPseudomap();
-
-        if (stunnedUnitId) {
-            const anchor = elPseudomapArea;
-            if (anchor) ui_createFeedbackPopup(anchor, 'Stunned!', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
-        }
+        if (stunnedUnitId) ui_createFeedbackPopup(elPseudomapArea, 'Stunned!', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
         if (bState.lastActionDetails?.actionOutcome === "NO_TARGET_IN_RANGE") {
             if (passedPreviousBState?.lastActionDetails?.actionOutcome !== "NO_TARGET_IN_RANGE") {
-                const anchor = elPseudomapArea;
-                if (anchor) ui_createFeedbackPopup(anchor, 'No Target', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
+                ui_createFeedbackPopup(elPseudomapArea, 'No Target', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
             }
             bState.lastActionDetails.actionOutcome = null;
         }
-
-        if (elBattleLogOverlay && elBattleLogOverlay.classList.contains('is-visible') && !bState.showLog) {
-            renderBattleLogOverlay(false);
-        }
+        if (elBattleLogOverlay?.classList.contains('is-visible') && !bState.showLog) renderBattleLogOverlay(false);
         if (elPseudomapArea) elPseudomapArea.classList.remove('is-hidden');
         if (elPlayerHeroesDeck) elPlayerHeroesDeck.classList.remove('is-hidden');
-
-        if (typeof scrollToActiveUnitInPseudomap === "function") requestAnimationFrame(() => { requestAnimationFrame(scrollToActiveUnitInPseudomap); });
+        if (typeof scrollToActiveUnitInPseudomap === "function") requestAnimationFrame(scrollToActiveUnitInPseudomap);
         const activeUnitForScroll = getActiveUnit();
-        if (activeUnitForScroll && activeUnitForScroll.type === "Ally") {
-            if (typeof scrollToPlayerHero === "function") requestAnimationFrame(() => { scrollToPlayerHero(activeUnitForScroll.id, true); });
+        if (activeUnitForScroll?.type === "Ally" && typeof scrollToPlayerHero === "function") {
+            requestAnimationFrame(() => scrollToPlayerHero(activeUnitForScroll.id, true));
         }
-
         const allUnitFrames = elPseudomapTrack ? elPseudomapTrack.querySelectorAll('.pseudomap-unit-frame') : [];
-        if (wsMode === "selecting_primary_target") {
-            if (typeof ui_renderSelectPrimaryTargetMode === "function") ui_renderSelectPrimaryTargetMode(validPrimaryTargetIds, allUnitFrames);
-        } else if (wsMode === "confirming_effect_area") {
-            if (typeof ui_renderConfirmAreaMode === "function") ui_renderConfirmAreaMode(selectedPrimaryTargetId, currentAffectedTargetIds, allUnitFrames);
-        } else if (wsMode === "confirming_basic_attack") {
-            if (typeof ui_highlightPotentialBasicAttackTarget === "function") allUnitFrames.forEach(frame => ui_highlightPotentialBasicAttackTarget(frame.dataset.unitId, frame.dataset.unitId === lastTappedUnitId));
-        }
+        if (wsMode === "selecting_primary_target") ui_renderSelectPrimaryTargetMode(validPrimaryTargetIds, allUnitFrames);
+        else if (wsMode === "confirming_effect_area") ui_renderConfirmAreaMode(selectedPrimaryTargetId, currentAffectedTargetIds, allUnitFrames);
+        else if (wsMode === "confirming_basic_attack") allUnitFrames.forEach(frame => ui_highlightPotentialBasicAttackTarget(frame.dataset.unitId, frame.dataset.unitId === lastTappedUnitId));
     };
 
-    // Logika penundaan animasi kematian tidak berubah
     if (defeatedUnitData.length > 0) {
         wsLogger("UI_RENDERER: Defeated unit(s) detected. Starting death animation sequence.");
         defeatedUnitData.forEach(data => {
@@ -319,9 +278,7 @@ function refreshAllUIElements(passedPreviousBState = null) {
                 }, 400);
             }
         });
-        const totalAnimationTime = 1600;
-        wsLogger(`UI_RENDERER: Waiting ${totalAnimationTime}ms for death sequence to finish before full re-render.`);
-        setTimeout(performStandardRenderAndPopups, totalAnimationTime);
+        setTimeout(performStandardRenderAndPopups, 1600);
     } else {
         wsLogger("UI_RENDERER: No defeated units. Performing standard render.");
         performStandardRenderAndPopups();
@@ -329,6 +286,7 @@ function refreshAllUIElements(passedPreviousBState = null) {
 
     wsLogger("UI_RENDERER: refreshAllUIElements sequence finished.");
 }
+
 
 // --- Individual Component Renderers ---
 function renderDynamicBackground() {

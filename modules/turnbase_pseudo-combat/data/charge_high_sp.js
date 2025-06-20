@@ -39,7 +39,9 @@ try {
         bState.lastActionDetails = {
             actorId: "SYSTEM_ITEM_SP",
             commandName: "SP Charge",
-            effectsSummary: [`+${spGained} SP`] // UI bisa mencari string yg diawali '+'
+            effects: [
+                { type: "sp_gain", amount: spGained }
+            ]
         };
     }
     
