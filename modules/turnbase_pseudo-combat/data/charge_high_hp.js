@@ -1,5 +1,5 @@
-// --- script_tasker/charge_high_heal.js ---
-// Description: Heals all living allies for a random high amount (40% to 60% of their Max HP).
+// --- script_tasker/charge_high_hp_and_shield.js ---
+// Description: Heals AND shields all living allies for 60% or 90% of their Max HP.
 //
 // Input Variables from Tasker:
 // - battle_state: JSON string of the current battle_state.
@@ -12,54 +12,62 @@ const log = (message) => {
 };
 
 try {
-    // 1. Ambil dan parse battle_state
     const bState = JSON.parse(battle_state);
 
-    // 2. Temukan semua unit "Ally" yang masih hidup
     const livingAllies = bState.units.filter(unit => unit.type === 'Ally' && unit.status !== 'Defeated');
 
     if (livingAllies.length > 0) {
-        // --- DIUBAH: Nama variabel agar lebih jelas ---
-        const healEffectsLog = [];
+        // --- BARU: Pilih multiplier secara acak antara 60% atau 90% ---
+        const multiplier = Math.random() < 0.5 ? 0.60 : 0.90;
+        const effectLog = [];
 
-        // 3. Loop melalui setiap ally yang hidup dan sembuhkan mereka
         livingAllies.forEach(ally => {
             if (ally.stats && typeof ally.stats.hp === 'number' && typeof ally.stats.maxHp === 'number') {
-                const healPercentage = Math.random() * 0.20 + 0.40;
-                const healAmount = Math.round(ally.stats.maxHp * healPercentage);
+                // Hitung nilai dasar berdasarkan Max HP
+                const baseAmount = Math.round(ally.stats.maxHp * multiplier);
+
+                // 1. Terapkan HEAL
                 const oldHp = ally.stats.hp;
-
-                ally.stats.hp = Math.min(ally.stats.maxHp, ally.stats.hp + healAmount);
-
+                ally.stats.hp = Math.min(ally.stats.maxHp, ally.stats.hp + baseAmount);
                 const actualHealedAmount = ally.stats.hp - oldHp;
-
+                
                 if (actualHealedAmount > 0) {
-                     // --- DIUBAH: Push objek terstruktur, bukan string ---
-                     healEffectsLog.push({
-                         type: 'heal', // Tambahkan tipe agar mudah dibaca UI
-                         unitId: ally.id,
-                         amount: actualHealedAmount
-                     });
+                    effectLog.push({
+                        type: 'heal',
+                        unitId: ally.id,
+                        amount: actualHealedAmount
+                    });
                 }
+
+                // 2. Terapkan SHIELD
+                // Pastikan properti shieldHP ada, jika tidak, inisialisasi ke 0
+                if (typeof ally.stats.shieldHP === 'undefined') {
+                    ally.stats.shieldHP = 0;
+                }
+                ally.stats.shieldHP += baseAmount;
+                
+                effectLog.push({
+                    type: 'shield',
+                    unitId: ally.id,
+                    amount: baseAmount
+                });
             }
         });
 
-        // 4. Update pesan untuk ditampilkan di UI
-        bState.battleMessage = "A wave of soothing energy washes over the party, restoring health!";
+        // Update pesan pertempuran
+        bState.battleMessage = "A wave of protective energy washes over the party, restoring health and creating a barrier!";
 
-        // 5. Set "flag" lastActionDetails dengan struktur data yang BENAR
+        // Set "flag" lastActionDetails dengan SEMUA efek
         bState.lastActionDetails = {
-            actorId: "SYSTEM_ITEM_HEAL", // ID khusus untuk item heal
-            commandName: "Mass Heal",
-            // --- DIUBAH: Gunakan properti `effects` dengan log terstruktur ---
-            effects: healEffectsLog
+            actorId: "SYSTEM_ITEM_HEAL_SHIELD", // ID baru agar lebih deskriptif
+            commandName: "Mass Fortification",
+            effects: effectLog
         };
         
     } else {
-        bState.battleMessage = "A healing energy was released, but no one was there to receive it...";
+        bState.battleMessage = "A powerful energy was released, but no one was there to receive it...";
     }
     
-    // 6. Siapkan output kembali ke Tasker
     battle_state = JSON.stringify(bState);
 
 } catch (e) {

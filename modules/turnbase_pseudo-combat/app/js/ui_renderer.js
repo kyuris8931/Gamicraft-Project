@@ -144,7 +144,7 @@ function findBestAnchorElement(unitId) {
     return pseudomapAnchor;
 }
 
-// --- Main UI Rendering Orchestrator ---
+// --- FUNGSI refreshAllUIElements VERSI FINAL 2.0 (DENGAN PERBAIKAN SHIELD DAMAGE POP-UP) ---
 function refreshAllUIElements(passedPreviousBState = null) {
     wsLogger("UI_RENDERER: refreshAllUIElements CALLED.");
     if (!bState || Object.keys(bState).length === 0 || !bState.units) {
@@ -161,12 +161,11 @@ function refreshAllUIElements(passedPreviousBState = null) {
         }
     }
 
-    // Variabel untuk menampung semua jenis perubahan
     const damagedUnitData = [], healedUnitData = [], defeatedUnitData = [];
     const shieldGainedData = [], shieldDamagedData = [];
     let spGained = 0, spSpent = 0, stunnedUnitId = null;
 
-    // --- Langkah 1: Lakukan perbandingan numerik (diffing) untuk aksi normal ---
+    // Langkah 1: Kumpulkan semua data perubahan (Blok ini sudah benar)
     if (passedPreviousBState) {
         if (typeof bState.teamSP === 'number' && typeof passedPreviousBState.teamSP === 'number') {
             const spChange = bState.teamSP - passedPreviousBState.teamSP;
@@ -199,8 +198,6 @@ function refreshAllUIElements(passedPreviousBState = null) {
             });
         }
     }
-
-    // --- Langkah 2: Periksa "flag" dari aksi item/sistem secara terpisah ---
     if (bState.lastActionDetails) {
         if (bState.lastActionDetails.actorId?.startsWith("SYSTEM_ITEM")) {
             wsLogger("UI_RENDERER: Processing SYSTEM_ITEM action details from flag.");
@@ -211,13 +208,14 @@ function refreshAllUIElements(passedPreviousBState = null) {
             }
             const healEffects = effects.filter(e => e.type === 'heal' && e.amount > 0);
             if (healEffects.length > 0) {
-                wsLogger(`UI_RENDERER: Found ${healEffects.length} heal effects from SYSTEM_ITEM_HEAL flag.`);
                 healEffects.forEach(effect => {
-                    healedUnitData.push({
-                        unitId: effect.unitId,
-                        amount: effect.amount,
-                        type: 'Ally'
-                    });
+                    healedUnitData.push({ unitId: effect.unitId, amount: effect.amount, type: 'Ally' });
+                });
+            }
+            const shieldEffects = effects.filter(e => e.type === 'shield' && e.amount > 0);
+            if (shieldEffects.length > 0) {
+                shieldEffects.forEach(effect => {
+                    shieldGainedData.push({ unitId: effect.unitId, amount: effect.amount, type: 'Ally' });
                 });
             }
             bState.lastActionDetails = null;
@@ -227,9 +225,32 @@ function refreshAllUIElements(passedPreviousBState = null) {
         }
     }
 
-    // --- Langkah 3 & 4 digabungkan: Render UI dulu, baru tampilkan pop-up ---
-    const performStandardRenderAndPopups = () => {
-        // --- Render semua komponen UI utama DULU ---
+    // Langkah 2: Tampilkan semua pop-up "efek samping" yang aman secara INSTAN
+    const defeatedIds = defeatedUnitData.map(d => d.unitId);
+    const enemyPopupOptions = { verticalOrigin: 'top', yOffset: 50 };
+
+    damagedUnitData.filter(d => !defeatedIds.includes(d.unitId)).forEach(data => {
+        ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `-${data.amount}`, 'damage-popup', data.type === 'Enemy' ? enemyPopupOptions : {});
+    });
+    
+    // --- DIKEMBALIKAN: Logika untuk pop-up damage pada shield ---
+    shieldDamagedData.filter(d => !defeatedIds.includes(d.unitId)).forEach(data => {
+        ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `-${data.amount}`, 'shield-popup', data.type === 'Enemy' ? enemyPopupOptions : {});
+    });
+    // -------------------------------------------------------------
+
+    healedUnitData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `+${data.amount}`, 'heal-popup'));
+    shieldGainedData.forEach(data => {
+        setTimeout(() => {
+            ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `+${data.amount}`, 'shield-popup');
+        }, 500); 
+    });
+    if (spGained > 0) ui_createFeedbackPopup(elTeamResourcesDisplay, `+${spGained} SP`, 'sp-gain-popup');
+    if (spSpent > 0) ui_createFeedbackPopup(elTeamResourcesDisplay, `-${spSpent} SP`, 'sp-spent-popup');
+    if (stunnedUnitId) ui_createFeedbackPopup(elPseudomapArea, 'Stunned!', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
+
+    // Langkah 3: Definisikan fungsi untuk me-render ulang UI utama
+    const performStandardRender = () => {
         renderDynamicBackground();
         renderTopBar();
         renderEnemyStage();
@@ -237,23 +258,13 @@ function refreshAllUIElements(passedPreviousBState = null) {
         renderPlayerActionBar();
         renderPseudomap();
 
-        // --- SEKARANG, BUAT POP-UP KARENA JANGKARNYA SUDAH PASTI ADA ---
-        healedUnitData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `+${data.amount}`, 'heal-popup'));
-        shieldGainedData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `+${data.amount}`, 'shield-popup'));
-        if (spGained > 0) ui_createFeedbackPopup(elTeamResourcesDisplay, `+${spGained} SP`, 'sp-gain-popup');
-        if (spSpent > 0) ui_createFeedbackPopup(elTeamResourcesDisplay, `-${spSpent} SP`, 'sp-spent-popup');
-        const enemyPopupOptions = { verticalOrigin: 'top', yOffset: 50 };
-        damagedUnitData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `-${data.amount}`, 'damage-popup', data.type === 'Enemy' ? enemyPopupOptions : {}));
-        shieldDamagedData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `-${data.amount}`, 'shield-popup', data.type === 'Enemy' ? enemyPopupOptions : {}));
-        // -------------------------------------------------------------------
-
-        if (stunnedUnitId) ui_createFeedbackPopup(elPseudomapArea, 'Stunned!', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
         if (bState.lastActionDetails?.actionOutcome === "NO_TARGET_IN_RANGE") {
             if (passedPreviousBState?.lastActionDetails?.actionOutcome !== "NO_TARGET_IN_RANGE") {
                 ui_createFeedbackPopup(elPseudomapArea, 'No Target', 'info-popup', { verticalOrigin: 'top', yOffset: 15 });
             }
             bState.lastActionDetails.actionOutcome = null;
         }
+
         if (elBattleLogOverlay?.classList.contains('is-visible') && !bState.showLog) renderBattleLogOverlay(false);
         if (elPseudomapArea) elPseudomapArea.classList.remove('is-hidden');
         if (elPlayerHeroesDeck) elPlayerHeroesDeck.classList.remove('is-hidden');
@@ -268,9 +279,16 @@ function refreshAllUIElements(passedPreviousBState = null) {
         else if (wsMode === "confirming_basic_attack") allUnitFrames.forEach(frame => ui_highlightPotentialBasicAttackTarget(frame.dataset.unitId, frame.dataset.unitId === lastTappedUnitId));
     };
 
+    // Langkah 4: Tentukan kapan harus menjalankan render ulang
     if (defeatedUnitData.length > 0) {
         wsLogger("UI_RENDERER: Defeated unit(s) detected. Starting death animation sequence.");
+        
         defeatedUnitData.forEach(data => {
+            const fatalDamageData = damagedUnitData.find(d => d.unitId === data.unitId);
+            if (fatalDamageData) {
+                ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `-${fatalDamageData.amount}`, 'damage-popup', data.type === 'Enemy' ? enemyPopupOptions : {});
+            }
+
             const cardElement = findBestAnchorElement(data.unitId);
             if (cardElement) {
                 const hpBar = cardElement.querySelector('.hp-bar');
@@ -278,13 +296,14 @@ function refreshAllUIElements(passedPreviousBState = null) {
                 setTimeout(() => {
                     ui_playDeathAnimation(cardElement);
                     ui_createFeedbackPopup(cardElement, 'KO!', 'damage-popup', { verticalOrigin: 'center' });
-                }, 400);
+                }, 200);
             }
         });
-        setTimeout(performStandardRenderAndPopups, 1600);
+        
+        setTimeout(performStandardRender, 1600);
     } else {
         wsLogger("UI_RENDERER: No defeated units. Performing standard render.");
-        performStandardRenderAndPopups();
+        performStandardRender();
     }
 
     wsLogger("UI_RENDERER: refreshAllUIElements sequence finished.");
