@@ -1,61 +1,85 @@
-This guide will walk you through setting up the Turn-Based Combat (TBC) module on your Android device.
+# Gamicraft TBC - Setup Guide
+# Turn-Based Combat (TBC) Module Setup Guide
 
-**Disclaimer:** This is an early alpha version. You may encounter bugs or incomplete features. Your feedback is highly valuable!
+Welcome to the Turn-Based Combat (TBC) module! This guide will help you set up the module on your Android device.
 
-### Prerequisites
+⚠️ **Disclaimer:** This is an early alpha version. Bugs or incomplete features may occur. Your feedback is crucial for improving this project!
 
-1. **Android Device**
-    
-2. **Tasker:** The automation app that runs the game's logic.
-    
-3. **AutoTools:** A Tasker plugin used to display the web interface and enable communication.
-    
+---
 
-### Installation Steps
+## ⚙️ Prerequisites
 
-#### 1. File Placement
+Ensure the following apps are installed on your Android device:
 
-First, you need to place the module files in the correct directory on your device's internal storage.
+- [**Tasker**](https://play.google.com/store/apps/details?id=net.dinglisch.android.taskerm): Core automation engine for game logic.
+- [**AutoTools**](https://play.google.com/store/apps/details?id=com.joaomgcd.autotools): Tasker plugin for the web interface and communication.
+- [**LifeUp**](https://play.google.com/store/apps/details?id=net.sarasarasa.lifeup) (Optional): Integrates with the Gamicraft ecosystem.
 
-1. Create the following main directory if it doesn't exist: `/storage/emulated/0/gamicraft/modules/`
-    
-2. Place the entire `turnbase_pseudo-combat` folder inside it. The final structure should look like this: `/storage/emulated/0/gamicraft/modules/turnbase_pseudo-combat/`
-    
-3. The folder has two key subdirectories:
-    
-    - `.../app/`: This contains all the client-side files for the web interface (`index.html`, `style.css`, `js/` folder, etc.).
-        
-    - `.../data/`: This contains all server-side files, including assets (images, sounds), and the core JSON state files.
-        
+---
 
-#### 2. Import Tasker Profile
+## 🛠️ Installation Steps
 
-The module comes with a pre-configured Tasker Profile to get you started quickly.
+### **Step 1: Place Module Files**
+
+1. Download and extract the `.zip` file from the GitHub Release page.
+2. Navigate to your internal storage root using a file manager.
+3. Create the folder: `/storage/emulated/0/gamicraft/modules/`
+4. Copy the `turn_base_pseudo-combat` folder into the `modules` directory.
+
+**Final Path:** `/storage/emulated/0/gamicraft/modules/turn_base_pseudo-combat/`
+
+✅ **Verify:** Ensure sub-folders like `/app/` and `/data/` exist in this directory.
+
+---
+
+### **Step 2: Import Tasker Project**
 
 1. Open Tasker.
-    
-2. Long-press on the "Profiles" tab at the top.
-    
-3. Select "Import Profile".
-    
-4. Navigate to the module's data folder: `.../turnbase_pseudo-combat/data/`
-    
-5. Select the Tasker Profile file (e.g., `TBC_Gamicraft.prf.xml`).
-    
-6. The profile, along with its associated Tasks, will be imported into Tasker.
-    
+2. Long-press the **"Home" icon** (or any Project tab) at the bottom.
+3. Tap **"Import Project"** from the menu.
+4. Navigate to `/storage/emulated/0/gamicraft/modules/turn_base_pseudo-combat/`.
+5. Select `Turn_Base_Combat.prj.xml`.
 
-#### 3. Verify Configuration
+✅ **Verify:** A new Project tab named "Turn Base Combat" should appear in Tasker.
 
-1. After importing, open the main Task that launches the TBC module (e.g., "Launch TBC").
-    
-2. Find the "AutoTools Web Screen" action.
-    
-3. Check the "Source" field. Make sure it correctly points to the `index.html` file: `/storage/emulated/0/gamicraft/modules/turnbase_pseudo-combat/app/index.html`
-    
-4. Adjust the path if necessary.
-    
+---
 
-#### 4. Launch the Module
+### **Step 3: Launch the Module**
 
-You're all set! Simply run the "Launch TBC" Task from within Tasker to start the game.
+1. Open the "Tasks" tab in Tasker.
+2. Find the Task **"TBC: Initiate"**.
+3. Tap the "Play" button to start the game.
+
+The Turn-Based Combat web screen should now launch!
+
+---
+
+## 💡 Optional: Import Gamicraft Items in LifeUp
+
+For a full experience, import pre-made items from the Gamicraft creator profile in LifeUp:
+
+1. Open LifeUp and go to the **"World"** tab.
+2. Search for `Kyuris` and select the profile.
+3. Navigate to the **"Shop"** tab and import the displayed items.
+
+_(Detailed guide with screenshots coming soon.)_
+
+---
+
+## ❓ Troubleshooting
+
+- **Blank Web Screen or "File Not Found" Error:**
+    - Verify the folder structure in **Step 1**.
+    - Check the "Source" field in the "AutoTools Web Screen" action of the **"TBC: Initiate"** task.
+
+- **Tasker "Permission Denied" Error:**
+    - Ensure Tasker has storage access permissions in your Android App settings.
+
+---
+
+## 💬 Feedback & Community
+
+- [**Join our Discord Server**](https://discord.gg/XKSGMq9U) for discussions and support.
+- [**Report Bugs or Request Features**](https://github.com/kyuris8931/gamicraft-project/issues) on GitHub.
+
+---

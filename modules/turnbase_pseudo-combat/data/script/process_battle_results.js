@@ -96,7 +96,9 @@ try {
     });
     const enemyProg = progressionData.enemyProgression;
     const enemyLevelBefore = enemyProg.globalLevel;
+
     battleResultSummary.enemyLevelBefore = enemyLevelBefore;
+    
     const enemyExpChange = isWin ? 25 : -50;
     enemyProg.exp += enemyExpChange;
     while (enemyProg.exp < 0 && enemyProg.globalLevel > 1) { const expOfPreviousLevel = 25 * (enemyProg.globalLevel - 1); enemyProg.globalLevel--; enemyProg.exp += expOfPreviousLevel; }

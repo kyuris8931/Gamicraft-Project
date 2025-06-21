@@ -470,7 +470,7 @@
             "type": "Enemy",
             "role": "Melee",
             "tier": "Boss",
-            "expValue": 5,
+            "expValue": 6,
             "status": "Idle",
             "pseudoPos": 8,
             "portraitFilename": "enemies/Troll_Chieftain_Portrait.png",

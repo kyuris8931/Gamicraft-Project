@@ -1390,3 +1390,29 @@ html, body {
 .stats-panel-footer .styled-button {
     flex-grow: 1; /* Agar tombol memenuhi ruang */
 }
+
+.pseudomap-unit-frame.unit-respawn-flash {
+    /* Memicu animasi `respawn-flash-animation` */
+    animation: respawn-flash-animation 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes respawn-flash-animation {
+    0% {
+        /* Mulai dari keadaan normal */
+        transform: scale(1);
+        outline-color: transparent;
+        box-shadow: none;
+    }
+    40% {
+        /* Puncak kilatan: membesar, dengan outline dan bayangan keemasan */
+        transform: scale(1.15);
+        outline-color: var(--color-accent-quaternary); /* Warna kuning/emas */
+        box-shadow: 0 0 15px 5px color-mix(in srgb, var(--color-accent-quaternary) 50%, transparent);
+    }
+    100% {
+        /* Kembali ke keadaan normal */
+        transform: scale(1);
+        outline-color: transparent;
+        box-shadow: none;
+    }
+}

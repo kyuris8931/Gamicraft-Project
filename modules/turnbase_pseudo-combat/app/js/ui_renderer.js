@@ -252,8 +252,25 @@ function refreshAllUIElements(passedPreviousBState = null) {
     });
 
     revivedUnitData.forEach(data => {
-        // Kita gunakan 'info-popup' agar gayanya sama seperti 'No Target' dan 'Stunned'
-        ui_createFeedbackPopup(findBestAnchorElement(data.unitId), 'Respawn', 'info-popup', { verticalOrigin: 'center' });
+        setTimeout(() => {
+            // 1. Buat pop-up di Hero Card (seperti sebelumnya)
+            const cardAnchor = findBestAnchorElement(data.unitId);
+            if (cardAnchor) {
+                ui_createFeedbackPopup(cardAnchor, 'Respawn', 'info-popup', { verticalOrigin: 'center' });
+            }
+    
+            // 2. Cari frame di pseudomap untuk diberi animasi kilat
+            const frameAnchor = document.querySelector(`.pseudomap-unit-frame[data-unit-id="${data.unitId}"]`);
+            if (frameAnchor) {
+                frameAnchor.classList.add('unit-respawn-flash');
+    
+                // 3. Hapus kelas animasi setelah selesai agar bisa dipicu lagi nanti
+                setTimeout(() => {
+                    frameAnchor.classList.remove('unit-respawn-flash');
+                }, 1200); // Durasi harus sama dengan durasi animasi di CSS
+            }
+    
+        }, 150);
     });
 
     if (spGained > 0) ui_createFeedbackPopup(elTeamResourcesDisplay, `+${spGained} SP`, 'sp-gain-popup');
