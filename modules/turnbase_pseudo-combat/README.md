@@ -64,4 +64,24 @@ Gamicraft is built by one person with a lot of passion. This is a long journey, 
     
 - Found a bug? Report it on [**GitHub Issues**](https://github.com/kyuris8931/gamicraft-project/issues "null").
     
-- Love the project? Consider supporting future development on my [**Sponsors Page**](https://github.com/sponsors/kyuris8931 "null").
+- Love the project? Consider supporting future development on my [**Support Financially**](https://www.paypal.com/paypalme/gamicraft)
+
+- 
+
+### A Note from the Creator
+
+Hi, I'm Kyuris, the solo developer behind Gamicraft. Thank you for being here. This project is more than just code to me; it's a 1.5-year journey of passion, struggle, and perseverance.
+
+Gamicraft started as a simple idea: what if our daily habits could power a real game? It began with basic concepts, using LifeUp's API to simulate farming or battles through item descriptions. For months, that was the core.
+
+Then, it evolved. The first real module, `IDLE Life Tokens`, was born, using Tasker widgets as its interface—a small step forward. The vision grew, and I moved to using KLWP for a richer display, pushing my device to its limits until a system update tragically sent it into a bootloop, a stark reminder of the challenges of indie development.
+
+Now, after all that, we've arrived here: a fully functional Turn-Based Combat module running on a Web Screen. Every line of code, every pixel, every debugging session (and there were many painful ones), and every video edit was done by me, alone, often with the support of AI assistants but always driven by a singular vision.
+
+To be completely transparent, this journey has been incredibly difficult. It's been pursued without any income, often facing misunderstanding from those who see only someone "playing on the computer," not someone building a world.
+
+This v1.0 release is a monumental milestone for me. It's the first time a core Gamicraft module is truly ready for others to experience.
+
+If this project, its philosophy, or its story resonates with you, and if you have the means, any support you could offer would be more than just appreciated—it would be a lifeline. It would help keep the internet on to continue development and prove that this journey is worth taking.
+
+Thank you for reading, and I genuinely hope you enjoy the world I'm building
