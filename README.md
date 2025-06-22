@@ -1,45 +1,65 @@
 # Gamicraft - Modular Gamification Systems
 
-[![Discord](https://img.shields.io/discord/YOUR_DISCORD_INVITE_ID?label=Discord&logo=discord&style=for-the-badge)](https://discord.gg/XKSGMq9U)
-[![YouTube Channel](https://img.shields.io/badge/YouTube-Gamicraft-red?logo=youtube&style=for-the-badge)](https://www.youtube.com/@Gamicrafter)
+**Gamicraft isn't just another gamification app. It's an open framework for building** _**your own**_ **game experiences, powered by** _**your own**_ **life.** It aims to bridge the gap between real-world effort and meaningful digital rewards, transforming mundane tasks into epic adventures.
 
-**Tagline:** "Modular Gamification Systems"
+### 🔥 Now Playable: Turn-Based Combat (TBC) v1.0 is LIVE!
 
-Gamicraft is a unique gamification project aiming to blend real-life productivity with engaging, custom-built mini-game modules. Run primarily through Android apps **LifeUp**, **Tasker**, and **KLWP**, it turns daily tasks and habits into fuel for actual gameplay.
+After 1.5 years of development, the first core Gamicraft module is now available. Dive into a challenging tactical RPG where your real-life progress gives you the edge you need to win.
 
-## Core Philosophy: Growth to Win
+**Outsmart your foes, don't just defeat them. Make them waste a turn!**
 
-Unlike traditional games or simple gamification apps, Gamicraft embodies a **"Growth to Win"** philosophy. Real-world progress (completing tasks, exercising, learning) directly enhances your capabilities within the game modules. The core loop involves:
-1.  **Productivity:** Earns resources (Coins, EXP) & passively generates Tokens based on LifeUp Attributes.
-2.  **Gameplay:** Use resources to engage with modules (e.g., Turn-Based Combat, Virtual Pets) or acquire "Tickets" for privileged productive activities.
-3.  **Rewards:** Gain in-game items, real-life treats, or progress towards larger goals.
-4.  **Empowerment:** Improved attributes generate more passive resources, creating a positive feedback loop.
+![Enemy No Target](https://raw.githubusercontent.com/kyuris8931/kyuris8931/refs/heads/main/Showcase/GIF%20No%20Target.gif)
 
-## Visual Style
 
-Gamicraft utilizes a distinct **blueprint theme** with white stroke objects and hatching shader details for a technical, design-oriented aesthetic.
+### 💡 The Gamicraft Philosophy
 
-## Project Status & Modules
+Gamicraft is built on a few core principles that set it apart:
 
-This project is currently under active development by a solo developer. The core framework and initial modules are being built.
+- **🌱 Growth to Win:** Your real-world progress is the _only_ way to truly advance. The more productive you are, the more powerful you become.
+- **🎟️ Productivity as Privilege:** Challenging tasks aren't chores; they are opportunities you unlock using in-game resources, adding a layer of motivation. 
+- **🧩 High Modularity:** Gamicraft is a framework, not a single game. Mix and match modules to create the experience that's right for you.
+- **🎮 Your Game, Your Rules:** The framework is highly customizable. You are encouraged to tweak the systems to match your personal goals and playstyle.
+    
 
-* **[Gamicraft Core Document](./docs/Gamicraft_Core_Document.md)** (Contains detailed overview, principles, and framework mechanics)
-* **Modules:**
-    * **[Turn-Based Combat](./docs/modules/Turn_Based_Combat.md)** (Current focus - Basic implementation with win/lose state)
-    * Virtual Pets (Planned)
-    * Farming Sim (Planned)
-    * [Idle Tokens](https://www.youtube.com/watch?v=KdiujrEFOZQ&ab_channel=Gamicraft) (Concept)
-    * Minecraft Integration (Concept)
-    * Exercise RPG (Concept)
-    * ... and more!
+### 🛠️ How It Works: The Tech Stack
 
-## Join Us!
+Gamicraft runs on the Android platform, powered by a synergy of powerful automation tools:
 
-* **[YouTube (Gamicraft)](https://www.youtube.com/@Gamicrafter):** - See module demos and system creation.
-* **[Discord](https://discord.gg/aSNFNk4g):** - Join the community, see dev logs, share ideas!
+- **LifeUp:** The primary data source for tracking real-life tasks, habits, and attributes.  
+- **Tasker:** The central "brain" of Gamicraft, acting as the automation engine and core logic hub. 
+- **AutoTools Web Screen:** The UI/UX layer, providing a modern and interactive interface for game modules like the TBC.
+    
 
-## How to Use / Contribute (Placeholder)
+### 🗺️ Project Roadmap & Modules
 
-*(Details on how others can try out modules or contribute will be added here later)*
+This project is under active development by a solo developer. The vision is vast, and this is just the beginning.
 
----
+|Module|Status|Description|
+|---|---|---|
+|**Turn-Based Combat**|✅ **Released**|A deep, tactical turn-based RPG experience.|
+|**IDLE Life Tokens**|🟡 **Concept**|A passive-income module based on your LifeUp attributes.|
+|**Exercise RPG**|📝 **Planned**|A module to gamify your physical workouts with detailed progression.|
+|**Minecraft Integration**|📝 **Planned**|Bridge your Gamicraft progress into the world of Minecraft.|
+|**Virtual Pets**|📝 **Planned**|Raise a digital companion whose growth depends on your habits.|
+|...and many more!|||
+
+### ❤️ A Note from the Creator
+
+> Hi, I'm Kyuris, the solo developer behind Gamicraft. Thank you for being here. This project is more than just code to me; it's a 1.5-year journey of passion, struggle, and perseverance.
+> 
+> Gamicraft started as a simple idea and has evolved through countless iterations—from basic API concepts, to Tasker widgets, to a KLWP interface that ended in a tragic hardware failure. This version, built on Web Screen, is the culmination of all those lessons.
+> 
+> To be completely transparent, this journey has been incredibly difficult. I truly love working on this project, but that passion is often tested by severe financial strain. I've pursued this with no income, sometimes taking on manual labor jobs as a construction worker to make ends meet, saving every Rupiah earned.
+> 
+> This v1.0 release is a monumental milestone for me. It's the first time a core Gamicraft module is truly realized and ready for you to experience.
+> 
+> If this project, its philosophy, or its story resonates with you, and if you have the means, any support you could offer would be more than just appreciated—it would be a lifeline. It would help keep the internet on to continue development and prove that this journey is worth taking.
+> 
+> Thank you for reading, and I genuinely hope you enjoy the world I'm building.
+
+### 💬 Join the Journey
+
+- **Play the Game:** Head over to the [**Releases Page**](https://github.com/kyuris8931/gamicraft-project/releases "null") to download and start your adventure.
+- **Join the Community:** Discuss strategies, share your progress, and get help in our [**Discord Server**](https://discord.gg/XKSGMq9U "null").
+- **Contribute:** Found a bug or have an idea? Open an issue on the [**Issues Tab**](https://github.com/kyuris8931/gamicraft-project/issues "null").
+- **Support the Dream:** If you believe in this project, please consider becoming a [**GitHub Sponsor**](https://github.com/sponsors/kyuris8931 "null").
