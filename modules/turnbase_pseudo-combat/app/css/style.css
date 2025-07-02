@@ -1416,3 +1416,62 @@ html, body {
         box-shadow: none;
     }
 }
+
+
+/* --- BARU: Styling untuk Gauge Overlay di Kartu Hero --- */
+.player-heroes-deck .character-sprite-container {
+    position: relative; /* Diperlukan agar overlay bisa diposisikan absolut di dalamnya */
+    background-color: transparent; /* Warna latar belakang gelap jika gambar gagal dimuat */
+}
+
+.gauge-overlay-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Pastikan gauge-fill tidak keluar dari container */
+    pointer-events: none; /* Agar tidak mengganggu klik atau event lain */
+    z-index: 2; /* Di atas gambar sprite */
+}
+
+.gauge-fill {
+    position: absolute;
+    bottom: 0; /* Mulai dari bawah */
+    left: 0;
+    width: 100%;
+    background-color: rgba(255, 255, 255, 0.45); /* Putih transparan seperti permintaan */
+    transition: height 0.5s ease-out; /* Animasi pengisian gauge */
+    height: 0%; /* Default tinggi 0 */
+}
+
+.gauge-text {
+    position: absolute;
+    bottom: 5px;
+    width: 100%;
+    text-align: center;
+    font-size: 0.8em;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+    z-index: 3; /* Di atas gauge-fill */
+    pointer-events: none;
+    display: none; /* TAMBAHKAN BARIS INI */
+}
+
+/* Styling saat Ultimate siap digunakan */
+.player-heroes-deck .character-card.ultimate-ready {
+    cursor: pointer; /* Ubah cursor menjadi tangan */
+    animation: pulse-ultimate-ready 1.2s infinite;
+    box-shadow: 0 0 15px var(--color-accent-quaternary);
+}
+
+.player-heroes-deck .character-card.ultimate-ready .gauge-fill {
+    background-color: rgba(241, 196, 15, 0.6); /* Warna kuning/emas saat penuh */
+}
+
+@keyframes pulse-ultimate-ready {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}

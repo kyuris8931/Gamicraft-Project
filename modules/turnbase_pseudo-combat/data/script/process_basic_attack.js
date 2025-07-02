@@ -129,6 +129,12 @@ try {
     const damageResult = applyDamage(defender, damageDealt, bState);
     scriptLogger(`DAMAGE: ${attacker.name} dealt ${damageResult.totalDamage} total damage.`);
 
+    if (attacker.stats && typeof attacker.stats.gauge === 'number' && typeof attacker.stats.maxGauge === 'number') {
+        const gaugeToAdd = 15; // Contoh: dapat 15 gauge setiap serangan biasa
+        attacker.stats.gauge = Math.min(attacker.stats.gauge + gaugeToAdd, attacker.stats.maxGauge);
+        scriptLogger(`GAUGE_ADD: ${attacker.name} gained ${gaugeToAdd} gauge. Total: ${attacker.stats.gauge}/${attacker.stats.maxGauge}`);
+    }
+
     if (wasTargetEliminated) {
         scriptLogger(`KILL: ${defender.name} has been defeated!`);
     }

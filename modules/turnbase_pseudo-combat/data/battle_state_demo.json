@@ -241,6 +241,35 @@
                             "target": "selected"
                         }
                     ]
+                },
+                {
+                    "commandId": "ar_ultimate_final_bastion",
+                    "name": "Final Bastion (ULT)",
+                    "description": "Deals massive AoE damage (4x ATK) to all enemies within 2 spaces.",
+                    "type": "Skill",
+                    "isUltimate": true,
+                    "gaugeCost": 100,
+                    "spCost": 0,
+                    "sfxFilename": "sfx_ultimate_powerful.mp3",
+                    "targetingParams": {
+                        "selection": {
+                            "targetableTypes": ["Self"],
+                            "pattern": { "shape": "Self" }
+                        },
+                        "area": {
+                            "origin": "Caster",
+                            "shape": "RadiusAroundOrigin",
+                            "distance": 2,
+                            "affectedTypes": ["Enemy"]
+                        }
+                    },
+                    "effects": [
+                        {
+                            "type": "damage",
+                            "multiplier": 4.0,
+                            "target": "area"
+                        }
+                    ]
                 }
             ]
         },

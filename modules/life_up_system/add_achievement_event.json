@@ -1,0 +1,38 @@
+[
+  {
+    "achievement_name": "Mastery: Kraken's Coil I",
+    "achievement_desc": "Buktikan penguasaanmu atas artefak Sea-Storm Scoundrel dengan menggunakannya sebanyak 10 kali.",
+    "is_secret": true,
+    "rewards": { "coin": 1 },
+    "unlock_condition": {
+      "type": 11,
+      "track_item_name": "Kraken's Coil Rope Card Lv. 1",
+      "target": 10
+    },
+    "synthesis_formula": {
+      "output_item_name": "Kraken's Coil Rope Card Lv. 2",
+      "ingredients": [
+        { "item_name": "Kraken's Coil Rope Card Lv. 1", "amount": 1 },
+        { "item_name": "Kinetic Card", "amount": 3 }
+      ]
+    }
+  },
+  {
+    "achievement_name": "Mastery: Kraken's Coil II",
+    "achievement_desc": "Tingkatkan penguasaanmu dengan menggunakan artefak level 2 sebanyak 20 kali.",
+    "is_secret": true,
+    "rewards": { "coin": 1 },
+    "unlock_condition": {
+      "type": 11,
+      "track_item_name": "Kraken's Coil Rope Card Lv. 2",
+      "target": 20
+    },
+    "synthesis_formula": {
+      "output_item_name": "Kraken's Coil Rope Card Lv. 3",
+      "ingredients": [
+        { "item_name": "Kraken's Coil Rope Card Lv. 2", "amount": 1 },
+        { "item_name": "Kinetic Card", "amount": 6 }
+      ]
+    }
+  }
+]

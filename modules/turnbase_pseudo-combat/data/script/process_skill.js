@@ -14,6 +14,7 @@
 // - js_script_log: Execution log for debugging.
 // - was_target_eliminated: Boolean, true if any target was successfully defeated.
 // - skills_sfx: Name of the sound effect file to be played.
+// - actorActsAgain: Boolean, true if the actor should act again after this skill.
 
 let taskerLogOutput = "";
 let wasTargetEliminated = false;
@@ -150,14 +151,14 @@ function applyStatus(targetUnit, statusName, chance, duration, sourceUnitId) {
 /**
  * version 1.0
  * created on 20-06-2025
- * Menyinkronkan nilai pseudoPos semua unit berdasarkan urutan mereka di bState._turnOrder.
- * Ini memastikan posisi visual di pseudomap selalu sesuai dengan urutan giliran.
- * @param {object} bState - Objek battle_state yang akan dimodifikasi.
+ * Synchronize pseudoPos values of all units based on their order in bState._turnOrder.
+ * This ensures visual positions on the pseudomap always match the turn order.
+ * @param {object} bState - The battle_state object to be modified.
  */
 function updateAllPseudoPositions(bState) {
     if (!bState?._turnOrder || !bState?.units) return;
     
-    // Dapatkan hanya unit yang ada di dalam _turnOrder (unit yang hidup)
+    // Get only units that exist in _turnOrder (alive units)
     const aliveUnitsInOrder = bState._turnOrder.map(id => bState.units.find(u => u.id === id));
 
     aliveUnitsInOrder.forEach((unit, index) => {
@@ -171,36 +172,36 @@ function updateAllPseudoPositions(bState) {
 /**
  * version 1.0
  * created on 20-06-2025
- * Menyisipkan sebuah unit ke dalam array _turnOrder pada posisi tertentu, 
- * menggeser unit lain ke belakang, dan memperbarui semua pseudoPos.
- * @param {object} bState - Objek battle_state yang akan dimodifikasi.
- * @param {string} unitIdToInsert - ID dari unit yang akan disisipkan.
- * @param {number} targetIndex - Posisi (indeks array) di mana unit akan disisipkan.
- * @returns {object} Objek bState yang telah diperbarui.
+ * Insert a unit into the _turnOrder array at a specific position, 
+ * shift other units backward, and update all pseudoPos.
+ * @param {object} bState - The battle_state object to be modified.
+ * @param {string} unitIdToInsert - ID of the unit to be inserted.
+ * @param {number} targetIndex - Position (array index) where the unit will be inserted.
+ * @returns {object} Updated bState object.
  */
 function insertUnitAndReorder(bState, unitIdToInsert, targetIndex) {
-    scriptLogger(`REORDER_LOGIC: Memulai proses untuk menyisipkan ${unitIdToInsert} di indeks ${targetIndex}.`);
+    scriptLogger(`REORDER_LOGIC: Starting process to insert ${unitIdToInsert} at index ${targetIndex}.`);
 
     let turnOrder = bState._turnOrder || [];
     
-    // Pastikan unit yang akan disisipkan tidak sudah ada di dalam turn order
+    // Ensure the unit to be inserted is not already in the turn order
     turnOrder = turnOrder.filter(id => id !== unitIdToInsert);
     
-    // Pastikan targetIndex valid
+    // Ensure targetIndex is valid
     const finalIndex = Math.max(0, Math.min(targetIndex, turnOrder.length));
     
-    // Sisipkan unit menggunakan splice
+    // Insert unit using splice
     turnOrder.splice(finalIndex, 0, unitIdToInsert);
     
-    scriptLogger(`REORDER_LOGIC: Urutan giliran baru (sebelum sinkronisasi): ${turnOrder.join(', ')}`);
+    scriptLogger(`REORDER_LOGIC: New turn order (before synchronization): ${turnOrder.join(', ')}`);
     
-    // Update bState dengan turn order yang baru
+    // Update bState with the new turn order
     bState._turnOrder = turnOrder;
     
-    // SANGAT PENTING: Panggil fungsi sinkronisasi setelah memodifikasi _turnOrder
+    // VERY IMPORTANT: Call synchronization function after modifying _turnOrder
     updateAllPseudoPositions(bState);
     
-    scriptLogger(`REORDER_LOGIC: Proses penyisipan dan sinkronisasi selesai.`);
+    scriptLogger(`REORDER_LOGIC: Insertion and synchronization process completed.`);
     return bState;
 }
 
@@ -216,14 +217,12 @@ try {
     if (typeof affected_target_ids !== 'string') throw new Error("Input 'affected_target_ids' must be a JSON string array.");
 
     bState = JSON.parse(battle_state);
-    // Initialize progression tracking array if not present
-    if (!bState._defeatedEnemiesThisBattle) {
-        bState._defeatedEnemiesThisBattle = [];
-    }
+    if (!bState._defeatedEnemiesThisBattle) { bState._defeatedEnemiesThisBattle = []; }
+    if (!bState.active_effects) { bState.active_effects = []; } // Inisialisasi jika belum ada
 
     const affectedTargetIdsFromUI = JSON.parse(affected_target_ids);
     const actor = getUnitById(actor_id, bState.units);
-    const commandObject = getCommandById(actor, command_id);
+    const commandObject = actor.commands.find(cmd => cmd.commandId === command_id);
 
     if (!actor) throw new Error(`Actor with ID ${actor_id} not found.`);
     if (!commandObject) throw new Error(`Command with ID ${command_id} not found for Actor ${actor.name}.`);
@@ -244,6 +243,44 @@ try {
         }
     }
 
+    if (commandObject.applied_effects && Array.isArray(commandObject.applied_effects)) {
+        scriptLogger("EFFECT_FACTORY: Skill memiliki 'applied_effects'. Memproses...");
+
+        // Loop melalui setiap definisi efek di dalam skill
+        commandObject.applied_effects.forEach(effectDef => {
+            
+            // Loop melalui setiap target yang terkena skill dari UI
+            affectedTargetIdsFromUI.forEach(targetId => {
+                
+                // Cek chance (jika ada), default 100%
+                const chance = effectDef.chance || 1.0;
+                if (Math.random() > chance) {
+                    scriptLogger(`EFFECT_FACTORY: Efek "${effectDef.effect_id}" gagal diterapkan ke ${targetId} (chance fail).`);
+                    return; // Lanjut ke target berikutnya
+                }
+
+                // Buat salinan dari definisi efek untuk dimodifikasi
+                const newEffectInstance = JSON.parse(JSON.stringify(effectDef));
+
+                // Tambahkan informasi spesifik ke instance efek ini
+                newEffectInstance.source_skill_name = commandObject.name;
+                newEffectInstance.source_actor_id = actor.id;
+
+                // Jika efeknya individual, catat siapa targetnya
+                if (newEffectInstance.target_type === 'individual') {
+                    newEffectInstance.target_id = targetId;
+                }
+                
+                // Hapus properti 'chance' karena sudah diproses
+                delete newEffectInstance.chance;
+
+                // Masukkan efek yang sudah lengkap ke antrian `active_effects`
+                bState.active_effects.push(newEffectInstance);
+                scriptLogger(`EFFECT_FACTORY: Menambahkan efek "${newEffectInstance.effect_id}" ke antrian untuk target ${targetId}.`);
+            });
+        });
+    }
+
     // 3. Process Each Skill Effect (New Loop Structure)
     let targetsHitSummary = [];
     let actorActsAgain = false;
@@ -251,10 +288,6 @@ try {
     if (commandObject.effects && Array.isArray(commandObject.effects)) {
         commandObject.effects.forEach(effect => {
             
-            // ==========================================================
-            // ===          NEW EFFECT HANDLING STRUCTURE             ===
-            // ==========================================================
-
             // A. First check if this is a "global" effect that doesn't require UI targets
             if (effect.type === "act_again") {
                 actorActsAgain = true;
@@ -337,17 +370,17 @@ try {
                         break;
                     // case revive update on 20-06-2025
                     case "revive":
-                        // Langkah 1: Terapkan status revive (HP, status, dll) seperti biasa.
-                        applyRevive(targetUnit, effect.hpPercentage || 0.50); // Anda bisa sesuaikan persentase HP di sini
+                        // Step 1: Apply revive status (HP, status, etc.) as usual.
+                        applyRevive(targetUnit, effect.hpPercentage || 0.50); // You can adjust the HP percentage here
                         targetsHitSummary.push(`${targetUnit.name} (Revived)`);
-                        scriptLogger(`SKILL_REVIVE: ${targetUnit.name} dihidupkan kembali.`);
+                        scriptLogger(`SKILL_REVIVE: ${targetUnit.name} has been revived.`);
                         
-                        // Langkah 2: Panggil helper baru untuk memasukkan unit ini ke _turnOrder
-                        // Kita ingin dia di pseudoPos 1, yang berarti di indeks 1 dari array _turnOrder.
+                        // Step 2: Call a helper to insert this unit into _turnOrder
+                        // We want it at pseudoPos 1, which means at index 1 of the _turnOrder array.
                         bState = insertUnitAndReorder(bState, targetUnit.id, 1);
                         
-                        // Langkah 3: Beri "flag" agar turn manager tahu giliran berikutnya harus diperbarui
-                        // secara khusus setelah revive.
+                        // Step 3: Set a flag so the turn manager knows the next turn needs to be updated
+                        // specifically after the revive.
                         bState._turnOrderModifiedBySkill = true;
                         
                         break;
@@ -398,3 +431,4 @@ var battle_state = JSON.stringify(bState);
 var js_script_log = taskerLogOutput;
 var was_target_eliminated = wasTargetEliminated;
 var skills_sfx = skill_sfx;
+var actorActsAgain = actorActsAgain;

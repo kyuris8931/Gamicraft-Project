@@ -65,6 +65,8 @@ function initializeEventListeners() {
     if (elPlayerHeroesCarousel) {
         elPlayerHeroesCarousel.addEventListener('touchstart', (e) => handleTouchStart(e, 'player'), { passive: true });
         elPlayerHeroesCarousel.addEventListener('touchend', (e) => handleTouchEnd(e, 'player'), { passive: true });
+
+        elPlayerHeroesCarousel.addEventListener('click', handleHeroCardClickForUltimate);
     }
 
     if (elActionButtonsGroup) elActionButtonsGroup.addEventListener('click', handleActionButtonClick);
@@ -102,7 +104,7 @@ function initializeEventListeners() {
     const closeEndScreenBtn = document.getElementById('close-end-screen-btn');
     if (closeEndScreenBtn) {
         closeEndScreenBtn.addEventListener('click', () => {
-            sendCommandToTasker("BATTLE_ENDED_CONTINUE");
+            sendCommandContinue("BATTLE_ENDED_CONTINUE");
             const screen = document.getElementById('battle-end-screen');
             if(screen) screen.classList.remove('is-visible');
             const battleInterface = document.getElementById('battle-interface');
@@ -547,6 +549,63 @@ function handleToggleWsLoggerScreen(explicitShow = null) {
         });
     } else {
         elWsLoggerScreen.classList.remove('is-visible');
+    }
+}
+
+function handleHeroCardClickForUltimate(event) {
+    const card = event.target.closest('.character-card.player-card');
+    if (!card) return; // Jika yang diklik bukan kartu, abaikan
+
+    const unitId = card.dataset.unitId;
+    const unit = getUnitById(unitId);
+
+    // Cek Kondisi:
+    // 1. Apakah unit ada?
+    // 2. Apakah gauge-nya penuh?
+    // 3. Apakah ini giliran unit tersebut?
+    // 4. Apakah state game sedang 'Ongoing'?
+    if (unit && unit.stats.gauge >= unit.stats.maxGauge && unit.id === bState.activeUnitID && bState.battleState === "Ongoing") {
+        
+        // Cari command Ultimate dari daftar command unit
+        const ultimateCommand = unit.commands.find(cmd => cmd.isUltimate === true);
+        if (!ultimateCommand) {
+            wsLogger(`ULTIMATE_ERROR: Unit ${unit.name} siap ultimate, tapi tidak ada command 'isUltimate:true' ditemukan.`);
+            return;
+        }
+
+        wsLogger(`ULTIMATE_ACTIVATE: ${unit.name} mengaktifkan ultimate: ${ultimateCommand.name}`);
+        sendSoundCommand({ sfx_name: "ui_ultimate_activate" }); // Efek suara baru (opsional)
+
+        // Kirim perintah ke Tasker. Mirip dengan klik tombol skill biasa.
+        // Kita perlu payload yang sama seperti handleActionButtonClick, jadi kita buat di sini.
+        const commandPayload = {
+            actorId: unit.id,
+            commandId: ultimateCommand.commandId,
+            // Ultimate biasanya menargetkan area, jadi kita perlu menghitung target yang terkena efek
+            // Untuk Ultimate AoE seperti contoh kita, kita bisa langsung kirim tanpa target spesifik
+            // karena script backend akan menanganinya.
+            affectedTargetIds: [] // Kosongkan, biarkan backend (process_skill.js) yang menentukan target AoE
+        };
+        
+        // Kita set wsMode ke confirming_effect_area agar UI bisa menyorot area yang terkena dampak
+        // Ini akan memberikan feedback visual kepada pemain sebelum konfirmasi
+        selectedActionDetails = {
+            commandId: ultimateCommand.commandId,
+            commandObject: ultimateCommand,
+            actorId: unit.id
+        };
+        
+        selectedPrimaryTargetId = unit.id; // Karena origin-nya Caster
+        currentAffectedTargetIds = getAreaAffectedTargets(selectedPrimaryTargetId, unit, ultimateCommand, bState);
+        
+        if (currentAffectedTargetIds.length > 0) {
+            wsMode = "confirming_effect_area";
+            addLogEntry(`ULTIMATE: ${ultimateCommand.name}. Tekan target yang disorot untuk konfirmasi.`, "system-info");
+            ui_renderConfirmAreaMode(selectedPrimaryTargetId, currentAffectedTargetIds, getAllUnitFramesOnMap());
+        } else {
+             wsLogger("ULTIMATE_WARN: Tidak ada target valid untuk ultimate. Mungkin bug di targetingParams.");
+             exitTargetingMode();
+        }
     }
 }
 

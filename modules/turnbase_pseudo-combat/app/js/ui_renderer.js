@@ -238,11 +238,11 @@ function refreshAllUIElements(passedPreviousBState = null) {
         ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `-${data.amount}`, 'damage-popup', data.type === 'Enemy' ? enemyPopupOptions : {});
     });
     
-    // --- DIKEMBALIKAN: Logika untuk pop-up damage pada shield ---
+ 
     shieldDamagedData.filter(d => !defeatedIds.includes(d.unitId)).forEach(data => {
         ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `-${data.amount}`, 'shield-popup', data.type === 'Enemy' ? enemyPopupOptions : {});
     });
-    // -------------------------------------------------------------
+
 
     healedUnitData.forEach(data => ui_createFeedbackPopup(findBestAnchorElement(data.unitId), `+${data.amount}`, 'heal-popup'));
     shieldGainedData.forEach(data => {
@@ -494,6 +494,26 @@ function renderPlayerHeroesDeck() {
 
             hpContainer.appendChild(shieldBar);
             hpContainer.appendChild(shieldText);
+        }
+
+        if (hero.stats.maxGauge > 0) {
+            const gaugeOverlayContainer = document.createElement('div');
+            gaugeOverlayContainer.className = 'gauge-overlay-container';
+
+            const gaugeFill = document.createElement('div');
+            gaugeFill.className = 'gauge-fill';
+            
+            const gaugePercentage = (hero.stats.gauge / hero.stats.maxGauge) * 100;
+            gaugeFill.style.height = `${gaugePercentage}%`;
+
+
+            gaugeOverlayContainer.appendChild(gaugeFill);
+            spriteContainer.appendChild(gaugeOverlayContainer); // Masukkan ke dalam container sprite
+
+            // Tambahkan kelas jika ultimate siap
+            if (hero.stats.gauge >= hero.stats.maxGauge) {
+                card.classList.add('ultimate-ready');
+            }
         }
 
         details.appendChild(name);

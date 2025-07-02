@@ -90,3 +90,35 @@ if (typeof wsLogger === 'function') {
 } else {
     console.log("AUTOTOOLS_INTERFACE_JS: Minimal autotools_interface.js loaded (update function is inline in HTML).");
 }
+/**
+ * Sends a "CONTINUE" command to Tasker.
+ * @param {object|string} [payload=null] - Optional data to send. If an object, it's JSON.stringified.
+ */
+function sendCommandContinue(payload = null) {
+    const commandId = "CONTINUE"; // Command ID for "CONTINUE"
+    let commandString = commandId;
+
+    if (payload !== null) {
+        try {
+            const payloadString = typeof payload === 'object' ? JSON.stringify(payload) : String(payload);
+            commandString = `${commandString}=:=${payloadString}`;
+        } catch (e) {
+            const logger = typeof wsLogger === 'function' ? wsLogger : console.log;
+            logger(`CONTINUE_COMMAND_ERROR: Failed to stringify payload: ${e}. Sending command ID only.`);
+            return; // Abort sending if payload error
+        }
+    }
+
+    const commandPrefix = "GAMICRAFT_CONTINUE"; // Prefix for "CONTINUE" commands
+    const logger = typeof wsLogger === 'function' ? wsLogger : console.log;
+    logger(`CONTINUE_SENDER: Sending to Tasker: Prefix="${commandPrefix}", Command="${commandString}"`);
+
+    // Logic for sending the command remains the same
+    if (typeof window.AutoToolsAndroid !== 'undefined' && typeof window.AutoToolsAndroid.sendCommand === 'function') {
+        window.AutoToolsAndroid.sendCommand(commandString, commandPrefix, false);
+    } else if (typeof window.parent !== 'undefined' && typeof window.parent.AutoToolsAndroid !== 'undefined' && typeof window.parent.AutoToolsAndroid.sendCommand === 'function') {
+        window.parent.AutoToolsAndroid.sendCommand(commandString, commandPrefix, false);
+    } else {
+        logger("CONTINUE_SENDER_ERROR: AutoToolsAndroid.sendCommand is not available. Command not sent.");
+    }
+}

@@ -1,0 +1,74 @@
+[
+  {
+    "id": null,
+    "name": "Kineti-Koil Ticket",
+    "description": "A ticket for the Kineti-Koil, a prize machine that dispenses 1 to 6 'Kinetic Cards'—blank slates brimming with raw potential.",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/refs/heads/main/items/kineti-koil_ticket.png",
+    "rarity": "rare",
+    "category": "carnival_ticket",
+    "broadcast": false,
+    "escalation": true,
+    "price": 3,
+    "reset_daily": true
+  },
+  {
+    "id": null,
+    "name": "Memory-Go-Round Ticket",
+    "description": "Grants you one ride on the Memory-Go-Round. Reinforce your knowledge as it spins, ensuring no memory gets left behind.",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/refs/heads/main/items/memory-go-round_ticket.png",
+    "rarity": "rare",
+    "category": "carnival_ticket",
+    "broadcast": false,
+    "escalation": true,
+    "price": 3,
+    "reset_daily": true
+  },
+  {
+    "id": null,
+    "name": "Echo Stage Ticket",
+    "description": "Your 3-minute pass to the Echo Stage. Step into the spotlight and let your voice resonate, practicing clarity and commanding presence.",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/refs/heads/main/items/echo_stage_ticket.png",
+    "rarity": "rare",
+    "category": "carnival_ticket",
+    "broadcast": false,
+    "escalation": true,
+    "price": 3,
+    "reset_daily": true
+  },
+  {
+    "id": null,
+    "name": "Oracle's Booth Ticket",
+    "description": "A ticket for a 3-minute consultation at the Oracle's Booth. Ask your questions and see what revelations the Aetheric data-stream unveils.",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/refs/heads/main/items/oracle's_booth_ticket.png",
+    "rarity": "rare",
+    "category": "carnival_ticket",
+    "broadcast": false,
+    "escalation": true,
+    "price": 3,
+    "reset_daily": true
+  },
+  {
+    "id": null,
+    "name": "Tranquil Garden Ticket",
+    "description": "Grants 3 minutes of access to the Tranquil Garden, a pocket dimension of serenity perfect for quiet reflection and reinforcing your inner harmony.",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/refs/heads/main/items/tranquil_garden_ticket.png",
+    "rarity": "rare",
+    "category": "carnival_ticket",
+    "broadcast": false,
+    "escalation": true,
+    "price": 3,
+    "reset_daily": true
+  },
+  {
+    "id": null,
+    "name": "Inspiration Hall Ticket",
+    "description": "Your entry pass to the ever-changing Inspiration Hall. Spend 3 minutes gazing upon a cascade of concepts and aesthetic patterns.",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/refs/heads/main/items/inspiration_hall_ticket.png",
+    "rarity": "rare",
+    "category": "carnival_ticket",
+    "broadcast": false,
+    "escalation": true,
+    "price": 3,
+    "reset_daily": true
+  }
+]
