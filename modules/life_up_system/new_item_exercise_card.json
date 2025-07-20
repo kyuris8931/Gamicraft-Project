@@ -50,18 +50,6 @@
   {
     "id": null,
     "name": "Kraken's Coil Rope Card Lv. 1",
-    "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 50 Reps)",
-    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/kraken's_coil_rope_card.png",
-    "rarity": "common",
-    "category": "exercise_card",
-    "broadcast": false,
-    "escalation": false,
-    "price": null,
-    "reset_daily": true
-  },
-  {
-    "id": null,
-    "name": "Kraken's Coil Rope Card Lv. 2",
     "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 100 Reps)",
     "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/kraken's_coil_rope_card.png",
     "rarity": "common",
@@ -73,8 +61,20 @@
   },
   {
     "id": null,
+    "name": "Kraken's Coil Rope Card Lv. 2",
+    "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 200 Reps)",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/kraken's_coil_rope_card.png",
+    "rarity": "common",
+    "category": "exercise_card",
+    "broadcast": false,
+    "escalation": false,
+    "price": null,
+    "reset_daily": true
+  },
+  {
+    "id": null,
     "name": "Kraken's Coil Rope Card Lv. 3",
-    "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 150 Reps)",
+    "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 300 Reps)",
     "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/kraken's_coil_rope_card.png",
     "rarity": "common",
     "category": "exercise_card",
@@ -86,7 +86,7 @@
   {
     "id": null,
     "name": "Kraken's Coil Rope Card Lv. 4",
-    "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 200 Reps)",
+    "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 400 Reps)",
     "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/kraken's_coil_rope_card.png",
     "rarity": "rare",
     "category": "exercise_card",
@@ -98,9 +98,69 @@
   {
     "id": null,
     "name": "Kraken's Coil Rope Card Lv. 5",
-    "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 250 Reps)",
+    "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 500 Reps)",
     "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/kraken's_coil_rope_card.png",
     "rarity": "rare",
+    "category": "exercise_card",
+    "broadcast": false,
+    "escalation": false,
+    "price": null,
+    "reset_daily": true
+  },
+    {
+    "id": null,
+    "name": "Kraken's Coil Rope Card Lv. 6",
+    "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 600 Reps)",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/kraken's_coil_rope_card.png",
+    "rarity": "rare",
+    "category": "exercise_card",
+    "broadcast": false,
+    "escalation": false,
+    "price": null,
+    "reset_daily": true
+  },
+  {
+    "id": null,
+    "name": "Kraken's Coil Rope Card Lv. 7",
+    "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 700 Reps)",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/kraken's_coil_rope_card.png",
+    "rarity": "epic",
+    "category": "exercise_card",
+    "broadcast": false,
+    "escalation": false,
+    "price": null,
+    "reset_daily": true
+  },
+  {
+    "id": null,
+    "name": "Kraken's Coil Rope Card Lv. 8",
+    "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 800 Reps)",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/kraken's_coil_rope_card.png",
+    "rarity": "epic",
+    "category": "exercise_card",
+    "broadcast": false,
+    "escalation": false,
+    "price": null,
+    "reset_daily": true
+  },
+  {
+    "id": null,
+    "name": "Kraken's Coil Rope Card Lv. 9",
+    "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 900 Reps)",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/kraken's_coil_rope_card.png",
+    "rarity": "epic",
+    "category": "exercise_card",
+    "broadcast": false,
+    "escalation": false,
+    "price": null,
+    "reset_daily": true
+  },
+  {
+    "id": null,
+    "name": "Kraken's Coil Rope Card Lv. 10",
+    "description": "Channel the Sea-Storm Scoundrel! Feel the chaotic rhythm of the ocean as you master this artifact born from the tempest. (Exercise: Skipping - 1000 Reps)",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/kraken's_coil_rope_card.png",
+    "rarity": "legendary",
     "category": "exercise_card",
     "broadcast": false,
     "escalation": false,
@@ -166,5 +226,65 @@
     "escalation": false,
     "price": null,
     "reset_daily": true
-  }
+  },
+  {
+    "id": null,
+    "name": "Aegis Gauntlets Card Lv. 6",
+    "description": "Channel the Aegis Vanguard! Feel the unyielding power in your arms, like a living fortress holding back an onslaught. (Exercise: Push-up - 30 Reps)",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/aegis_gauntlets_card.png",
+    "rarity": "rare",
+    "category": "exercise_card",
+    "broadcast": false,
+    "escalation": false,
+    "price": null,
+    "reset_daily": true
+  },
+  {
+    "id": null,
+    "name": "Aegis Gauntlets Card Lv. 7",
+    "description": "Channel the Aegis Vanguard! Feel the unyielding power in your arms, like a living fortress holding back an onslaught. (Exercise: Push-up - 35 Reps)",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/aegis_gauntlets_card.png",
+    "rarity": "epic",
+    "category": "exercise_card",
+    "broadcast": false,
+    "escalation": false,
+    "price": null,
+    "reset_daily": true
+  },
+  {
+    "id": null,
+    "name": "Aegis Gauntlets Card Lv. 8",
+    "description": "Channel the Aegis Vanguard! Feel the unyielding power in your arms, like a living fortress holding back an onslaught. (Exercise: Push-up - 40 Reps)",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/aegis_gauntlets_card.png",
+    "rarity": "epic",
+    "category": "exercise_card",
+    "broadcast": false,
+    "escalation": false,
+    "price": null,
+    "reset_daily": true
+  },
+  {
+    "id": null,
+    "name": "Aegis Gauntlets Card Lv. 9",
+    "description": "Channel the Aegis Vanguard! Feel the unyielding power in your arms, like a living fortress holding back an onslaught. (Exercise: Push-up - 45 Reps)",
+    "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/aegis_gauntlets_card.png",
+    "rarity": "epic",
+    "category": "exercise_card",
+    "broadcast": false,
+    "escalation": false,
+    "price": null,
+    "reset_daily": true
+  },
+  {
+  "id": null,
+  "name": "Aegis Gauntlets Card Lv. 10",
+  "description": "Channel the Aegis Vanguard! Feel the unyielding power in your arms, like a living fortress holding back an onslaught. (Exercise: Push-up - 50 Reps)",
+  "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/main/items/aegis_gauntlets_card.png",
+  "rarity": "legendary",
+  "category": "exercise_card",
+  "broadcast": false,
+  "escalation": false,
+  "price": null,
+  "reset_daily": true
+}
 ]

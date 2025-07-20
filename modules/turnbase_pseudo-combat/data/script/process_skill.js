@@ -243,6 +243,18 @@ try {
         }
     }
 
+    if (commandObject.isUltimate === true) {
+        if (actor.stats && typeof actor.stats.gauge === 'number') {
+            const gaugeCost = commandObject.gaugeCost || 100; // Ambil dari command atau default 100
+            if (actor.stats.gauge >= gaugeCost) {
+                actor.stats.gauge = 0; // Reset gauge ke 0
+                scriptLogger(`ULTIMATE_PROC: Gauge reset for ${actor.name}.`);
+            } else {
+                 throw new Error(`Not enough Gauge for ${commandObject.name}. Required: ${gaugeCost}, Available: ${actor.stats.gauge}.`);
+            }
+        }
+    }
+
     if (commandObject.applied_effects && Array.isArray(commandObject.applied_effects)) {
         scriptLogger("EFFECT_FACTORY: Skill memiliki 'applied_effects'. Memproses...");
 
@@ -385,9 +397,33 @@ try {
                         
                         break;
                     case "status":
-                        if (applyStatus(targetUnit, effect.statusName, effect.chance || 1.0, effect.duration || 1, actor.id)) {
-                            targetsHitSummary.push(`${targetUnit.name} (${effect.statusName})`);
+                    // Cek chance terlebih dahulu
+                        if (Math.random() >= (effect.chance || 1.0)) {
+                            scriptLogger(`APPLY_STATUS: Gagal menerapkan ${effect.statusName} ke ${targetUnit.name} (chance fail).`);
+                            break; // Lanjut ke target/efek berikutnya
                         }
+
+                        const effectDetails = effect.effectDetails || {};
+
+                        const statusEffectObject = {
+                            name: effect.statusName,
+                            duration: effect.duration || 1,
+                            sourceUnitId: actor.id,
+                            source_skill_name: commandObject.name,
+                            target_id: targetUnit.id,
+                            type: effect.statusName.toLowerCase(), // e.g., "poison", "stun"
+                            ...effectDetails // <-- KUNCI: Salin semua detail seperti damage, trigger_phase, dll.
+                        };
+
+                        if (!bState.active_effects) { bState.active_effects = []; }
+                        bState.active_effects.push(statusEffectObject);
+                        
+                        // Tambahkan juga ke daftar debuff unit untuk referensi cepat (opsional tapi bagus)
+                        if (!targetUnit.statusEffects) { targetUnit.statusEffects = { buffs: [], debuffs: [] }; }
+                        targetUnit.statusEffects.debuffs.push({ name: effect.statusName, duration: effect.duration || 1 });
+                        
+                        scriptLogger(`EFFECT_FACTORY: Menambahkan efek "${effect.statusName}" ke antrian global untuk target ${targetUnit.name}.`);
+                        targetsHitSummary.push(`${targetUnit.name} (${effect.statusName})`);
                         break;
                 }
             });

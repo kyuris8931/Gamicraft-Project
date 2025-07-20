@@ -1,0 +1,16 @@
+[
+  {
+    "exercise_id": "skipping",
+    "exercise_card_keyword": "Kraken's Coil Rope",
+    "maps_to_stat": "hp",
+    "level_up_message": "The Sea-Storm Scoundrel's rhythm awakens! {stat_name} has reached Lv. {new_level}!",
+    "progress_message": "You need {exp_needed} more EXP to master the next tempo."
+  },
+  {
+    "exercise_id": "push_up",
+    "exercise_card_keyword": "Aegis Gauntlets",
+    "maps_to_stat": "atk",
+    "level_up_message": "The Aegis Vanguard's power surges! {stat_name} has reached Lv. {new_level}!",
+    "progress_message": "You need {exp_needed} more EXP to unlock the next stage of power."
+  }
+]

@@ -390,6 +390,36 @@
                             "target": "selected"
                         }
                     ]
+                },
+                {
+                    "commandId": "rh_poison_shot_test",
+                    "name": "Poison Shot (TEST)",
+                    "description": "Deals minor damage and applies Poison for 2 turns.",
+                    "type": "Skill",
+                    "spCost": 3,
+                    "sfxFilename": "sfx_poison_effect.mp3",
+                    "targetingParams": {
+                        "selection": { "targetableTypes": ["Enemy"], "pattern": { "shape": "WithinDistance", "distance": 2 }},
+                        "area": { "origin": "SelectedTarget", "shape": "SingleOnSelected" }
+                    },
+                    "effects": [
+                        {
+                            "type": "damage",
+                            "multiplier": 0.5,
+                            "target": "selected"
+                        },
+                        {
+                            "type": "status",
+                            "statusName": "Poison",
+                            "chance": 1.0,
+                            "duration": 2,
+                            "target": "selected",
+                            "effectDetails": { 
+                                "damage": 5, 
+                                "trigger_phase": "end_of_turn"
+                            }
+                        }
+                    ]
                 }
             ]
         },

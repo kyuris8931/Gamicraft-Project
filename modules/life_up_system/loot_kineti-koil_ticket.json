@@ -1,0 +1,44 @@
+[
+    {
+        "item_name": "Aetheric Resonator",
+        "amount": 1,
+        "probability": 100,
+        "is_fixed_reward": true
+    },
+    {
+        "item_name": "Kinetic Card",
+        "amount": 1,
+        "probability": 10,
+        "is_fixed_reward": false
+    },
+    {
+        "item_name": "Kinetic Card",
+        "amount": 2,
+        "probability": 10,
+        "is_fixed_reward": false
+    },
+    {
+        "item_name": "Kinetic Card",
+        "amount": 3,
+        "probability": 10,
+        "is_fixed_reward": false
+    },
+    {
+        "item_name": "Kinetic Card",
+        "amount": 4,
+        "probability": 10,
+        "is_fixed_reward": false
+    },
+    {
+        "item_name": "Kinetic Card",
+        "amount": 5,
+        "probability": 10,
+        "is_fixed_reward": false
+    },
+    {
+        "item_name": "Kinetic Card",
+        "amount": 6,
+        "probability": 10,
+        "is_fixed_reward": false
+    }
+]

@@ -93,6 +93,9 @@ try {
         // --- Add Broadcast for ID Receiver ---
         params.push(`broadcast=${broadcastAction}`);
 
+        // --- Add category_id if provided ---
+        params.push(`category_id=${achievement.category_id || 1}`);
+
         // --- Construct the final URL ---
         const finalApiUrl = `lifeup://api/achievement?${params.join('&')}`;
         urls.push(finalApiUrl);

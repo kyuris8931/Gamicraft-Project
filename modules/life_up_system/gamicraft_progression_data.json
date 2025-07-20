@@ -1,0 +1,15 @@
+{
+    "heroes": [
+        {"id": "player_kyuris_01_mock", "level": 1, "exp": 0},
+        {"id": "hero_arthur_01_mock", "level": 1, "exp": 0},
+        {"id": "hero_robin_01_mock", "level": 1, "exp": 0}
+    ],
+    "enemyProgression": {
+        "globalLevel": 1,
+        "exp": 0
+    },
+    "exerciseStatsProgression": [
+        {"id": "push_up", "stats": "ATK", "level": 1, "exp": 0},
+        {"id": "skipping", "stats": "HP", "level": 1, "exp": 0}
+    ]
+}

@@ -1475,3 +1475,29 @@ html, body {
     50% { transform: scale(1.05); }
     100% { transform: scale(1); }
 }
+
+/* --- NEW: Attack Animation --- */
+.unit-attacking-animation {
+    /* Triggers the 'basic-attack-animation' over 0.6 seconds */
+    animation: basic-attack-animation 0.6s ease-in-out;
+    /* Temporarily raise z-index to ensure the animation is on top */
+    z-index: 10; 
+}
+
+@keyframes basic-attack-animation {
+    0% {
+        transform: translateX(0);
+    }
+    40% {
+        /* The character card moves back */
+        transform: translateX(-25px);
+    }
+    70% {
+        /* The character card lunges forward past its start point */
+        transform: translateX(15px);
+    }
+    100% {
+        /* The character card returns to its original position */
+        transform: translateX(0);
+    }
+}

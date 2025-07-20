@@ -2,7 +2,6 @@
   {
     "achievement_name": "Mastery: Kraken's Coil I",
     "achievement_desc": "Buktikan penguasaanmu atas artefak Sea-Storm Scoundrel dengan menggunakannya sebanyak 10 kali.",
-    "is_secret": true,
     "rewards": { "coin": 1 },
     "unlock_condition": {
       "type": 11,
@@ -20,7 +19,6 @@
   {
     "achievement_name": "Mastery: Kraken's Coil II",
     "achievement_desc": "Tingkatkan penguasaanmu dengan menggunakan artefak level 2 sebanyak 20 kali.",
-    "is_secret": true,
     "rewards": { "coin": 1 },
     "unlock_condition": {
       "type": 11,

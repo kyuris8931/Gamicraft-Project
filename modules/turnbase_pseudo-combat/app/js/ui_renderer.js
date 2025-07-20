@@ -165,6 +165,20 @@ function refreshAllUIElements(passedPreviousBState = null) {
     const shieldGainedData = [], shieldDamagedData = [];
     const revivedUnitData = [];
     let spGained = 0, spSpent = 0, stunnedUnitId = null;
+    let attackerId = null;
+
+
+    // Cek apakah ada aksi serangan atau skill yang dilakukan oleh unit
+    if (bState.lastActionDetails && bState.lastActionDetails.actorId) {
+        const actorId = bState.lastActionDetails.actorId;
+        const commandId = bState.lastActionDetails.commandId || "";
+
+        // Animasikan untuk aksi apa pun yang bukan dari item sistem atau efek status pasif
+        if (!actorId.startsWith("SYSTEM_") && commandId !== "__STUNNED__") {
+            attackerId = actorId;
+        }
+    }
+    // --- AKHIR PERUBAHAN ---
 
     // Langkah 1: Kumpulkan semua data perubahan (Blok ini sudah benar)
     if (passedPreviousBState) {
@@ -535,7 +549,14 @@ function renderPlayerActionBar() {
         elActionButtonsGroup.innerHTML = '<p class="no-actions-message">No actions available.</p>';
         return;
     }
-    const skills = activeUnit.commands ? activeUnit.commands.filter(cmd => cmd.type !== "BasicAttack") : [];
+
+    // --- PERUBAHAN DI SINI ---
+    // Filter command untuk HANYA menampilkan yang BUKAN ultimate.
+    const skills = activeUnit.commands 
+        ? activeUnit.commands.filter(cmd => cmd.type !== "BasicAttack" && !cmd.isUltimate) 
+        : [];
+    // --- AKHIR PERUBAHAN ---
+
     if (skills.length === 0) {
         elActionButtonsGroup.innerHTML = '<p class="no-actions-message">No skills. Double tap enemy for Basic Attack.</p>';
         return;

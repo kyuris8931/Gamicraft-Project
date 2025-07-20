@@ -1,58 +1,76 @@
 /*
  * Gamicraft - Process Effects (End of Turn)
- * Version: 1.0
+ * Version: 1.1 - Handles individual effects like Poison.
  *
  * Description:
- * Processes all active effects that are flagged to trigger at the END of a unit's turn.
- * This script should be run BEFORE turn_manager.js.
+ * Processes all active effects flagged to trigger at the END of a unit's turn.
+ * This script runs BEFORE turn_manager.js.
  */
 
 let taskerLogOutput = "";
-function scriptLogger(message) { taskerLogOutput += message + "\\n"; }
+function scriptLogger(message) { taskerLogOutput += `[END_TURN_FX] ${message}\\n`; }
+
+var battle_state_out = battle_state; // Default output jika tidak ada perubahan
 
 try {
     const bState = JSON.parse(battle_state);
 
-    if (!bState.active_effects || bState.active_effects.length === 0) {
-        // No active effects, nothing to do.
+    // Cek apakah ada efek aktif dan ID unit yang baru saja bertindak.
+    if (!bState.active_effects || bState.active_effects.length === 0 || !bState.activeUnitID) {
+        exit(); // Keluar jika tidak ada yang perlu diproses.
+    }
+    
+    // Temukan unit yang BARU SAJA menyelesaikan gilirannya.
+    const unitThatJustActed = bState.units.find(u => u.id === bState.activeUnitID);
+    if (!unitThatJustActed) {
         exit();
     }
 
-    const unitThatJustActed = bState.units.find(u => u.id === bState.activeUnitID);
-    if (!unitThatJustActed) exit();
+    scriptLogger(`Mengecek efek akhir giliran untuk ${unitThatJustActed.name}`);
     
-    scriptLogger("EFFECT_PROCESSOR (End): Checking for end-of-turn effects.");
+    // Cari semua efek yang relevan untuk unit ini
+    let effectsToProcess = bState.active_effects.filter(effect => 
+        effect.trigger_phase === 'end_of_turn' && effect.target_id === unitThatJustActed.id
+    );
 
-    bState.active_effects.forEach(effect => {
-        // Only process effects with the correct trigger phase.
-        if (effect.trigger_phase !== 'end_of_turn') return;
-        
-        let applyEffect = false;
-        // Check if the effect should apply on this turn.
-        if (effect.target_type === 'team' && unitThatJustActed.type === 'Ally') {
-            applyEffect = true;
-        } else if (effect.target_type === 'individual' && effect.target_id === unitThatJustActed.id) {
-            applyEffect = true;
-        }
+    if (effectsToProcess.length > 0) {
+        effectsToProcess.forEach(effect => {
+            scriptLogger(`Memproses efek: "${effect.type}" dari skill "${effect.source_skill_name}"`);
 
-        if (applyEffect) {
-            scriptLogger(`EFFECT_PROCESSOR (End): Applying effect "${effect.effect_id}".`);
-            
-            // --- Hardcoded logic for each effect type ---
-            if (effect.type === 'sp_over_time') {
-                const spGained = Math.floor(Math.random() * (effect.max_amount - effect.min_amount + 1)) + effect.min_amount;
-                bState.teamSP = Math.min(bState.teamSP + spGained, bState.maxTeamSP);
-                bState.battleMessage = `Efek berangsur dari ${effect.source_item_name} memberikan ${spGained} SP!`;
+            switch(effect.type.toLowerCase()) {
+                case 'poison':
+                    const damage = effect.damage || 5; // Ambil damage dari efek atau default 5
+                    const oldHp = unitThatJustActed.stats.hp;
+                    unitThatJustActed.stats.hp = Math.max(0, oldHp - damage);
+                    
+                    bState.battleMessage = `${unitThatJustActed.name} menerima ${damage} damage dari Poison!`;
+                    scriptLogger(`${unitThatJustActed.name} menerima ${damage} damage. HP: ${oldHp} -> ${unitThatJustActed.stats.hp}`);
+                    
+                    // Set flag untuk UI agar bisa menampilkan pop-up damage
+                    bState.lastActionDetails = {
+                        actorId: unitThatJustActed.id,
+                        effects: [{ type: 'damage', unitId: unitThatJustActed.id, amount: damage }]
+                    };
+
+                    if (unitThatJustActed.stats.hp === 0) {
+                        unitThatJustActed.status = "Defeated";
+                        scriptLogger(`${unitThatJustActed.name} dikalahkan oleh Poison!`);
+                    }
+                    break;
+                
+                // Tambahkan case lain di sini untuk efek end-of-turn lainnya,
+                // contohnya: 'gain_gauge_end', 'self_repair', dll.
             }
-            // Add other end-of-turn effects here (e.g., a self-repair buff).
-        }
-    });
+        });
 
-    // Return the modified state to Tasker.
-    var battle_state = JSON.stringify(bState);
+        // Kembalikan state yang sudah dimodifikasi
+        battle_state_out = JSON.stringify(bState);
+    }
 
 } catch (e) {
-    scriptLogger("EFFECT_PROCESSOR (End) ERROR: " + e.message);
+    scriptLogger("ERROR: " + e.message);
 }
-var js_script_log = taskerLogOutput;
 
+// Set variabel output untuk Tasker
+var js_script_log = taskerLogOutput;
+var battle_state = battle_state_out;
