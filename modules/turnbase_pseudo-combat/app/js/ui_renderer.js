@@ -380,7 +380,11 @@ function renderTopBar() {
 function renderEnemyStage() {
     if (!elEnemyCarousel) { return; }
     elEnemyCarousel.innerHTML = '';
+    
+    // --- PERBAIKAN BUG MUSUH HANTU ADA DI SINI ---
+    // Filter musuh untuk hanya menyertakan yang statusnya BUKAN "Defeated".
     const enemies = bState.units ? bState.units.filter(unit => unit.type === "Enemy" && unit.status !== "Defeated") : [];
+    // --- AKHIR DARI PERBAIKAN ---
     
     if (enemies.length === 0) {
         elEnemyCarousel.innerHTML = '<div class="character-card enemy-card no-target"><p>No enemies left!</p></div>';
@@ -397,11 +401,14 @@ function renderEnemyStage() {
         card.classList.add('character-card', 'enemy-card');
         card.dataset.unitId = enemy.id;
         if (index === currentEnemyIndex) card.classList.add('active-enemy');
+        
         const detailsWrapper = document.createElement('div');
         detailsWrapper.classList.add('character-details');
+        
         const nameElement = document.createElement('h3');
         nameElement.classList.add('character-name');
         nameElement.textContent = enemy.name || "Unknown Enemy";
+        
         const hpContainer = document.createElement('div');
         hpContainer.classList.add('hp-bar-container');
         const hpBar = document.createElement('div');
@@ -422,28 +429,25 @@ function renderEnemyStage() {
             shieldBar.classList.add('shield-bar');
             const shieldPercentage = maxHp > 0 ? (shieldHP / maxHp) * 100 : 0;
             shieldBar.style.width = `${Math.min(100, shieldPercentage)}%`;
-
             const shieldText = document.createElement('div');
             shieldText.classList.add('shield-text');
             shieldText.textContent = shieldHP;
-
             hpContainer.appendChild(shieldBar);
             hpContainer.appendChild(shieldText);
         }
 
         detailsWrapper.appendChild(nameElement);
         detailsWrapper.appendChild(hpContainer);
+        
         const spriteContainer = document.createElement('div');
         spriteContainer.classList.add('character-sprite-container');
         const sprite = document.createElement('img');
         sprite.src = getImagePathForUnit(enemy.fullBodyFilename, enemy.type, "fullBody");
         sprite.alt = (enemy.name || "Unknown Enemy") + " Sprite";
         sprite.classList.add('character-sprite');
-        sprite.onerror = function() {
-            this.src = getImagePathForUnit(null, enemy.type, "fullBody", true);
-            this.onerror = null;
-        };
+        sprite.onerror = function() { this.src = getImagePathForUnit(null, enemy.type, "fullBody", true); };
         spriteContainer.appendChild(sprite);
+        
         card.appendChild(detailsWrapper);
         card.appendChild(spriteContainer);
         elEnemyCarousel.appendChild(card);

@@ -1,4 +1,4 @@
-// --- script_tasker/enemy_action_processor.js (Corrected with Final Range Logic) ---
+// --- enemy_action_processor.js (Complete with Pre-Action Status Check) ---
 
 let taskerLogOutput = "";
 let wasTargetEliminated = false;
@@ -6,16 +6,14 @@ let wasTargetEliminated = false;
 function scriptLogger(message) {
     const now = new Date();
     const timestamp = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}.${now.getMilliseconds()}`;
-    taskerLogOutput += `[${timestamp}] ${message}\n`;
+    taskerLogOutput += `[AI_PROC] ${message}\\n`;
 }
 
-// Helper: getUnitById (Tidak ada perubahan)
 function getUnitById(unitId, unitsArray) {
     if (!unitId || !Array.isArray(unitsArray)) return null;
     return unitsArray.find(u => u.id === unitId);
 }
 
-// Helper: applyDamage (Tidak ada perubahan)
 function applyDamage(targetUnit, damageAmount) {
     let remainingDamage = Math.round(damageAmount);
     let shieldDamageDealt = 0;
@@ -41,7 +39,7 @@ function applyDamage(targetUnit, damageAmount) {
 let bState;
 try {
     taskerLogOutput = "";
-    scriptLogger("ENEMY_AI: Script started (Final Range Logic).");
+    scriptLogger("Script started.");
 
     if (typeof battle_state !== 'string' || !battle_state.trim()) {
         throw new Error("Input 'battle_state' is empty.");
@@ -54,40 +52,39 @@ try {
     const attacker = getUnitById(activeEnemyId, bState.units);
     if (!attacker) throw new Error(`Enemy with ID ${activeEnemyId} not found.`);
 
-    const stunEffect = attacker.statusEffects?.debuffs?.find(e => e.name === "Stun");
+    // --- PRE-ACTION PREVENTION BLOCK ---
+    // Check if the unit was already defeated by a prior effect (e.g., poison).
+    if (attacker.stats.hp <= 0 || attacker.status === "Defeated") {
+        scriptLogger(`Action cancelled for ${attacker.name} because HP is 0 or status is 'Defeated'.`);
+        exit(); 
+    }
 
-    if (stunEffect) {
-        scriptLogger(`ENEMY_AI: ${attacker.name} terkena Stun. Melewatkan giliran.`);
-        bState.battleMessage = `${attacker.name} terkena Stun!`;
+    // Check for stun effect processed by the start-of-turn script.
+    if (bState._unitIsStunned) {
+        scriptLogger(`Action cancelled for ${attacker.name} due to active stun effect.`);
         bState.lastActionDetails = {
             actorId: activeEnemyId,
             commandId: "__STUNNED__",
             commandName: "Stunned",
             actionOutcome: "STUNNED"
         };
-        // Durasi stun akan dikurangi oleh turn_manager di akhir giliran ini.
+        delete bState._unitIsStunned; // Clean up the flag.
     } else {
-        scriptLogger(`ENEMY_AI: Giliran untuk ${attacker.name} (Role: ${attacker.role}).`);
+        // --- NORMAL AI LOGIC ---
+        scriptLogger(`Processing turn for ${attacker.name} (Role: ${attacker.role}).`);
         
         const aliveUnits = bState.units.filter(u => u.status !== 'Defeated');
         const numAlive = aliveUnits.length;
         let validTargetPseudoPositions = [];
         const attackerRole = attacker.role ? attacker.role.toLowerCase() : 'melee';
 
-        // --- PERBAIKAN LOGIKA JARAK SERANG DI SINI ---
         if (attackerRole === 'ranged') {
-            // Ranged HANYA bisa menyerang pada Jarak 2
-            scriptLogger(`ENEMY_AI: ${attacker.name} adalah Ranged. Menargetkan jarak 2.`);
-            if (numAlive > 2) validTargetPseudoPositions.push(2); // Jarak 2 ke depan (posisi ke-2)
-            if (numAlive > 3) validTargetPseudoPositions.push(numAlive - 2); // Jarak 2 ke belakang (posisi ke n-2)
-        } else {
-            // Melee (atau role lain) HANYA bisa menyerang pada Jarak 1
-            scriptLogger(`ENEMY_AI: ${attacker.name} adalah Melee. Menargetkan jarak 1.`);
-            if (numAlive > 1) validTargetPseudoPositions.push(1); // Jarak 1 ke depan (posisi ke-1)
-            if (numAlive > 2) validTargetPseudoPositions.push(numAlive - 1); // Jarak 1 ke belakang (posisi ke n-1)
+            if (numAlive > 2) validTargetPseudoPositions.push(2);
+            if (numAlive > 3) validTargetPseudoPositions.push(numAlive - 2);
+        } else { // Melee or other roles default to adjacent attack.
+            if (numAlive > 1) validTargetPseudoPositions.push(1);
+            if (numAlive > 2) validTargetPseudoPositions.push(numAlive - 1);
         }
-        // --- AKHIR PERBAIKAN ---
-
         validTargetPseudoPositions = [...new Set(validTargetPseudoPositions)];
         
         const potentialTargets = aliveUnits.filter(unit =>
@@ -101,7 +98,7 @@ try {
             const damageDealt = attacker.stats.atk;
             const damageResult = applyDamage(chosenTarget, damageDealt);
             
-            bState.battleMessage = `${attacker.name} menyerang ${chosenTarget.name} sebesar ${damageResult.totalDamage} damage!`;
+            bState.battleMessage = `${attacker.name} attacks ${chosenTarget.name} for ${damageResult.totalDamage} damage!`;
             bState.lastActionDetails = {
                 actorId: activeEnemyId,
                 commandId: "__BASIC_ATTACK__",
@@ -110,13 +107,13 @@ try {
                 effectsSummary: [`${chosenTarget.name} (-${damageResult.totalDamage} HP)`]
             };
         } else {
-            bState.battleMessage = `${attacker.name} tidak memiliki target dalam jangkauan.`;
+            bState.battleMessage = `${attacker.name} has no targets in range.`;
             bState.lastActionDetails = { actorId: activeEnemyId, actionOutcome: "NO_TARGET_IN_RANGE" };
         }
     }
 
 } catch (e) {
-    scriptLogger("ENEMY_AI_ERROR: " + e.message);
+    scriptLogger("ERROR: " + e.message);
     if (!bState) bState = {};
     bState.battleState = "Error";
     bState.battleMessage = "Enemy AI Error: " + e.message;

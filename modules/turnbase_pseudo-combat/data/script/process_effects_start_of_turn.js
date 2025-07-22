@@ -1,49 +1,76 @@
 /*
- * Gamicraft - Process Effects (Start of Turn)
- * Version: 1.0
+ * Gamicraft - Process Effects (Start of Turn) - v1.5 (Poison Removed & Flag Added)
  *
  * Description:
- * Processes all active effects that are flagged to trigger at the START of a unit's turn.
- * This script should be run AFTER turn_manager.js.
+ * Processes all active effects flagged to trigger at the START of a unit's turn.
+ * This script runs AFTER turn_manager.js and BEFORE the unit's action script.
  */
 
 let taskerLogOutput = "";
-function scriptLogger(message) { taskerLogOutput += message + "\\n"; }
+function scriptLogger(message) { taskerLogOutput += `[START_TURN_FX] ${message}\\n`; }
+
+var battle_state_out = battle_state; // Default output if no changes
+var effect_triggered_start = false;  // <<< VARIABEL BARU: Flag untuk Tasker
 
 try {
     const bState = JSON.parse(battle_state);
 
-    if (!bState.active_effects || bState.active_effects.length === 0) {
-        exit();
+    if (!bState.active_effects || bState.active_effects.length === 0 || !bState.activeUnitID) {
+        exit(); // Keluar jika tidak ada yang perlu diproses.
     }
     
-    // The active unit is now the one who just received the turn.
-    const newActiveUnit = bState.units.find(u => u.id === bState.activeUnitID);
-    if (!newActiveUnit) exit();
+    const activeUnit = bState.units.find(u => u.id === bState.activeUnitID);
+    if (!activeUnit) {
+        exit();
+    }
 
-    scriptLogger("EFFECT_PROCESSOR (Start): Checking for start-of-turn effects for " + newActiveUnit.name);
+    scriptLogger(`Mengecek efek awal giliran untuk ${activeUnit.name}`);
     
-    bState.active_effects.forEach(effect => {
-        // Only process effects with the correct trigger phase and target.
-        if (effect.trigger_phase === 'start_of_turn' && effect.target_id === newActiveUnit.id) {
-            scriptLogger(`EFFECT_PROCESSOR (Start): Applying effect "${effect.effect_id}".`);
+    // Cari semua efek yang relevan untuk unit ini
+    let effectsToProcess = bState.active_effects.filter(effect => 
+        effect.trigger_phase === 'start_of_turn' && effect.target_id === activeUnit.id
+    );
 
-            // --- Hardcoded logic for each effect type ---
-            if (effect.type === 'damage_over_time') { // Example: Poison
-                const damage = effect.damage || 0;
-                newActiveUnit.stats.hp = Math.max(0, newActiveUnit.stats.hp - damage);
-                bState.battleMessage = `${newActiveUnit.name} menerima ${damage} damage dari ${effect.source_skill_name}!`;
-                if(newActiveUnit.stats.hp === 0) newActiveUnit.status = "Defeated";
+    if (effectsToProcess.length > 0) {
+        effect_triggered_start = true; // <<< Set flag ke true karena ada efek yang akan diproses
+        scriptLogger(`Ditemukan ${effectsToProcess.length} efek, 'effect_triggered_start' diatur ke true.`);
+        
+        let hasBeenStunned = false;
+
+        effectsToProcess.forEach(effect => {
+            scriptLogger(`Memproses efek: "${effect.type}" dari skill "${effect.source_skill_name}"`);
+
+            switch(effect.type.toLowerCase()) {
+                case 'stun':
+                    bState._unitIsStunned = true;
+                    hasBeenStunned = true;
+                    bState.battleMessage = `${activeUnit.name} is stunned and cannot move!`;
+                    scriptLogger(`SUCCESS: Stun effect found. Set bState._unitIsStunned to true.`);
+                    break;
+                
+                // KASUS POISON TIDAK ADA DI SINI
+                
+                case 'gain_gauge_start':
+                    if (hasBeenStunned) break;
+                    const gaugeToGain = effect.amount || 10;
+                    activeUnit.stats.gauge = Math.min((activeUnit.stats.gauge || 0) + gaugeToGain, activeUnit.stats.maxGauge);
+                    bState.battleMessage = `${activeUnit.name} gains ${gaugeToGain} gauge from an effect!`;
+                    scriptLogger(`${activeUnit.name} gained ${gaugeToGain} gauge. Total: ${activeUnit.stats.gauge}`);
+                    break;
+                
+                // Tambahkan case lain untuk efek start-of-turn lainnya di sini.
             }
-            // Add other start-of-turn effects here (e.g., a "Regeneration" heal).
-        }
-    });
+        });
 
-    // Return the modified state to Tasker.
-    var battle_state = JSON.stringify(bState);
+        // Kembalikan state yang sudah dimodifikasi
+        battle_state_out = JSON.stringify(bState);
+    }
 
 } catch (e) {
-    scriptLogger("EFFECT_PROCESSOR (Start) ERROR: " + e.message);
+    scriptLogger("ERROR: " + e.message + " | Stack: " + e.stack);
 }
-var js_script_log = taskerLogOutput;
 
+// Set variabel output untuk Tasker
+var js_script_log = taskerLogOutput;
+var battle_state = battle_state_out;
+// Variabel `effect_triggered_start` akan diekspor secara otomatis
