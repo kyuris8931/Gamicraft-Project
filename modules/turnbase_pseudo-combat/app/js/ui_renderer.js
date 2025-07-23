@@ -184,8 +184,7 @@ function refreshAllUIElements(passedPreviousBState = null) {
     if (passedPreviousBState) {
         if (typeof bState.teamSP === 'number' && typeof passedPreviousBState.teamSP === 'number') {
             const spChange = bState.teamSP - passedPreviousBState.teamSP;
-            if (spChange > 0) spGained += spChange;
-            else if (spChange < 0) spSpent += -spChange;
+            if (spChange < 0) spSpent += -spChange;
         }
         if (bState.units && passedPreviousBState.units) {
             bState.units.forEach(currentUnit => {

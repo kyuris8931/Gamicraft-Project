@@ -1,4 +1,4 @@
-// --- enemy_action_processor.js (Complete with Pre-Action Status Check) ---
+// --- enemy_action_processor.js (v1.4 - Simplified Stun Logic) ---
 
 let taskerLogOutput = "";
 let wasTargetEliminated = false;
@@ -40,11 +40,13 @@ let bState;
 try {
     taskerLogOutput = "";
     scriptLogger("Script started.");
-
-    if (typeof battle_state !== 'string' || !battle_state.trim()) {
-        throw new Error("Input 'battle_state' is empty.");
-    }
     bState = JSON.parse(battle_state);
+    
+    // Clear any action details from the start-of-turn effects if this script is running.
+    // This prevents old popups from appearing if the enemy attacks normally.
+    if (!bState._unitIsStunned) {
+        bState.lastActionDetails = null;
+    }
 
     const activeEnemyId = bState.activeUnitID;
     if (!activeEnemyId) throw new Error("bState.activeUnitID not found.");
@@ -52,25 +54,18 @@ try {
     const attacker = getUnitById(activeEnemyId, bState.units);
     if (!attacker) throw new Error(`Enemy with ID ${activeEnemyId} not found.`);
 
-    // --- PRE-ACTION PREVENTION BLOCK ---
-    // Check if the unit was already defeated by a prior effect (e.g., poison).
     if (attacker.stats.hp <= 0 || attacker.status === "Defeated") {
         scriptLogger(`Action cancelled for ${attacker.name} because HP is 0 or status is 'Defeated'.`);
         exit(); 
     }
 
-    // Check for stun effect processed by the start-of-turn script.
+    // --- STUN LOGIC SIMPLIFIED ---
+    // This script now only needs to check the flag. The popup is handled by the previous script.
     if (bState._unitIsStunned) {
-        scriptLogger(`Action cancelled for ${attacker.name} due to active stun effect.`);
-        bState.lastActionDetails = {
-            actorId: activeEnemyId,
-            commandId: "__STUNNED__",
-            commandName: "Stunned",
-            actionOutcome: "STUNNED"
-        };
-        delete bState._unitIsStunned; // Clean up the flag.
+        scriptLogger(`Action cancelled for ${attacker.name} due to active stun effect. The turn will be skipped.`);
+        // No need to set lastActionDetails here anymore.
     } else {
-        // --- NORMAL AI LOGIC ---
+    // --- END OF SIMPLIFICATION ---
         scriptLogger(`Processing turn for ${attacker.name} (Role: ${attacker.role}).`);
         
         const aliveUnits = bState.units.filter(u => u.status !== 'Defeated');
@@ -81,7 +76,7 @@ try {
         if (attackerRole === 'ranged') {
             if (numAlive > 2) validTargetPseudoPositions.push(2);
             if (numAlive > 3) validTargetPseudoPositions.push(numAlive - 2);
-        } else { // Melee or other roles default to adjacent attack.
+        } else {
             if (numAlive > 1) validTargetPseudoPositions.push(1);
             if (numAlive > 2) validTargetPseudoPositions.push(numAlive - 1);
         }
@@ -111,6 +106,14 @@ try {
             bState.lastActionDetails = { actorId: activeEnemyId, actionOutcome: "NO_TARGET_IN_RANGE" };
         }
     }
+    
+    // --- STUN BUG FIX: REACTIVE CLEANUP ---
+    // Always clean up the flag at the end of this script, regardless of what happened.
+    if (bState.hasOwnProperty('_unitIsStunned')) {
+        delete bState._unitIsStunned;
+        scriptLogger("Reactively cleaned up '_unitIsStunned' flag at the end of the action.");
+    }
+    // --- END OF FIX ---
 
 } catch (e) {
     scriptLogger("ERROR: " + e.message);

@@ -1,4 +1,4 @@
-// --- turn_manager.js (Tasker - v2.2 - Zombie Bug Fixed) ---
+// --- turn_manager.js (Tasker - v2.5 - Group Effect Sync Fixed) ---
 // TASK: Ends the current turn, performs upkeep, cleans up defeated units,
 // and correctly determines the next turn or starts a new round.
 
@@ -35,25 +35,44 @@ function processUpkeepAtEndOfTurn(bState, actingUnitId) {
     scriptLogger(`Running upkeep for ${unit.name}.`);
     
     const updateAndFilterEffects = (effectList) => {
-        if (!effectList || effectList.length === 0) return [];
+        if (!effectList) return [];
         effectList.forEach(effect => {
-            if (typeof effect.duration === 'number') effect.duration--;
+            if (effect.hasOwnProperty('duration')) {
+                effect.duration--;
+            }
         });
-        return effectList.filter(e => e.duration > 0 || typeof e.duration !== 'number');
+        return effectList.filter(effect => {
+            return !effect.hasOwnProperty('duration') || effect.duration > 0;
+        });
     };
 
     unit.statusEffects.debuffs = updateAndFilterEffects(unit.statusEffects.debuffs);
     unit.statusEffects.buffs = updateAndFilterEffects(unit.statusEffects.buffs);
 
-    // Sync global active_effects list
+    // --- PERBAIKAN BUG ADA DI SINI ---
+    // Sync global active_effects list, now smarter about group effects.
     if (bState.active_effects) {
         bState.active_effects = bState.active_effects.filter(activeEffect => {
+            // IF it's a group effect (has target_scope), ALWAYS keep it.
+            // Its duration is handled by the other logic block.
+            if (activeEffect.target_scope) {
+                return true;
+            }
+
+            // IF it's an individual effect, run the original sync logic.
             const targetUnit = bState.units.find(u => u.id === activeEffect.target_id);
-            if (!targetUnit || !targetUnit.statusEffects) return false;
-            const allEffects = [...(targetUnit.statusEffects.debuffs || []), ...(targetUnit.statusEffects.buffs || [])];
-            return allEffects.some(effect => effect.name === activeEffect.name);
+            if (!targetUnit || !targetUnit.statusEffects) {
+                // The target might be defeated, so the effect should be cleaned up.
+                return false;
+            }
+            
+            // Check if the effect still exists in the unit's personal buff/debuff list.
+            const allUnitEffects = [...(targetUnit.statusEffects.debuffs || []), ...(targetUnit.statusEffects.buffs || [])];
+            return allUnitEffects.some(unitEffect => unitEffect.name === activeEffect.name);
         });
+        scriptLogger("Global active_effects list has been synchronized correctly.");
     }
+    // --- AKHIR DARI PERBAIKAN ---
 }
 
 // --- MAIN SCRIPT LOGIC ---
@@ -68,7 +87,37 @@ try {
     // STEP 1: Perform Upkeep (duration reduction) for the unit that just acted.
     processUpkeepAtEndOfTurn(bState, actorThatJustActedId);
 
-    // STEP 2: Check for battle end conditions immediately after any potential status effect changes.
+    // STEP 1.5: Perform Upkeep for GLOBAL GROUP EFFECTS (Model A Logic)
+    scriptLogger("Checking for global group effects to update...");
+    const unitThatJustActed = bState.units.find(u => u.id === actorThatJustActedId);
+
+    if (unitThatJustActed && bState.active_effects && bState.active_effects.length > 0) {
+        bState.active_effects.forEach(effect => {
+            if (!effect.target_scope || typeof effect.duration !== 'number') {
+                return;
+            }
+
+            const isAllyTurn = unitThatJustActed.type === 'Ally';
+            const isEnemyTurn = unitThatJustActed.type === 'Enemy';
+            const isAllyEffect = effect.target_scope === 'team_allies';
+            const isEnemyEffect = effect.target_scope === 'team_enemies';
+
+            if ((isAllyTurn && isAllyEffect) || (isEnemyTurn && isEnemyEffect)) {
+                effect.duration--;
+                scriptLogger(`Decremented duration for group effect "${effect.source_item_name || effect.effect_id}". New duration: ${effect.duration}`);
+            }
+        });
+
+        const initialEffectCount = bState.active_effects.length;
+        bState.active_effects = bState.active_effects.filter(effect => {
+            return !effect.target_scope || typeof effect.duration !== 'number' || effect.duration > 0;
+        });
+        if (bState.active_effects.length < initialEffectCount) {
+            scriptLogger("Cleaned up expired group effects (duration reached 0).");
+        }
+    }
+
+    // STEP 2: Check for battle end conditions.
     const aliveAllies = bState.units.filter(u => u.type === 'Ally' && u.status !== 'Defeated').length;
     const aliveEnemies = bState.units.filter(u => u.type === 'Enemy' && u.status !== 'Defeated').length;
 
@@ -82,8 +131,6 @@ try {
         bState.activeUnitID = null;
     } else {
         // If the battle continues, determine the next turn.
-        
-        // Clean the current turn order from any defeated units.
         bState._turnOrder = bState._turnOrder.filter(id => {
             const unit = bState.units.find(u => u.id === id);
             return unit && unit.status !== "Defeated";
@@ -92,7 +139,6 @@ try {
         const actorShouldActAgain = bState._actorShouldActAgain === actorThatJustActedId;
         delete bState._actorShouldActAgain;
 
-        const unitThatJustActed = bState.units.find(u => u.id === actorThatJustActedId);
         if (unitThatJustActed && !actorShouldActAgain) {
             unitThatJustActed.status = "EndTurn";
         }
@@ -101,21 +147,15 @@ try {
         if (actorShouldActAgain) {
             nextActiveUnitId = actorThatJustActedId;
         } else {
-            // Find the next unit in the current turn order that is still waiting to act.
             const nextUnitInOrder = bState._turnOrder.map(id => bState.units.find(u => u.id === id)).find(u => u && u.status === "Idle");
             
             if (nextUnitInOrder) {
-                // If found, they are the next active unit.
                 nextActiveUnitId = nextUnitInOrder.id;
             } else {
-                // If no one is left to act in this round, start a new one.
                 scriptLogger("All units have acted. Starting a new round.");
                 bState.round++;
                 bState.turnInRound = 0;
                 
-                // --- ZOMBIE UNIT FIX ---
-                // Before creating the new turn order, re-verify the status of all units based on HP.
-                // This prevents "zombie" units if their status wasn't updated correctly in a previous step.
                 scriptLogger("Running a safety check on all unit statuses before new round.");
                 bState.units.forEach(u => {
                     if (u.stats.hp <= 0 && u.status !== "Defeated") {
@@ -123,16 +163,13 @@ try {
                         scriptLogger(`Safety check: Marked ${u.name} as Defeated due to HP being 0.`);
                     }
                 });
-                // --- END OF FIX ---
                 
-                // Reset status for ALL LIVING units.
                 bState.units.forEach(u => {
                     if (u.status !== "Defeated") {
                         u.status = "Idle";
                     }
                 });
                 
-                // Rebuild the turn order from the master list, now guaranteed to be clean.
                 let newRoundOrder = bState.units
                     .filter(u => u.status !== "Defeated")
                     .map(u => u.id);

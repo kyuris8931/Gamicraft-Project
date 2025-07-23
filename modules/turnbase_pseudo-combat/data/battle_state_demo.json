@@ -267,7 +267,7 @@
                             "type": "status",
                             "statusName": "Stun",
                             "chance": 1.0,
-                            "duration": 1,
+                            "duration": 2,
                             "target": "selected",
                             "effectDetails": {
                                 "trigger_phase": "start_of_turn"
