@@ -897,17 +897,11 @@ function ui_renderReviveTargetingMode(defeatedAllyIds) {
 
 
 /**
- * FUNGSI BARU: Merender layar hasil akhir pertempuran.
- * @param {object} bState - Objek bState lengkap yang berisi summary.
- */
-/**
- * FUNGSI FINAL: Merender dan menganimasikan layar hasil akhir pertempuran.
- * Versi ini mempersiapkan posisi awal bar sebelum layar ditampilkan untuk menghindari flicker.
- * @param {object} bState - Objek bState lengkap yang berisi summary.
- */
-/**
- * Merender dan menganimasikan layar hasil akhir pertempuran secara lengkap.
- * @param {object} bState - Objek bState lengkap yang berisi battleResultSummary.
+ * Renders and animates the complete end-of-battle screen.
+ * This function processes the `battleResultSummary` to display victory/defeat status,
+ * EXP gained, hero progression with animated EXP bars, and a list of rewards.
+ * The rewards are displayed as text, colored according to their rarity.
+ * @param {object} bState The complete bState object containing the fully populated `battleResultSummary`.
  */
 function renderBattleEndScreen(bState) {
     // 1. Referensi ke semua elemen UI yang dibutuhkan
@@ -919,6 +913,12 @@ function renderBattleEndScreen(bState) {
     const expGainedEl = document.getElementById('total-exp-gained');
     const winBonusEl = document.getElementById('win-bonus-text');
     const enemyLvlUpEl = document.getElementById('enemy-levelup-notification');
+    const rarityColors = {
+        common: '#95a5a6',    // Abu-abu
+        rare: '#3498db',      // Biru
+        epic: '#9b59b6',      // Ungu
+        legendary: '#f1c40f'  // Emas
+    };
 
     // Validasi data awal
     if (!screen || !bState || !bState.battleResultSummary) {
@@ -967,11 +967,18 @@ function renderBattleEndScreen(bState) {
     // Render hadiah item
     if (summary.rewards && summary.rewards.length > 0) {
         summary.rewards.forEach(reward => {
+            // 1. Tentukan warna berdasarkan kelangkaan, dengan warna default jika tidak ditemukan
+            const itemColor = rarityColors[reward.rarity.toLowerCase()] || 'var(--color-text-primary)';
+
             const itemDiv = document.createElement('div');
-            itemDiv.className = 'reward-item';
+            itemDiv.className = 'reward-item'; // Kelas ini mungkin tidak lagi relevan jika gambar dihapus, tapi kita pertahankan
+            
+            // 2. Buat elemen <p> dengan style warna inline
+            // Perhatikan bagaimana kita menghapus <img> dan menambahkan atribut style
             itemDiv.innerHTML = `
-                <img class="reward-item-img" src="${window.gcpcDataPath}${reward.imageFilename}" onerror="this.style.display='none'">
-                <p class="reward-item-name">${reward.name} x${reward.quantity}</p>
+                <p class="reward-item-name" style="color: ${itemColor}; font-weight: 700;">
+                    ${reward.name} x${reward.quantity}
+                </p>
             `;
             rewardsContainer.appendChild(itemDiv);
         });
@@ -1119,9 +1126,49 @@ function renderStatsPanel() {
     // Kosongkan konten sebelumnya
     elStatsPanelContent.innerHTML = '';
 
+    // --- LOGIKA BARU DIMULAI DI SINI ---
+
+    // 1. Ambil semua efek grup
+    const allyGroupEffects = bState.active_effects?.filter(e => e.target_scope === 'team_allies') || [];
+    const enemyGroupEffects = bState.active_effects?.filter(e => e.target_scope === 'team_enemies') || [];
+
+    // 2. Fungsi helper untuk membuat "Badge"
+    const createEffectBadge = (effect) => {
+        // Cek tipe buff/debuff (contoh sederhana, bisa disesuaikan)
+        const isBuff = ['sp_over_time'].includes(effect.type); // Tambahkan tipe buff lain di sini
+        const badgeClass = isBuff ? 'buff' : 'debuff';
+        const name = effect.source_item_name || effect.source_skill_name || effect.name || "Unknown Effect";
+        
+        return `
+            <div class="effect-badge ${badgeClass}">
+                <span class="name">${name}</span>
+                ${(typeof effect.duration === 'number') ? `<span class="duration">[${effect.duration}]</span>` : ''}
+            </div>
+        `;
+    };
+
+    // 3. Render seksi untuk efek grup Tim Sekutu (Ally)
+    if (allyGroupEffects.length > 0) {
+        const section = document.createElement('div');
+        section.className = 'stats-team-effects-section';
+        let badgesHTML = '';
+        allyGroupEffects.forEach(effect => {
+            badgesHTML += createEffectBadge(effect);
+        });
+        section.innerHTML = `
+            <h4>Ally Team Effects</h4>
+            <div class="status-effects-container">${badgesHTML}</div>
+        `;
+        elStatsPanelContent.appendChild(section);
+    }
+    
+    // (Tambahkan logika untuk 'Enemy Team Effects' di sini jika diperlukan, polanya sama)
+
+    // --- AKHIR DARI LOGIKA BARU ---
+
+
     const allUnits = [...bState.units];
 
-    // Urutkan unit: Ally dulu, baru Enemy
     allUnits.sort((a, b) => {
         if (a.type === 'Ally' && b.type === 'Enemy') return -1;
         if (a.type === 'Enemy' && b.type === 'Ally') return 1;
@@ -1132,7 +1179,6 @@ function renderStatsPanel() {
         const card = document.createElement('div');
         card.className = `stats-unit-card ${unit.type.toLowerCase()}`;
 
-        // Header Kartu (Potret & Nama)
         const header = document.createElement('div');
         header.className = 'stats-unit-header';
         header.innerHTML = `
@@ -1143,7 +1189,6 @@ function renderStatsPanel() {
             </div>
         `;
 
-        // Daftar Statistik Utama
         const statsList = document.createElement('ul');
         statsList.className = 'stats-list';
         const stats = unit.stats || {};
@@ -1159,8 +1204,25 @@ function renderStatsPanel() {
         card.appendChild(header);
         card.appendChild(statsList);
 
-        // --- TAMBAHAN KHUSUS: Bagian Progresi Olahraga ---
-        // Hanya tampilkan jika ini adalah unit pemain (Kyuris) dan datanya ada
+        // --- LOGIKA BARU UNTUK EFEK INDIVIDUAL ---
+        const buffs = unit.statusEffects?.buffs || [];
+        const debuffs = unit.statusEffects?.debuffs || [];
+        const individualEffects = [...buffs, ...debuffs];
+
+        if (individualEffects.length > 0) {
+            const container = document.createElement('div');
+            container.className = 'status-effects-container';
+            
+            let badgesHTML = '';
+            // Render debuff dulu agar lebih menonjol
+            debuffs.forEach(effect => badgesHTML += createEffectBadge(effect));
+            buffs.forEach(effect => badgesHTML += createEffectBadge(effect));
+            
+            container.innerHTML = badgesHTML;
+            card.appendChild(container);
+        }
+        // --- AKHIR DARI LOGIKA BARU ---
+
         if (unit.id.includes('kyuris') && bState.progression_snapshot && bState.progression_snapshot.exerciseStatsProgression) {
             const progSection = document.createElement('div');
             progSection.className = 'exercise-progression-section';

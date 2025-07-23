@@ -1501,3 +1501,72 @@ html, body {
         transform: translateX(0);
     }
 }
+
+/* 07/23/2025 -> Update display status effect */
+
+/* Kontainer untuk efek grup (Ally/Enemy Team Effects) */
+.stats-team-effects-section {
+    background-color: rgba(0,0,0,0.03);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--border-radius-elements);
+    padding: var(--spacing-unit);
+    margin-bottom: calc(var(--spacing-unit) * 1.5);
+}
+
+.stats-team-effects-section h4 {
+    font-family: var(--font-display);
+    font-size: 0.7em;
+    color: var(--color-text-secondary);
+    letter-spacing: 0.5px;
+    margin-bottom: calc(var(--spacing-unit) * 0.75);
+    text-align: center;
+}
+
+/* Kontainer untuk semua badge efek (baik grup maupun individual) */
+.status-effects-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--spacing-unit) * 0.75);
+    justify-content: center; /* Pusatkan badge di kontainer grup */
+}
+
+/* Styling untuk kontainer efek individual di dalam kartu unit */
+.stats-unit-card .status-effects-container {
+    margin-top: var(--spacing-unit);
+    padding-top: var(--spacing-unit);
+    border-top: 1px dashed rgba(0,0,0,0.1);
+    justify-content: flex-start; /* Ratakan kiri untuk badge individual */
+}
+
+
+/* Badge untuk setiap status efek */
+.effect-badge {
+    padding: 3px 8px;
+    border-radius: 12px; /* Membuatnya berbentuk pil */
+    font-size: 0.75em;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid transparent;
+}
+
+/* Warna untuk Buff (efek positif) */
+.effect-badge.buff {
+    background-color: rgba(46, 204, 113, 0.15); /* Hijau transparan */
+    color: #1E8449;
+    border-color: #A9DFBF;
+}
+
+/* Warna untuk Debuff (efek negatif) */
+.effect-badge.debuff {
+    background-color: rgba(192, 57, 43, 0.15); /* Merah transparan */
+    color: #943126;
+    border-color: #E6B0AA;
+}
+
+.effect-badge .duration {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+}

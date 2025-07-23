@@ -1,25 +1,32 @@
-// // --- process_battle_results.js (Tasker) ---
-// // Description: Processes the results of a battle, calculates EXP gains, 
-
-// Input Variables from Tasker:
-// - battle_state: JSON string of the current battle state.
-// - progression_data: JSON string of the current progression data.
-
-// Output Variables for Tasker:
-// - battle_state: JSON string of the updated battle state with battle result summary.
-// - new_progression_data_to_save: JSON string of the updated progression data.
-// - js_script_log: Execution log for debugging.
-
+/*
+ * Gamicraft - Battle Progression Finalizer
+ * Version: 2.4 (Role-Focused)
+ *
+ * Description:
+ * Processes battle results, focusing ONLY on EXP calculation and hero/enemy progression.
+ * It creates the battleResultSummary structure and exports the necessary data
+ * for the separate reward generation script.
+ *
+ * --- INPUT FROM TASKER ---
+ * - battle_state: JSON string of the current battle state.
+ * - progression_data: JSON string of the current progression data.
+ *
+ * --- OUTPUT FOR TASKER ---
+ * - battle_state: JSON string with an updated battleResultSummary (rewards array is empty).
+ * - new_progression_data_to_save: JSON string of the updated progression data.
+ * - total_exp_gained: The final total EXP gained by the heroes.
+ * - enemy_global_level: The enemy global level BEFORE the battle ended.
+ * - js_script_log: Execution log for debugging.
+ */
 
 let taskerLogOutput = "";
 function scriptLogger(message) {
     const now = new Date();
     const timestamp = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}.${now.getMilliseconds()}`;
-    taskerLogOutput += `[${timestamp}] ${message}\n`;
+    taskerLogOutput += `[BATTLE_PROG] ${message}\n`;
 }
 
-// Log the start of the script
-scriptLogger("BATTLE_RESULTS_FINALIZER_V2.2: Script started.");
+scriptLogger("BATTLE_PROGRESSION_FINALIZER_V2.4: Script started.");
 
 let bState;
 let progressionData;
@@ -36,16 +43,16 @@ try {
     const defeatedEnemiesData = Array.isArray(bState._defeatedEnemiesThisBattle) ? bState._defeatedEnemiesThisBattle : [];
     const enemyGlobalLevel = progressionData.enemyProgression.globalLevel;
 
-    // 3. Initialize Summary Object
+    // 3. Initialize Summary Object (rewards intentionally left empty)
     let battleResultSummary = {
         totalExpGained: 0,
         baseExpGained: 0,
         winBonusMultiplier: isWin ? 1.25 : 1,
         defeatedEnemiesWithExp: [],
-        rewards: [], // Ensure rewards property is initialized
+        rewards: [], // Dibiarkan kosong, akan diisi oleh skrip generate_battle_rewards.js
         heroesProgression: [],
         enemyLeveledUp: false,
-        enemyLevelBefore: 0,
+        enemyLevelBefore: enemyGlobalLevel,
         enemyLevelAfter: 0
     };
 
@@ -68,20 +75,7 @@ try {
     const finalHeroExpGained = Math.round(totalBaseExpGained * battleResultSummary.winBonusMultiplier);
     battleResultSummary.totalExpGained = finalHeroExpGained;
     
-    // 5. Reward Logic
-    if (isWin) {
-        try {
-            battleResultSummary.rewards.push({
-                name: "Mint Candy",
-                imageFilename: "items/candy.png",
-                quantity: 1 
-            });
-        } catch (rewardError) {
-            scriptLogger(`REWARD_ERROR: Failed to process reward logic. Error: ${rewardError.message}`);
-        }
-    }
-    
-    // 6. Process Progression (Heroes & Enemies)
+    // 5. Process Progression (Heroes & Enemies)
     progressionData.heroes.forEach(hero => {
         const expNeededBefore = 100 * (hero.level * (hero.level + 1) / 2);
         battleResultSummary.heroesProgression.push({ id: hero.id, levelBefore: hero.level, expBefore: hero.exp, expToLevelUpBefore: expNeededBefore });
@@ -95,9 +89,6 @@ try {
         }
     });
     const enemyProg = progressionData.enemyProgression;
-    const enemyLevelBefore = enemyProg.globalLevel;
-
-    battleResultSummary.enemyLevelBefore = enemyLevelBefore;
     
     const enemyExpChange = isWin ? 25 : -50;
     enemyProg.exp += enemyExpChange;
@@ -105,26 +96,35 @@ try {
     if (enemyProg.exp < 0) enemyProg.exp = 0;
     let enemyCanLevelUp = true;
     while(enemyCanLevelUp) { const expForNextEnemyLevel = 25 * enemyProg.globalLevel; if (enemyProg.exp >= expForNextEnemyLevel) { enemyProg.globalLevel++; enemyProg.exp -= expForNextEnemyLevel; } else { enemyCanLevelUp = false; } }
+    
     battleResultSummary.enemyLevelAfter = enemyProg.globalLevel;
-    if (battleResultSummary.enemyLevelAfter > enemyLevelBefore) battleResultSummary.enemyLeveledUp = true;
+    if (battleResultSummary.enemyLevelAfter > battleResultSummary.enemyLevelBefore) {
+        battleResultSummary.enemyLeveledUp = true;
+    }
+
     battleResultSummary.heroesProgression.forEach((heroSummary, index) => {
-        const heroAfter = progressionData.heroes[index];
-        const expNeededAfter = 100 * (heroAfter.level * (heroAfter.level + 1) / 2);
-        heroSummary.levelAfter = heroAfter.level; heroSummary.expAfter = heroAfter.exp; heroSummary.expToLevelUpAfter = expNeededAfter;
+        const heroAfter = progressionData.heroes.find(h => h.id === heroSummary.id);
+        if (heroAfter) {
+            const expNeededAfter = 100 * (heroAfter.level * (heroAfter.level + 1) / 2);
+            heroSummary.levelAfter = heroAfter.level;
+            heroSummary.expAfter = heroAfter.exp;
+            heroSummary.expToLevelUpAfter = expNeededAfter;
+        }
     });
 
-    // 7. Inject Summary into bState
+    // 6. Inject Summary into bState
     bState.battleResultSummary = battleResultSummary;
     delete bState._defeatedEnemiesThisBattle;
 
 } catch (e) {
-    // Log fatal error
-    scriptLogger("BATTLE_RESULTS_FATAL_ERROR: " + e.message + " | Stack: " + e.stack);
+    scriptLogger("BATTLE_PROGRESSION_FATAL_ERROR: " + e.message + " | Stack: " + e.stack);
     if (!bState) bState = {};
     bState.battleResultSummary = { error: `Script crash: ${e.message}` };
 }
 
-// 8. Prepare Output Variables for Tasker
+// 7. Prepare Output Variables for Tasker
 var battle_state = JSON.stringify(bState);
 var new_progression_data_to_save = JSON.stringify(progressionData);
 var js_script_log = taskerLogOutput;
+var total_exp_gained = bState.battleResultSummary?.totalExpGained || 0;
+var enemy_global_level = progressionData?.enemyProgression?.globalLevel || 1;
