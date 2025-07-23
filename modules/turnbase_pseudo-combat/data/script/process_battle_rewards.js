@@ -1,11 +1,11 @@
 /*
  * Gamicraft - Dynamic Battle Reward Generator
- * Version: 2.3 (State Modifier)
+ * Version: 2.4 (Dual Output)
  *
  * Description:
- * This script MODIFIES an existing battle_state object by generating and injecting
- * rewards into the battleResultSummary.rewards array. It should be run AFTER the
- * progression finalizer and ONLY on battle wins.
+ * Modifies an existing battle_state by injecting rewards into the battleResultSummary.
+ * It also outputs a separate, simplified list of the generated rewards for other
+ * Tasker processes.
  *
  * --- INPUT FROM TASKER ---
  * - battle_state: The JSON string of the battle_state object from the previous script.
@@ -18,6 +18,7 @@
  *
  * --- OUTPUT FOR TASKER ---
  * - battle_state: The MODIFIED JSON string of the battle_state, now including rewards.
+ * - generated_rewards_json: A SIMPLIFIED JSON string of rewards (name and amount only).
  * - js_script_log: The execution log for debugging purposes.
  */
 
@@ -163,13 +164,19 @@ try {
     scriptLogger("Step 7: Injecting rewards into battle_state and formatting output...");
     const finalRewardsArray = Array.from(aggregatedResults.values());
     
-    // Inject the generated rewards into the existing summary
+    // A. Inject hasil lengkap ke dalam battle_state untuk UI
     bState.battleResultSummary.rewards = finalRewardsArray;
     scriptLogger(`-> Injected ${finalRewardsArray.length} reward type(s) into battleResultSummary.`);
-    scriptLogger(`-> Final JSON to be sent to UI:\n${JSON.stringify(bState, null, 2)}`);
 
-    // The main output is the modified battle_state object
+    // B. Buat array ringkas untuk output terpisah
+    const simplifiedRewards = finalRewardsArray.map(reward => ({
+        name: reward.name,
+        amount: reward.quantity
+    }));
+    scriptLogger("-> Created simplified reward list for separate output.");
+
     var battle_state = JSON.stringify(bState);
+    var generated_rewards_json = JSON.stringify(simplifiedRewards, null, 2);
 
 } catch (e) {
     scriptLogger(`--- SCRIPT CRASHED ---`);
@@ -177,6 +184,7 @@ try {
     scriptLogger(`STACK: ${e.stack}`);
     // On error, return the original battle_state to avoid breaking the Tasker flow
     var battle_state = (typeof battle_state === 'string' && battle_state.trim()) ? battle_state : '{}';
+    var generated_rewards_json = "[]";
 }
 
 // --- SET TASKER VARIABLES ---
