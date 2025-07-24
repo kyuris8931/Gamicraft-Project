@@ -100,11 +100,21 @@
                 <div id="hero-results-container" class="hero-results-container">
                     </div>
             </div>
-    
-            <div class="end-screen-section">
-                <h3>BATTLE SPOILS</h3>
-                <div id="defeated-enemies-list" class="spoils-item">
+
+            <div class="end-screen-section spoils-section">
+                <h3>TOTAL EXP GAINED</h3>
+                <div id="total-exp-toggle" class="total-exp-container interactive-header">
+                    <div class="total-exp-main">
+                        <p id="total-exp-gained" class="total-exp-text">+0</p>
+                        <span class="spoils-toggle-icon">▼</span>
                     </div>
+                    <p id="win-bonus-text" class="win-bonus-text is-hidden"></p>
+                </div>
+                <div id="spoils-details-content" class="spoils-details-content">
+                    <h3>BATTLE SPOILS</h3>
+                    <div id="defeated-enemies-list" class="spoils-item">
+                        </div>
+                </div>
             </div>
             
             <div class="end-screen-section">
@@ -112,14 +122,22 @@
                 <div id="rewards-container" class="rewards-container">
                     </div>
             </div>
-    
-            <div class="total-exp-container">
-                <p id="total-exp-gained" class="total-exp-text">+0</p>
-                <p id="win-bonus-text" class="win-bonus-text is-hidden"></p> </div>
-            
-            <div id="enemy-levelup-notification" class="enemy-levelup-notification is-hidden">
+
+            <div id="global-enemy-progress-section" class="end-screen-section">
+                <h3>GLOBAL ENEMY PROGRESS</h3>
+                <div class="enemy-progress-card">
+                    <div class="enemy-progress-info">
+                        <span class="enemy-level-label">Global Enemy Level</span>
+                        <span id="global-enemy-level-text" class="enemy-level-value">Lv. 0</span>
+                    </div>
+                    <div id="global-enemy-exp-bar-container" class="exp-bar-container enemy-bar">
+                        <div id="global-enemy-exp-bar-fill" class="exp-bar-fill"></div>
+                    </div>
+                    <div id="enemy-levelup-notification" class="enemy-levelup-notification is-hidden">
+                        </div>
                 </div>
-    
+            </div>
+
             <button id="close-end-screen-btn" class="styled-button">Continue</button>
         </div>
     </div>
