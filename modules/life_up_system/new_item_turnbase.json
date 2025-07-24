@@ -4,7 +4,7 @@
     "name": "Combatant's Aether-Crate",
     "description": "A supply crate condensed from combat-charged Aether. Contains a random assortment of tactical consumables, synthesis materials, and rare fragments required for a hero's ascension.",
     "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/refs/heads/main/items/combatant's_aether-crate.png",
-    "rarity": "rare",
+    "rarity": "epic",
     "category": "lootbox_tbc",
     "broadcast": false,
     "escalation": true,

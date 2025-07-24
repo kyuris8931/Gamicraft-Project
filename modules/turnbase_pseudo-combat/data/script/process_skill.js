@@ -150,6 +150,37 @@ function insertUnitAndReorder(bState, unitIdToInsert, targetIndex) {
     return bState;
 }
 
+/**
+ * Memeriksa kondisi akhir pertempuran (Win/Lose) dan memperbarui bState jika perlu.
+ * @param {object} bStateRef - Referensi objek battle_state yang akan dimodifikasi.
+ * @returns {boolean} - True jika pertempuran berakhir, false jika tidak.
+ */
+function checkBattleEndConditions(bStateRef) {
+    // Jangan periksa jika pertempuran sudah berakhir atau error
+    if (bStateRef.battleState !== "Ongoing") {
+        return false;
+    }
+
+    const aliveAllies = bStateRef.units.filter(u => u.type === 'Ally' && u.status !== 'Defeated').length;
+    const aliveEnemies = bStateRef.units.filter(u => u.type === 'Enemy' && u.status !== 'Defeated').length;
+
+    if (aliveEnemies === 0 && aliveAllies > 0) {
+        bStateRef.battleState = "Win";
+        bStateRef.battleMessage = "Victory!";
+        bStateRef.activeUnitID = null; // Tidak ada lagi unit yang aktif
+        scriptLogger("BATTLE_END: All enemies defeated. Player wins!");
+        return true;
+    } else if (aliveAllies === 0) {
+        bStateRef.battleState = "Lose";
+        bStateRef.battleMessage = "Defeat...";
+        bStateRef.activeUnitID = null;
+        scriptLogger("BATTLE_END: All allies defeated. Player loses!");
+        return true;
+    }
+
+    return false; // Pertempuran berlanjut
+}
+
 // --- MAIN SCRIPT LOGIC ---
 let bState;
 try {
@@ -341,10 +372,14 @@ try {
         effectsSummary: targetsHitSummary 
     };
 
-    if (actorActsAgain) {
-        bState._actorShouldActAgain = actor_id;
-    } else {
-        actor.status = "EndTurn";
+    const battleEnded = checkBattleEndConditions(bState);
+
+    if (!battleEnded) {
+        if (actorActsAgain) {
+            bState._actorShouldActAgain = actor_id;
+        } else {
+            actor.status = "EndTurn";
+        }
     }
 
 } catch (e) {

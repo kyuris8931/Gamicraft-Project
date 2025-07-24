@@ -53,7 +53,11 @@ try {
         heroesProgression: [],
         enemyLeveledUp: false,
         enemyLevelBefore: enemyGlobalLevel,
-        enemyLevelAfter: 0
+        enemyLevelAfter: 0,
+        enemyExpBefore: progressionData.enemyProgression.exp,
+        enemyExpAfter: 0,
+        enemyExpToLevelUpBefore: 25 * enemyGlobalLevel,
+        enemyExpToLevelUpAfter: 0
     };
 
     // 4. Calculate EXP
@@ -101,6 +105,9 @@ try {
     if (battleResultSummary.enemyLevelAfter > battleResultSummary.enemyLevelBefore) {
         battleResultSummary.enemyLeveledUp = true;
     }
+
+    battleResultSummary.enemyExpAfter = enemyProg.exp;
+    battleResultSummary.enemyExpToLevelUpAfter = 25 * enemyProg.globalLevel;
 
     battleResultSummary.heroesProgression.forEach((heroSummary, index) => {
         const heroAfter = progressionData.heroes.find(h => h.id === heroSummary.id);

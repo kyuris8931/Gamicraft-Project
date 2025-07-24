@@ -96,6 +96,36 @@ function generateSPForBasicAttack(bState) {
     return 0; // Failed to generate SP if state is invalid
 }
 
+/**
+ * Memeriksa kondisi akhir pertempuran (Win/Lose) dan memperbarui bState jika perlu.
+ * @param {object} bStateRef - Referensi objek battle_state yang akan dimodifikasi.
+ * @returns {boolean} - True jika pertempuran berakhir, false jika tidak.
+ */
+function checkBattleEndConditions(bStateRef) {
+    // Jangan periksa jika pertempuran sudah berakhir atau error
+    if (bStateRef.battleState !== "Ongoing") {
+        return false;
+    }
+
+    const aliveAllies = bStateRef.units.filter(u => u.type === 'Ally' && u.status !== 'Defeated').length;
+    const aliveEnemies = bStateRef.units.filter(u => u.type === 'Enemy' && u.status !== 'Defeated').length;
+
+    if (aliveEnemies === 0 && aliveAllies > 0) {
+        bStateRef.battleState = "Win";
+        bStateRef.battleMessage = "Victory!";
+        bStateRef.activeUnitID = null; // Tidak ada lagi unit yang aktif
+        scriptLogger("BATTLE_END: All enemies defeated. Player wins!");
+        return true;
+    } else if (aliveAllies === 0) {
+        bStateRef.battleState = "Lose";
+        bStateRef.battleMessage = "Defeat...";
+        bStateRef.activeUnitID = null;
+        scriptLogger("BATTLE_END: All allies defeated. Player loses!");
+        return true;
+    }
+
+    return false; // Pertempuran berlanjut
+}
 
 // --- MAIN SCRIPT LOGIC ---
 let bState;
@@ -153,9 +183,14 @@ try {
         effectsSummary: [`${defender.name} (-${damageResult.totalDamage} HP)`]
     };
     
-    // 5. Set actor status to 'EndTurn'
-    attacker.status = "EndTurn";
-    scriptLogger(`STATUS: ${attacker.name}'s status changed to EndTurn.`);
+    // 5. Check for battle end conditions BEFORE setting status to EndTurn
+    const battleEnded = checkBattleEndConditions(bState);
+
+    // 6. Set actor status to 'EndTurn' only if the battle is still ongoing
+    if (!battleEnded) {
+        attacker.status = "EndTurn";
+        scriptLogger(`STATUS: ${attacker.name}'s status changed to EndTurn.`);
+    }
 
 } catch (e) {
     scriptLogger("BASIC_ATTACK_PROC_ERROR: " + e.message + " | Stack: " + e.stack);

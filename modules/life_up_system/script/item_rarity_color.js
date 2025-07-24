@@ -21,10 +21,12 @@ const log = (message) => {
 try {
     // 1. Define the color mapping for each rarity.
     const rarityColors = {
-        common: '#95a5a6',    // Neutral Gray
-        rare: '#3498db',      // Bright Blue
-        epic: '#9b59b6',      // Majestic Purple
-        legendary: '#f1c40f'  // Legendary Gold
+    common: '#2ecc71',     // Vibrant Green (Common)
+    rare: '#3498db',       // Bright Blue
+    epic: '#9b59b6',       // Majestic Purple
+    legendary: '#f1c40f',  // Legendary Gold
+    mythic: '#e67e22',     // Fiery Orange (Mythic Flame)
+    ethereal: '#C8F4F9'    // Dreamy Turquoise (Ethereal Glow)
     };
 
     // 2. Retrieve the JSON data from the Tasker variable.
