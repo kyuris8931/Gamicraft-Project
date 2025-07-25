@@ -122,43 +122,49 @@ try {
     scriptLogger(`Step 6: Performing ${finalItemCount} weighted draws (Layer 4)...`);
     const aggregatedResults = new Map();
 
-    for (let i = 0; i < finalItemCount; i++) {
-        let totalWeight = 0;
-        rewardPool.forEach(item => {
-            if (item.custom_weight !== undefined) {
-                totalWeight += item.custom_weight;
-            } else if (item.rarity && adjustedWeights.hasOwnProperty(item.rarity)) {
-                totalWeight += adjustedWeights[item.rarity];
+    // 1. Hitung total bobot untuk RARITY satu kali saja
+    const totalRarityWeight = Object.values(adjustedWeights).reduce((sum, weight) => sum + weight, 0);
+
+    if (totalRarityWeight > 0) {
+        for (let i = 0; i < finalItemCount; i++) {
+            // --- Langkah 1: Lakukan Undian untuk Menentukan Rarity ---
+            let randomRarity = Math.random() * totalRarityWeight;
+            let chosenRarity = null;
+            for (const rarity in adjustedWeights) {
+                randomRarity -= adjustedWeights[rarity];
+                if (randomRarity <= 0) {
+                    chosenRarity = rarity;
+                    break;
+                }
             }
-        });
 
-        if (totalWeight === 0) {
-            scriptLogger("   - WARNING: Total weight is zero, cannot perform draw. Skipping.");
-            continue;
-        }
+            if (chosenRarity) {
+                // --- Langkah 2: Kumpulkan semua item dari rarity yang terpilih ---
+                const itemsInChosenRarity = rewardPool.filter(item => item.rarity === chosenRarity);
 
-        let random = Math.random() * totalWeight;
-        let chosenItem = null;
+                if (itemsInChosenRarity.length > 0) {
+                    // --- Langkah 3: Lakukan undian biasa (tanpa bobot) di antara item-item tersebut ---
+                    const randomIndex = Math.floor(Math.random() * itemsInChosenRarity.length);
+                    const chosenItem = itemsInChosenRarity[randomIndex];
 
-        for (const item of rewardPool) {
-            const currentWeight = item.custom_weight !== undefined ? item.custom_weight : (adjustedWeights[item.rarity] || 0);
-            if (random < currentWeight) {
-                chosenItem = item;
-                break;
+                    if (chosenItem) {
+                        scriptLogger(`   - Roll #${i+1}: Rarity roll got "${chosenRarity}". Item roll got "${chosenItem.name}".`);
+                        const currentQuantity = aggregatedResults.get(chosenItem.name)?.quantity || 0;
+                        aggregatedResults.set(chosenItem.name, {
+                            name: chosenItem.name,
+                            quantity: currentQuantity + 1,
+                            rarity: chosenItem.rarity
+                        });
+                    }
+                } else {
+                    scriptLogger(`   - WARNING: Rarity "${chosenRarity}" was chosen, but no items with this rarity were found in the pool.`);
+                }
             }
-            random -= currentWeight;
         }
-
-        if (chosenItem) {
-            scriptLogger(`   - Roll #${i+1}: Won "${chosenItem.name}" (Rarity: ${chosenItem.rarity})`);
-            const currentQuantity = aggregatedResults.get(chosenItem.name)?.quantity || 0;
-            aggregatedResults.set(chosenItem.name, {
-                name: chosenItem.name,
-                quantity: currentQuantity + 1,
-                rarity: chosenItem.rarity
-            });
-        }
+    } else {
+        scriptLogger("   - WARNING: Total rarity weight is zero, cannot perform any draws.");
     }
+
 
     // --- FINAL STEP: INJECT RESULTS & FORMAT OUTPUT ---
     scriptLogger("Step 7: Injecting rewards into battle_state and formatting output...");

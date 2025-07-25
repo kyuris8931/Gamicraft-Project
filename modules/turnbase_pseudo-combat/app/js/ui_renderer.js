@@ -949,19 +949,28 @@ function renderBattleEndScreen(bState) {
     spoilsContentEl.style.maxHeight = '0px';
     expToggleEl.classList.remove('is-open');
 
-    // Render Rewards dengan gaya baru
+    // Render Rewards (dengan pengurutan berdasarkan rarity)
     if (summary.rewards?.length > 0) {
+        // Objek untuk menentukan urutan rarity
+        const rarityOrder = {
+            common: 1,
+            rare: 2,
+            epic: 3,
+            legendary: 4
+        };
+
+        // Urutkan array 'rewards' berdasarkan nilai dari rarityOrder
+        summary.rewards.sort((a, b) => {
+            const rarityA = rarityOrder[a.rarity.toLowerCase()] || 0;
+            const rarityB = rarityOrder[b.rarity.toLowerCase()] || 0;
+            return rarityA - rarityB;
+        });
+
+        // Loop melalui array yang sudah diurutkan untuk menampilkannya
         summary.rewards.forEach(reward => {
             const rewardP = document.createElement('p');
             rewardP.className = 'reward-item-entry';
-            const rarityColors = {
-                common: '#2ecc71',     // Vibrant Green (Common)
-                rare: '#3498db',       // Bright Blue
-                epic: '#9b59b6',       // Majestic Purple
-                legendary: '#f1c40f',  // Legendary Gold
-                mythic: '#e67e22',     // Fiery Orange (Mythic Flame)
-                ethereal: '#C8F4F9'    // Dreamy Turquoise (Ethereal Glow)
-            };
+            const rarityColors = { common: '#95a5a6', rare: '#3498db', epic: '#9b59b6', legendary: '#f1c40f' };
             rewardP.style.color = rarityColors[reward.rarity.toLowerCase()] || 'var(--color-text-primary)';
             rewardP.textContent = `${reward.name} x${reward.quantity}`;
             rewardsContainer.appendChild(rewardP);

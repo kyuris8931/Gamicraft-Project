@@ -40,7 +40,7 @@
     "name": "Oracle's Booth Ticket",
     "description": "A ticket for a 3-minute consultation at the Oracle's Booth. Ask your questions and see what revelations the Aetheric data-stream unveils.",
     "icon": "https://raw.githubusercontent.com/kyuris8931/gamicraft-icons/refs/heads/main/items/oracle's_booth_ticket.png",
-    "rarity": "rare",
+    "rarity": "epic",
     "category": "carnival_ticket",
     "broadcast": false,
     "escalation": true,
