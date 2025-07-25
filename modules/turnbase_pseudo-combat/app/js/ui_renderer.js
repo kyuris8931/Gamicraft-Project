@@ -970,7 +970,7 @@ function renderBattleEndScreen(bState) {
         summary.rewards.forEach(reward => {
             const rewardP = document.createElement('p');
             rewardP.className = 'reward-item-entry';
-            const rarityColors = { common: '#95a5a6', rare: '#3498db', epic: '#9b59b6', legendary: '#f1c40f' };
+            const rarityColors = { common: '#95a5a6', uncommon: '#2ecc71', rare: '#3498db', epic: '#9b59b6', legendary: '#f1c40f', mythic: '#e67e22', ethereal: '#e74c3c' };
             rewardP.style.color = rarityColors[reward.rarity.toLowerCase()] || 'var(--color-text-primary)';
             rewardP.textContent = `${reward.name} x${reward.quantity}`;
             rewardsContainer.appendChild(rewardP);
