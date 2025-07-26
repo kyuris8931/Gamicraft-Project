@@ -6,15 +6,17 @@
   "success_filter_chance": 0.5,
   "rarity_weights": {
     "base": {
-      "common": 27,
+      "common": 81,
+      "uncommon": 27,
       "rare": 9,
       "epic": 3,
       "legendary": 1
     },
     "level_modifier": {
-      "rare": 0.05,
-      "epic": 0.075,
-      "legendary": 0.1
+      "uncommon": 0.15,
+      "rare": 0.2,
+      "epic": 0.25,
+      "legendary": 0.3
     }
   }
 }

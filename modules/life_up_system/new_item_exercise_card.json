@@ -20,7 +20,7 @@
     "category": "lootbox_ticket",
     "broadcast": false,
     "escalation": true,
-    "price": 3,
+    "price": 1,
     "reset_daily": true
   },
   {

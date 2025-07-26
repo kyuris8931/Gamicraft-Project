@@ -954,9 +954,12 @@ function renderBattleEndScreen(bState) {
         // Objek untuk menentukan urutan rarity
         const rarityOrder = {
             common: 1,
-            rare: 2,
-            epic: 3,
-            legendary: 4
+            uncommon: 2,
+            rare: 3,
+            epic: 4,
+            legendary: 5,
+            mythic: 6,
+            ethereal: 7
         };
 
         // Urutkan array 'rewards' berdasarkan nilai dari rarityOrder
